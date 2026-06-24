@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+      http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+  <group name="General">
+    <entry name="latitude" type="Double">
+      <default>23.1765</default>
+    </entry>
+    <entry name="longitude" type="Double">
+      <default>75.7885</default>
+    </entry>
+    <entry name="altitude" type="Double">
+      <default>0.0</default>
+    </entry>
+    <entry name="timezone" type="Double">
+      <default>5.5</default>
+    </entry>
+    <entry name="locationName" type="String">
+      <default>Ujjain</default>
+    </entry>
+    <entry name="lang" type="String">
+      <default>en</default>
+    </entry>
+    <entry name="calendarSystem" type="String">
+      <default>shaka</default>
+    </entry>
+    <entry name="monthSystem" type="String">
+      <default>amavasyanta</default>
+    </entry>
+    <entry name="festivalRule" type="String">
+      <default>vaishnava</default>
+    </entry>
+    <entry name="tithiMode" type="String">
+      <default>sunrise</default>
+    </entry>
+  </group>
+</kcfg>

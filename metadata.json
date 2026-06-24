@@ -1,0 +1,21 @@
+{
+    "KPlugin": {
+        "Name": "Kālayantra (कालयन्त्र)",
+        "Description": "Offline Hindu Calendar & Astronomical Panchanga powered by Swiss Ephemeris",
+        "Icon": "office-calendar",
+        "Id": "org.kde.plasma.kalayantra",
+        "Version": "1.0",
+        "Website": "https://github.com/vvpai9/Kalayantra",
+        "Authors": [
+            {
+                "Name": "V. V. Pai",
+                "Email": "vvpai@example.com"
+            }
+        ],
+        "License": "GPL-3.0",
+        "ServiceTypes": [
+            "Plasma/Applet"
+        ]
+    },
+    "KPackageStructure": "Plasma/Applet"
+}
