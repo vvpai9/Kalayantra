@@ -80,7 +80,82 @@ Item {
         return grid;
     }
 
+    // Slide animation properties
+    property string slideDirection: "none"
+    property string tempMasaName: ""
+    property int tempShakaYear: 0
+    property string tempTargetDate: ""
+
+    function commitGridData() {
+        selectedMasaName = tempMasaName;
+        selectedShakaYear = tempShakaYear;
+        updateGrid();
+        
+        if (tempTargetDate) {
+            var foundTargetInMonth = null;
+            for (var j = 0; j < selectedMonthDays.length; j++) {
+                if (selectedMonthDays[j].date === tempTargetDate) {
+                    foundTargetInMonth = selectedMonthDays[j];
+                    break;
+                }
+            }
+            if (foundTargetInMonth) {
+                selectedDayData = foundTargetInMonth;
+            } else if (selectedMonthDays.length > 0) {
+                selectedDayData = selectedMonthDays[0];
+            }
+        }
+    }
+
+    SequentialAnimation {
+        id: slideAnimation
+        
+        ParallelAnimation {
+            NumberAnimation {
+                target: calendarGrid
+                property: "x"
+                to: slideDirection === "next" ? -150 : (slideDirection === "prev" ? 150 : 0)
+                duration: 120
+                easing.type: Easing.OutQuad
+            }
+            NumberAnimation {
+                target: calendarGrid
+                property: "opacity"
+                to: slideDirection === "none" ? 1.0 : 0.0
+                duration: 120
+            }
+        }
+        
+        ScriptAction {
+            script: {
+                commitGridData();
+                calendarGrid.x = slideDirection === "next" ? 150 : (slideDirection === "prev" ? -150 : 0);
+            }
+        }
+        
+        ParallelAnimation {
+            NumberAnimation {
+                target: calendarGrid
+                property: "x"
+                to: 0
+                duration: 150
+                easing.type: Easing.OutQuad
+            }
+            NumberAnimation {
+                target: calendarGrid
+                property: "opacity"
+                to: 1.0
+                duration: 150
+            }
+        }
+        
+        onFinished: {
+            slideDirection = "none";
+        }
+    }
+
     function prevHinduMonth() {
+        slideDirection = "prev";
         var days = selectedMonthDays;
         if (days.length === 0) return;
         
@@ -100,6 +175,7 @@ Item {
     }
 
     function nextHinduMonth() {
+        slideDirection = "next";
         var days = selectedMonthDays;
         if (days.length === 0) return;
         
@@ -118,7 +194,6 @@ Item {
         root.fetchThreeMonths(targetY, targetM);
     }
 
-    // Refresh grid items when three-month window data changes
     function initializeData() {
         if (root.threeMonthsData && root.threeMonthsData.length > 0) {
             var targetDate = pendingSelectDate;
@@ -126,7 +201,6 @@ Item {
                 targetDate = root.getTodayString();
             }
             
-            // Find the day with targetDate in threeMonthsData
             var foundDay = null;
             for (var i = 0; i < root.threeMonthsData.length; i++) {
                 if (root.threeMonthsData[i] && root.threeMonthsData[i].date === targetDate) {
@@ -135,31 +209,19 @@ Item {
                 }
             }
             
-            // If not found, fall back to first day in threeMonthsData
             if (!foundDay && root.threeMonthsData.length > 0) {
                 foundDay = root.threeMonthsData[0];
             }
             
             if (foundDay) {
-                selectedMasaName = foundDay.masa;
-                selectedShakaYear = foundDay.shaka_year;
-            }
-            
-            updateGrid();
-            
-            // Also select the day in details panel
-            if (foundDay) {
-                var foundTargetInMonth = null;
-                for (var j = 0; j < selectedMonthDays.length; j++) {
-                    if (selectedMonthDays[j].date === targetDate) {
-                        foundTargetInMonth = selectedMonthDays[j];
-                        break;
-                    }
-                }
-                if (foundTargetInMonth) {
-                    selectedDayData = foundTargetInMonth;
-                } else if (selectedMonthDays.length > 0) {
-                    selectedDayData = selectedMonthDays[0];
+                tempMasaName = foundDay.masa;
+                tempShakaYear = foundDay.shaka_year;
+                tempTargetDate = targetDate;
+                
+                if (slideDirection === "none") {
+                    commitGridData();
+                } else {
+                    slideAnimation.start();
                 }
             }
             
@@ -218,7 +280,7 @@ Item {
                     }
 
                     Label {
-                        text: `Śaka ${selectedShakaYear}`
+                        text: (selectedMonthDays && selectedMonthDays.length > 0) ? `${selectedMonthDays[0].era_name} ${selectedMonthDays[0].era_year}` : `Śaka ${selectedShakaYear}`
                         font.bold: true
                         font.pixelSize: Kirigami.Units.gridUnit * 0.8
                         Layout.fillWidth: true
@@ -273,14 +335,21 @@ Item {
                 }
             }
 
-            // Calendar Grid containing both Week Header and Days
-            GridLayout {
-                id: calendarGrid
-                columns: 7
+            // Viewport container to enable slide/swipe animations
+            Item {
+                id: gridViewport
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                columnSpacing: Kirigami.Units.smallSpacing
-                rowSpacing: Kirigami.Units.smallSpacing
+                clip: true
+
+                // Calendar Grid containing both Week Header and Days
+                GridLayout {
+                    id: calendarGrid
+                    width: parent.width
+                    height: parent.height
+                    columns: 7
+                    columnSpacing: Kirigami.Units.smallSpacing
+                    rowSpacing: Kirigami.Units.smallSpacing
 
                 // Weekday Header Labels (Row 1)
                 Repeater {
@@ -384,6 +453,7 @@ Item {
                     }
                 }
             }
+        }
         }
 
         // Right/Bottom Panel: Panchanga Details Card

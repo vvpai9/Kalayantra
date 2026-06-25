@@ -19,10 +19,14 @@ echo -e "${BLUE}[2/4] Registering systemd user service...${NC}"
 USER_SYSTEMD_DIR="${HOME}/.config/systemd/user"
 mkdir -p "${USER_SYSTEMD_DIR}"
 
-SERVICE_FILE="${USER_SYSTEMD_DIR}/kalayantra-backend.service"
+# Disable and clean up legacy backend service
+systemctl --user disable --now kalayantra-backend.service >/dev/null 2>&1 || true
+rm -f "${USER_SYSTEMD_DIR}/kalayantra-backend.service"
+
+SERVICE_FILE="${USER_SYSTEMD_DIR}/kalachakra.service"
 cat << EOF > "${SERVICE_FILE}"
 [Unit]
-Description=Kālayantra Panchanga Backend Service
+Description=Kālachakra Panchanga Engine
 After=default.target
 
 [Service]
@@ -37,14 +41,14 @@ EOF
 
 echo -e "${BLUE}[3/4] Enabling and starting systemd service...${NC}"
 systemctl --user daemon-reload
-systemctl --user enable kalayantra-backend.service
-systemctl --user restart kalayantra-backend.service
+systemctl --user enable kalachakra.service
+systemctl --user restart kalachakra.service
 
 # Verify service is running
-if systemctl --user is-active kalayantra-backend.service >/dev/null 2>&1; then
-    echo -e "${GREEN}✓ Backend service started successfully on port 8642.${NC}"
+if systemctl --user is-active kalachakra.service >/dev/null 2>&1; then
+    echo -e "${GREEN}✓ Kālachakra Panchanga Engine started successfully on port 8642.${NC}"
 else
-    echo -e "${RED}✗ Warning: Backend service failed to start or status is active. Please check systemctl --user status kalayantra-backend.service${NC}"
+    echo -e "${RED}✗ Warning: Engine failed to start. Please check systemctl --user status kalachakra.service${NC}"
 fi
 
 # 3. Install Plasma 6 Plasmoid

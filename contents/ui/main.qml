@@ -8,7 +8,28 @@ PlasmoidItem {
     width: Kirigami.Units.gridUnit * 35
     height: Kirigami.Units.gridUnit * 25
 
-    toolTipMainText: currentPanchanga ? `${currentPanchanga.masa} • ${currentPanchanga.paksha} ${plasmoid.configuration.lang === "devanagari" ? "पक्ष" : "Paksha"} • ${currentPanchanga.tithi}` : i18n("Kālayantra")
+    // Bind to configuration to ensure reactivity
+    readonly property string configLang: plasmoid.configuration.lang
+    readonly property double configLatitude: plasmoid.configuration.latitude
+    readonly property double configLongitude: plasmoid.configuration.longitude
+    readonly property double configAltitude: plasmoid.configuration.altitude
+    readonly property double configTimezone: plasmoid.configuration.timezone
+    readonly property string configCalendarSystem: plasmoid.configuration.calendarSystem
+    readonly property string configMonthSystem: plasmoid.configuration.monthSystem
+    readonly property string configFestivalRule: plasmoid.configuration.festivalRule
+    readonly property string configTithiMode: plasmoid.configuration.tithiMode
+
+    onConfigLangChanged: reloadAll()
+    onConfigLatitudeChanged: reloadAll()
+    onConfigLongitudeChanged: reloadAll()
+    onConfigAltitudeChanged: reloadAll()
+    onConfigTimezoneChanged: reloadAll()
+    onConfigCalendarSystemChanged: reloadAll()
+    onConfigMonthSystemChanged: reloadAll()
+    onConfigFestivalRuleChanged: reloadAll()
+    onConfigTithiModeChanged: reloadAll()
+
+    toolTipMainText: currentPanchanga ? `${currentPanchanga.masa} • ${currentPanchanga.paksha} ${configLang === "devanagari" ? "पक्ष" : "Paksha"} • ${currentPanchanga.tithi}` : i18n("Kālayantra")
     toolTipSubText: currentPanchanga ? (
         `Sunrise: ${currentPanchanga.sunrise}\n` +
         `Sunset: ${currentPanchanga.sunset}\n\n` +
@@ -43,15 +64,15 @@ PlasmoidItem {
     // Build query parameters string from plasmoid settings
     function buildQueryString(extraParams) {
         var params = [
-            `lat=${plasmoid.configuration.latitude}`,
-            `lon=${plasmoid.configuration.longitude}`,
-            `alt=${plasmoid.configuration.altitude}`,
-            `tz=${plasmoid.configuration.timezone}`,
-            `lang=${plasmoid.configuration.lang}`,
-            `calendar_system=${plasmoid.configuration.calendarSystem}`,
-            `month_system=${plasmoid.configuration.monthSystem}`,
-            `festival_rule=${plasmoid.configuration.festivalRule}`,
-            `tithi_mode=${plasmoid.configuration.tithiMode}`
+            `lat=${configLatitude}`,
+            `lon=${configLongitude}`,
+            `alt=${configAltitude}`,
+            `tz=${configTimezone}`,
+            `lang=${configLang}`,
+            `calendar_system=${configCalendarSystem}`,
+            `month_system=${configMonthSystem}`,
+            `festival_rule=${configFestivalRule}`,
+            `tithi_mode=${configTithiMode}`
         ];
         if (extraParams) {
             params.push(extraParams);
@@ -137,19 +158,7 @@ PlasmoidItem {
         fetchThreeMonths(currentYear, currentMonth);
     }
 
-    // Configuration change connections
-    Connections {
-        target: plasmoid.configuration
-        function onLatitudeChanged() { reloadAll() }
-        function onLongitudeChanged() { reloadAll() }
-        function onAltitudeChanged() { reloadAll() }
-        function onTimezoneChanged() { reloadAll() }
-        function onLangChanged() { reloadAll() }
-        function onCalendarSystemChanged() { reloadAll() }
-        function onMonthSystemChanged() { reloadAll() }
-        function onFestivalRuleChanged() { reloadAll() }
-        function onTithiModeChanged() { reloadAll() }
-    }
+
 
     // Periodic timer to sync current day data and update Ghadi-Vipal time
     Timer {

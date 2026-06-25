@@ -67,7 +67,7 @@ Item {
             Kirigami.Heading {
                 id: secondLine
                 level: 6
-                text: root.currentPanchanga ? `${root.currentPanchanga.masa} ${root.currentPanchanga.paksha} • ${root.currentPanchanga.samvatsara} ${root.currentPanchanga.shaka_year}` : ""
+                text: root.currentPanchanga ? `${root.currentPanchanga.masa} ${root.currentPanchanga.paksha} • ${root.currentPanchanga.samvatsara} ${root.currentPanchanga.era_year}` : ""
                 font.pixelSize: Kirigami.Units.gridUnit * 0.6
                 opacity: 0.7
                 elide: Text.ElideRight

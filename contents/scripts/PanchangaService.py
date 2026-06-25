@@ -17,7 +17,7 @@ SAMVATSARAS = {
         "Khara", "Nandana", "Vijaya", "Jaya", "Manmatha", "Durmukha", "Hemalamba", "Vilamba",
         "Vikari", "Sharvari", "Plava", "Shubhakrit", "Shobhakrit", "Krodhi", "Vishvavasu", "Parabhava",
         "Plavanga", "Kilaka", "Saumya", "Sadharana", "Virodhikrit", "Paridhavi", "Pramadi", "Ananda",
-        "Rakshasa", "Anala", "Pingala", "Kalayukta", "Siddharthi", "Raudra", "Durmati", "Dundubhi",
+        "Rakshasa", "Anala", "Pingala", "Kalayukta", "Siddharthi", "Raudri", "Durmati", "Dundubhi",
         "Rudhiraudgari", "Raktakshi", "Krodhana", "Kshaya"
     ],
     "iast": [
@@ -27,7 +27,7 @@ SAMVATSARAS = {
         "Khara", "Nandana", "Vijaya", "Jaya", "Manmatha", "Durmukha", "Hemalamba", "Vilamba",
         "Vikārin", "Śārvarī", "Plava", "Śubhakṛt", "Śobhakṛt", "Krodhin", "Viśvāvasu", "Parābhava",
         "Plavaṅga", "Kīlaka", "Saumya", "Sādhāraṇa", "Virodhakṛt", "Paridhāvin", "Pramādin", "Ānanda",
-        "Rākṣasa", "Anala", "Piṅgala", "Kālayukta", "Siddhārthin", "Raudra", "Durmati", "Dundubhi",
+        "Rākṣasa", "Anala", "Piṅgala", "Kālayukta", "Siddhārthin", "Raudrī", "Durmati", "Dundubhi",
         "Rudhiraudgārin", "Raktākṣī", "Krodhana", "Akṣaya"
     ],
     "devanagari": [
@@ -411,8 +411,14 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="sunrise
     kali_year = shaka_year + 3179
     
     # Samvatsara Jovian Cycle (60 year cycle names, 0-indexed where 39 = Parabhava)
-    samvatsara_idx = (shaka_year + 11) % 60
+    if calendar_system in ["vikram", "kartak"]:
+        samvatsara_idx = (vikram_year + 10) % 60
+    else:
+        samvatsara_idx = (shaka_year + 11) % 60
     samvatsara_name = SAMVATSARAS[lang][samvatsara_idx]
+    
+    era_year = vikram_year if calendar_system in ["vikram", "kartak"] else shaka_year
+    era_name = "Vikram" if calendar_system in ["vikram", "kartak"] else ("शक" if lang == "devanagari" else ("Śaka" if lang == "iast" else "Shaka"))
     
     # 8. Auspicious & Inauspicious daytime segments
     # Dividing the daytime into 8 equal parts
@@ -600,6 +606,8 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="sunrise
         "shaka_year": shaka_year,
         "vikram_year": vikram_year,
         "kali_year": kali_year,
+        "era_year": era_year,
+        "era_name": era_name,
         "sunrise": jd_to_time_str(sunrise_jd),
         "sunset": jd_to_time_str(sunset_jd),
         "moonrise": jd_to_time_str(moonrise_jd),
@@ -710,7 +718,7 @@ class PanchangaRequestHandler(BaseHTTPRequestHandler):
 def run(port=8642):
     server_address = ('127.0.0.1', port)
     httpd = HTTPServer(server_address, PanchangaRequestHandler)
-    print(f"Kālayantra Panchanga Service starting on port {port}...")
+    print(f"Kālachakra Panchanga Engine starting on port {port}...")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

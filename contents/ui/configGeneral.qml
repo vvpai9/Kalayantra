@@ -13,11 +13,11 @@ Kirigami.FormLayout {
     property alias cfg_altitude: altField.text
     property alias cfg_timezone: tzField.text
 
-    property string cfg_lang: langCombo.currentValue
-    property string cfg_calendarSystem: calCombo.currentValue
-    property string cfg_monthSystem: monthCombo.currentValue
-    property string cfg_festivalRule: festCombo.currentValue
-    property string cfg_tithiMode: tithiCombo.currentValue
+    property string cfg_lang
+    property string cfg_calendarSystem
+    property string cfg_monthSystem
+    property string cfg_festivalRule
+    property string cfg_tithiMode
 
     // Quick location presets
     property var presets: [
@@ -91,8 +91,17 @@ Kirigami.FormLayout {
             {"text": "Sanskrit (IAST)", "value": "iast"},
             {"text": "Devanagari (Sanskrit/Hindi)", "value": "devanagari"}
         ]
+        onActivated: {
+            page.cfg_lang = currentValue;
+        }
         Component.onCompleted: {
-            currentIndex = indexOfValue(plasmoid.configuration.lang);
+            currentIndex = indexOfValue(page.cfg_lang);
+        }
+        Connections {
+            target: page
+            function onCfg_langChanged() {
+                langCombo.currentIndex = langCombo.indexOfValue(page.cfg_lang);
+            }
         }
     }
 
@@ -106,8 +115,17 @@ Kirigami.FormLayout {
             {"text": "Vikram Samvat (Chaitradi)", "value": "vikram"},
             {"text": "Vikram Kartak (Kartikadi)", "value": "kartak"}
         ]
+        onActivated: {
+            page.cfg_calendarSystem = currentValue;
+        }
         Component.onCompleted: {
-            currentIndex = indexOfValue(plasmoid.configuration.calendarSystem);
+            currentIndex = indexOfValue(page.cfg_calendarSystem);
+        }
+        Connections {
+            target: page
+            function onCfg_calendarSystemChanged() {
+                calCombo.currentIndex = calCombo.indexOfValue(page.cfg_calendarSystem);
+            }
         }
     }
 
@@ -120,8 +138,17 @@ Kirigami.FormLayout {
             {"text": "Amavasyanta (Ends on New Moon)", "value": "amavasyanta"},
             {"text": "Purnimanta (Ends on Full Moon)", "value": "purnimanta"}
         ]
+        onActivated: {
+            page.cfg_monthSystem = currentValue;
+        }
         Component.onCompleted: {
-            currentIndex = indexOfValue(plasmoid.configuration.monthSystem);
+            currentIndex = indexOfValue(page.cfg_monthSystem);
+        }
+        Connections {
+            target: page
+            function onCfg_monthSystemChanged() {
+                monthCombo.currentIndex = monthCombo.indexOfValue(page.cfg_monthSystem);
+            }
         }
     }
 
@@ -134,8 +161,17 @@ Kirigami.FormLayout {
             {"text": "Vaishnava (Default, Ekadashi rules)", "value": "vaishnava"},
             {"text": "Smarta", "value": "smarta"}
         ]
+        onActivated: {
+            page.cfg_festivalRule = currentValue;
+        }
         Component.onCompleted: {
-            currentIndex = indexOfValue(plasmoid.configuration.festivalRule);
+            currentIndex = indexOfValue(page.cfg_festivalRule);
+        }
+        Connections {
+            target: page
+            function onCfg_festivalRuleChanged() {
+                festCombo.currentIndex = festCombo.indexOfValue(page.cfg_festivalRule);
+            }
         }
     }
 
@@ -148,8 +184,17 @@ Kirigami.FormLayout {
             {"text": "Sunrise Tithi (Traditional Day)", "value": "sunrise"},
             {"text": "Astronomical Tithi (Real-time)", "value": "astronomical"}
         ]
+        onActivated: {
+            page.cfg_tithiMode = currentValue;
+        }
         Component.onCompleted: {
-            currentIndex = indexOfValue(plasmoid.configuration.tithiMode);
+            currentIndex = indexOfValue(page.cfg_tithiMode);
+        }
+        Connections {
+            target: page
+            function onCfg_tithiModeChanged() {
+                tithiCombo.currentIndex = tithiCombo.indexOfValue(page.cfg_tithiMode);
+            }
         }
     }
 }
