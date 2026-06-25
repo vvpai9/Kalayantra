@@ -1,15 +1,29 @@
 import QtQuick
-import QtQuick.Controls as Controls
-import QtQuick.Layouts as Layouts
+import QtQuick.Controls
+import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
 Item {
     id: fullRoot
-    implicitWidth: Kirigami.Units.gridUnit * 35
-    implicitHeight: Kirigami.Units.gridUnit * 25
+    implicitWidth: 720
+    implicitHeight: 500
 
+    Layout.preferredWidth: implicitWidth
+    Layout.preferredHeight: implicitHeight
+    Layout.minimumWidth: 640
+    Layout.minimumHeight: 440
+    
     property var selectedDayData: null
     property var gridItems: []
+
+    // Hindu month navigation state
+    property string selectedMasaName: ""
+    property int selectedShakaYear: 0
+    property string pendingSelectDate: ""
+    property var selectedMonthDays: []
+
+    onSelectedMasaNameChanged: updateGrid()
+    onSelectedShakaYearChanged: updateGrid()
 
     // Helper to format Gregorian Month name
     function getGregorianMonthName(m) {
@@ -21,69 +35,247 @@ Item {
         return names[m - 1];
     }
 
-    // Refresh grid items when month data changes
-    onMonthDataChanged: {
-        gridItems = root.generateGridItems(root.currentYear, root.currentMonth, root.monthData);
-        // Default select current day or day 1
-        if (root.monthData && root.monthData.length > 0) {
-            var todayStr = root.getTodayString();
-            var foundToday = false;
-            for (var i = 0; i < root.monthData.length; i++) {
-                if (root.monthData[i].date === todayStr) {
-                    selectedDayData = root.monthData[i];
-                    foundToday = true;
+    // Filter and update the active grid list
+    function updateGrid() {
+        var days = [];
+        if (root.threeMonthsData) {
+            for (var i = 0; i < root.threeMonthsData.length; i++) {
+                var day = root.threeMonthsData[i];
+                if (day && day.masa === selectedMasaName && day.shaka_year === selectedShakaYear) {
+                    days.push(day);
+                }
+            }
+        }
+        selectedMonthDays = days;
+        gridItems = generateHinduGridItems(days);
+    }
+
+    function generateHinduGridItems(days) {
+        if (!days || days.length === 0) return [];
+        
+        var grid = [];
+        
+        // Find the weekday of the first day
+        var firstDayDate = new Date(days[0].date);
+        var firstWeekday = firstDayDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+        
+        // Front padding
+        for (var i = 0; i < firstWeekday; i++) {
+            grid.push({ "type": "empty" });
+        }
+        
+        // Days
+        for (var d = 0; d < days.length; d++) {
+            var dayData = days[d];
+            dayData.type = "day";
+            grid.push(dayData);
+        }
+        
+        // End padding to fill up to 42 cells
+        while (grid.length < 42) {
+            grid.push({ "type": "empty" });
+        }
+        
+        return grid;
+    }
+
+    function prevHinduMonth() {
+        var days = selectedMonthDays;
+        if (days.length === 0) return;
+        
+        var parts = days[0].date.split('-');
+        var date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        date.setDate(date.getDate() - 15);
+        
+        var targetY = date.getFullYear();
+        var targetM = date.getMonth() + 1;
+        var targetD = date.getDate();
+        
+        root.currentYear = targetY;
+        root.currentMonth = targetM;
+        
+        pendingSelectDate = `${targetY}-${String(targetM).padStart(2, '0')}-${String(targetD).padStart(2, '0')}`;
+        root.fetchThreeMonths(targetY, targetM);
+    }
+
+    function nextHinduMonth() {
+        var days = selectedMonthDays;
+        if (days.length === 0) return;
+        
+        var parts = days[days.length - 1].date.split('-');
+        var date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        date.setDate(date.getDate() + 15);
+        
+        var targetY = date.getFullYear();
+        var targetM = date.getMonth() + 1;
+        var targetD = date.getDate();
+        
+        root.currentYear = targetY;
+        root.currentMonth = targetM;
+        
+        pendingSelectDate = `${targetY}-${String(targetM).padStart(2, '0')}-${String(targetD).padStart(2, '0')}`;
+        root.fetchThreeMonths(targetY, targetM);
+    }
+
+    // Refresh grid items when three-month window data changes
+    function initializeData() {
+        if (root.threeMonthsData && root.threeMonthsData.length > 0) {
+            var targetDate = pendingSelectDate;
+            if (!targetDate) {
+                targetDate = root.getTodayString();
+            }
+            
+            // Find the day with targetDate in threeMonthsData
+            var foundDay = null;
+            for (var i = 0; i < root.threeMonthsData.length; i++) {
+                if (root.threeMonthsData[i] && root.threeMonthsData[i].date === targetDate) {
+                    foundDay = root.threeMonthsData[i];
                     break;
                 }
             }
-            if (!foundToday) {
-                selectedDayData = root.monthData[0];
+            
+            // If not found, fall back to first day in threeMonthsData
+            if (!foundDay && root.threeMonthsData.length > 0) {
+                foundDay = root.threeMonthsData[0];
             }
+            
+            if (foundDay) {
+                selectedMasaName = foundDay.masa;
+                selectedShakaYear = foundDay.shaka_year;
+            }
+            
+            updateGrid();
+            
+            // Also select the day in details panel
+            if (foundDay) {
+                var foundTargetInMonth = null;
+                for (var j = 0; j < selectedMonthDays.length; j++) {
+                    if (selectedMonthDays[j].date === targetDate) {
+                        foundTargetInMonth = selectedMonthDays[j];
+                        break;
+                    }
+                }
+                if (foundTargetInMonth) {
+                    selectedDayData = foundTargetInMonth;
+                } else if (selectedMonthDays.length > 0) {
+                    selectedDayData = selectedMonthDays[0];
+                }
+            }
+            
+            pendingSelectDate = "";
         }
     }
 
-    Layouts.GridLayout {
+    Component.onCompleted: {
+        initializeData();
+    }
+
+    // Refresh grid items when three-month window data changes
+    Connections {
+        target: root
+
+        function onThreeMonthsDataChanged() {
+            initializeData();
+        }
+    }
+
+    GridLayout {
         anchors.fill: parent
-        anchors.margin: Kirigami.Units.largeSpacing
+        anchors.margins: Kirigami.Units.largeSpacing
         columns: width > Kirigami.Units.gridUnit * 28 ? 2 : 1
         rows: width > Kirigami.Units.gridUnit * 28 ? 1 : 2
         columnSpacing: Kirigami.Units.largeSpacing
         rowSpacing: Kirigami.Units.largeSpacing
 
         // Left/Top Panel: Calendar Control & Grid
-        Layouts.ColumnLayout {
-            Layouts.fillWidth: true
-            Layouts.fillHeight: true
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
             spacing: Kirigami.Units.largeSpacing
 
             // Month Navigation Header
-            Layouts.RowLayout {
-                Layouts.fillWidth: true
+            RowLayout {
+                Layout.fillWidth: true
                 
-                Controls.Button {
+                Button {
                     icon.name: "go-previous"
                     flat: true
-                    onClicked: root.prevMonth()
+                    onClicked: prevHinduMonth()
                 }
 
-                Kirigami.Heading {
-                    level: 2
-                    text: `${getGregorianMonthName(root.currentMonth)} ${root.currentYear}`
-                    font.bold: true
-                    Layouts.fillWidth: true
-                    horizontalAlignment: Text.AlignHCenter
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    
+                    Kirigami.Heading {
+                        level: 3
+                        text: `${selectedMasaName} ${selectedDayData ? selectedDayData.paksha : ""} Paksha`
+                        font.bold: true
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        color: Kirigami.Theme.highlightColor
+                    }
+
+                    Label {
+                        text: `Śaka ${selectedShakaYear}`
+                        font.bold: true
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.8
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+
+                    Label {
+                        text: {
+                            var days = selectedMonthDays;
+                            if (days.length === 0) return "";
+                            var startDay = days[0];
+                            var endDay = days[days.length - 1];
+                            
+                            var startParts = startDay.date.split('-');
+                            var endParts = endDay.date.split('-');
+                            
+                            var getShortMonthName = function(m) {
+                                var names = [
+                                    i18n("Jan"), i18n("Feb"), i18n("Mar"), i18n("Apr"), 
+                                    i18n("May"), i18n("Jun"), i18n("Jul"), i18n("Aug"), 
+                                    i18n("Sep"), i18n("Oct"), i18n("Nov"), i18n("Dec")
+                                ];
+                                return names[m - 1];
+                            };
+                            
+                            var startMonth = getShortMonthName(parseInt(startParts[1]));
+                            var endMonth = getShortMonthName(parseInt(endParts[1]));
+                            
+                            var startD = parseInt(startParts[2]);
+                            var endD = parseInt(endParts[2]);
+                            
+                            var startY = startParts[0];
+                            var endY = endParts[0];
+                            
+                            if (startY === endY) {
+                                return `${startD} ${startMonth} – ${endD} ${endMonth} ${startY}`;
+                            } else {
+                                return `${startD} ${startMonth} ${startY} – ${endD} ${endMonth} ${endY}`;
+                            }
+                        }
+                        opacity: 0.7
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.75
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                    }
                 }
 
-                Controls.Button {
+                Button {
                     icon.name: "go-next"
                     flat: true
-                    onClicked: root.nextMonth()
+                    onClicked: nextHinduMonth()
                 }
             }
 
             // Days of the week header
-            Layouts.GridLayout {
+            GridLayout {
                 columns: 7
-                Layouts.fillWidth: true
+                Layout.fillWidth: true
                 columnSpacing: Kirigami.Units.smallSpacing
                 rowSpacing: 0
                 
@@ -93,24 +285,24 @@ Item {
                         i18n("Thu"), i18n("Fri"), i18n("Sat")
                     ]
                     
-                    Controls.Label {
+                    Label {
                         text: modelData
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter
                         font.pixelSize: Kirigami.Units.gridUnit * 0.75
                         opacity: 0.8
-                        Layouts.fillWidth: true
+                        Layout.fillWidth: true
                     }
                 }
             }
 
             // 6x7 Calendar Grid
-            Layouts.GridLayout {
+            GridLayout {
                 id: calendarGrid
                 columns: 7
                 rows: 6
-                Layouts.fillWidth: true
-                Layouts.fillHeight: true
+                Layout.fillWidth: true
+                Layout.fillHeight: true
                 columnSpacing: Kirigami.Units.smallSpacing
                 rowSpacing: Kirigami.Units.smallSpacing
 
@@ -119,14 +311,14 @@ Item {
 
                     Item {
                         id: cell
-                        Layouts.fillWidth: true
-                        Layouts.fillHeight: true
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
                         visible: modelData.type !== "empty"
 
                         Rectangle {
                             anchors.fill: parent
-                            radius: 6
-                            border.width: 1.5
+                            radius: 4
+                            border.width: 1
                             
                             // Visual theme logic based on Shukla/Krishna Pakshas
                             color: {
@@ -149,23 +341,24 @@ Item {
                             }
 
                             // Dynamic cell text content
-                            Layouts.ColumnLayout {
+                            ColumnLayout {
                                 anchors.centerIn: parent
                                 spacing: 1
                                 
-                                Controls.Label {
-                                    text: modelData.dayNumber || ""
+                                Label {
+                                    text: modelData.type === "day" ? modelData.tithi_num : ""
                                     font.bold: true
-                                    font.pixelSize: Kirigami.Units.gridUnit * 1.0
+                                    font.pixelSize: Kirigami.Units.gridUnit * 0.85
                                     color: modelData.is_krishna_paksha ? "#9eb1c2" : "#ffe473"
-                                    Layouts.alignment: Qt.AlignHCenter
+                                    Layout.alignment: Qt.AlignHCenter
                                 }
 
-                                Controls.Label {
-                                    text: modelData.type === "day" ? `${modelData.is_krishna_paksha ? "K" : "S"} ${modelData.tithi_num}` : ""
+                                Label {
+                                    text: modelData.type === "day" ? `(${parseInt(modelData.date.split('-')[2])})` : ""
                                     font.pixelSize: Kirigami.Units.gridUnit * 0.55
                                     opacity: 0.7
-                                    Layouts.alignment: Qt.AlignHCenter
+                                    color: modelData.is_krishna_paksha ? "#9eb1c2" : "#ffe473"
+                                    Layout.alignment: Qt.AlignHCenter
                                 }
                             }
 
@@ -178,7 +371,7 @@ Item {
                                 height: 5
                                 radius: 2.5
                                 color: "#ff4d4d"
-                                visible: modelData.festivals && modelData.festivals.length > 0
+                                visible: modelData && modelData.festivals ? modelData.festivals.length > 0 : false
                             }
                         }
 
@@ -198,8 +391,10 @@ Item {
         // Right/Bottom Panel: Panchanga Details Card
         Kirigami.Card {
             id: detailsCard
-            Layouts.fillWidth: true
-            Layouts.fillHeight: true
+            Layout.fillWidth: false
+            Layout.fillHeight: true
+            Layout.minimumWidth: 240
+            Layout.preferredWidth: 270
             
             // Slate/Warm tinted card background depending on Paksha
             background: Rectangle {
@@ -216,17 +411,17 @@ Item {
                 clip: true
                 contentHeight: detailsLayout.implicitHeight
                 
-                Layouts.ColumnLayout {
+                ColumnLayout {
                     id: detailsLayout
-                    anchors.fill: parent
+                    width: parent.width
                     spacing: Kirigami.Units.largeSpacing
 
                     // Detail Card Header
-                    Layouts.ColumnLayout {
-                        Layouts.fillWidth: true
+                    ColumnLayout {
+                        Layout.fillWidth: true
                         spacing: 2
 
-                        Controls.Label {
+                        Label {
                             text: fullRoot.selectedDayData ? fullRoot.selectedDayData.date : ""
                             font.pixelSize: Kirigami.Units.gridUnit * 0.75
                             opacity: 0.8
@@ -239,137 +434,145 @@ Item {
                             font.bold: true
                         }
 
-                        Controls.Label {
+                        Label {
                             text: fullRoot.selectedDayData ? `${fullRoot.selectedDayData.paksha} Paksha • ${fullRoot.selectedDayData.vaara}` : ""
                             font.bold: true
                             font.pixelSize: Kirigami.Units.gridUnit * 0.85
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
                         }
                     }
 
-                    Kirigami.Separator { Layouts.fillWidth: true }
+                    Kirigami.Separator { Layout.fillWidth: true }
 
                     // Detailed Astronomical Grid
-                    Layouts.GridLayout {
+                    GridLayout {
                         columns: 2
                         rowSpacing: Kirigami.Units.smallSpacing
                         columnSpacing: Kirigami.Units.largeSpacing
-                        Layouts.fillWidth: true
+                        Layout.fillWidth: true
 
                         // Row: Masa
-                        Controls.Label { text: i18n("Masa (Month):"); font.bold: true; opacity: 0.8 }
-                        Controls.Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.masa : "--" }
+                        Label { text: i18n("Masa (Month):"); font.bold: true; opacity: 0.8 }
+                        Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.masa : "--"; Layout.fillWidth: true; wrapMode: Text.WordWrap }
 
                         // Row: Nakshatra
-                        Controls.Label { text: i18n("Nakshatra:"); font.bold: true; opacity: 0.8 }
-                        Controls.Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.nakshatra : "--" }
+                        Label { text: i18n("Nakshatra:"); font.bold: true; opacity: 0.8 }
+                        Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.nakshatra : "--"; Layout.fillWidth: true; wrapMode: Text.WordWrap }
 
                         // Row: Yoga
-                        Controls.Label { text: i18n("Yoga:"); font.bold: true; opacity: 0.8 }
-                        Controls.Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.yoga : "--" }
+                        Label { text: i18n("Yoga:"); font.bold: true; opacity: 0.8 }
+                        Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.yoga : "--"; Layout.fillWidth: true; wrapMode: Text.WordWrap }
 
                         // Row: Karana
-                        Controls.Label { text: i18n("Karana:"); font.bold: true; opacity: 0.8 }
-                        Controls.Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.karana : "--" }
+                        Label { text: i18n("Karana:"); font.bold: true; opacity: 0.8 }
+                        Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.karana : "--"; Layout.fillWidth: true; wrapMode: Text.WordWrap }
 
                         // Row: Ritu & Ayana
-                        Controls.Label { text: i18n("Ritu & Ayana:"); font.bold: true; opacity: 0.8 }
-                        Controls.Label { text: fullRoot.selectedDayData ? `${fullRoot.selectedDayData.ritu} • ${fullRoot.selectedDayData.ayana}` : "--" }
+                        Label { text: i18n("Ritu & Ayana:"); font.bold: true; opacity: 0.8 }
+                        Label { text: fullRoot.selectedDayData ? `${fullRoot.selectedDayData.ritu} • ${fullRoot.selectedDayData.ayana}` : "--"; Layout.fillWidth: true; wrapMode: Text.WordWrap }
 
                         // Row: Jovian Samvatsara & Years
-                        Controls.Label { text: i18n("Samvatsara:"); font.bold: true; opacity: 0.8 }
-                        Controls.Label { 
+                        Label { text: i18n("Samvatsara:"); font.bold: true; opacity: 0.8 }
+                        Label { 
                             text: fullRoot.selectedDayData ? `${fullRoot.selectedDayData.samvatsara}` : "--"
                             font.bold: true
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
                         }
 
-                        Controls.Label { text: i18n("Era Years:"); font.bold: true; opacity: 0.8 }
-                        Controls.Label { 
+                        Label { text: i18n("Era Years:"); font.bold: true; opacity: 0.8 }
+                        Label { 
                             text: fullRoot.selectedDayData ? `Shaka ${fullRoot.selectedDayData.shaka_year} • Vikram ${fullRoot.selectedDayData.vikram_year} • Kali ${fullRoot.selectedDayData.kali_year}` : "--"
                             font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
                         }
                     }
 
-                    Kirigami.Separator { Layouts.fillWidth: true }
+                    Kirigami.Separator { Layout.fillWidth: true }
 
                     // Sunrise, Sunset, Moonrise, Moonset Timings
-                    Layouts.ColumnLayout {
-                        Layouts.fillWidth: true
+                    ColumnLayout {
+                        Layout.fillWidth: true
                         spacing: Kirigami.Units.smallSpacing
 
-                        Controls.Label { text: i18n("Daily Sun & Moon Times:"); font.bold: true }
+                        Label { text: i18n("Daily Sun & Moon Times:"); font.bold: true }
                         
-                        Layouts.RowLayout {
+                        RowLayout {
                             spacing: Kirigami.Units.largeSpacing
                             
-                            Layouts.ColumnLayout {
+                            ColumnLayout {
                                 spacing: 2
-                                Controls.Label { text: `☀️ Rise: ${fullRoot.selectedDayData ? fullRoot.selectedDayData.sunrise : "--"}` }
-                                Controls.Label { text: `☀️ Set:  ${fullRoot.selectedDayData ? fullRoot.selectedDayData.sunset : "--"}` }
+                                Label { text: `☀️ Rise: ${fullRoot.selectedDayData ? fullRoot.selectedDayData.sunrise : "--"}` }
+                                Label { text: `☀️ Set:  ${fullRoot.selectedDayData ? fullRoot.selectedDayData.sunset : "--"}` }
                             }
 
-                            Layouts.ColumnLayout {
+                            ColumnLayout {
                                 spacing: 2
-                                Controls.Label { text: `🌙 Rise: ${fullRoot.selectedDayData ? fullRoot.selectedDayData.moonrise : "--"}` }
-                                Controls.Label { text: `🌙 Set:  ${fullRoot.selectedDayData ? fullRoot.selectedDayData.moonset : "--"}` }
+                                Label { text: `🌙 Rise: ${fullRoot.selectedDayData ? fullRoot.selectedDayData.moonrise : "--"}` }
+                                Label { text: `🌙 Set:  ${fullRoot.selectedDayData ? fullRoot.selectedDayData.moonset : "--"}` }
                             }
                         }
                     }
 
                     // Auspicious/Inauspicious segments
-                    Layouts.ColumnLayout {
-                        Layouts.fillWidth: true
+                    ColumnLayout {
+                        Layout.fillWidth: true
                         spacing: Kirigami.Units.smallSpacing
 
-                        Controls.Label { text: i18n("Auspicious / Inauspicious Periods:"); font.bold: true }
+                        Label { text: i18n("Auspicious / Inauspicious Periods:"); font.bold: true }
                         
-                        Layouts.GridLayout {
+                        GridLayout {
                             columns: 2
                             rowSpacing: 2
                             columnSpacing: Kirigami.Units.largeSpacing
 
-                            Controls.Label { text: "Abhijit Muhurta:" }
-                            Controls.Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.abhijit_muhurta : "--"; font.bold: true; color: "#2ecc71" }
+                            Label { text: "Abhijit Muhurta:" }
+                            Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.abhijit_muhurta : "--"; font.bold: true; color: "#2ecc71" }
 
-                            Controls.Label { text: "Rahu Kala:" }
-                            Controls.Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.rahu_kala : "--"; font.bold: true; color: "#e74c3c" }
+                            Label { text: "Rahu Kala:" }
+                            Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.rahu_kala : "--"; font.bold: true; color: "#e74c3c" }
 
-                            Controls.Label { text: "Yamaganda:" }
-                            Controls.Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.yamaganda : "--" }
+                            Label { text: "Yamaganda:" }
+                            Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.yamaganda : "--" }
 
-                            Controls.Label { text: "Gulika:" }
-                            Controls.Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.gulika : "--" }
+                            Label { text: "Gulika:" }
+                            Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.gulika : "--" }
                         }
                     }
 
                     // Festivals & Observances
-                    Layouts.ColumnLayout {
-                        Layouts.fillWidth: true
+                    ColumnLayout {
+                        Layout.fillWidth: true
                         spacing: Kirigami.Units.smallSpacing
                         visible: fullRoot.selectedDayData && fullRoot.selectedDayData.festivals && fullRoot.selectedDayData.festivals.length > 0
 
-                        Controls.Label { text: i18n("Festivals & Observances:"); font.bold: true; color: "#ff4d4d" }
+                        Label { text: i18n("Festivals & Observances:"); font.bold: true; color: "#ff4d4d" }
                         
                         Repeater {
                             model: fullRoot.selectedDayData ? fullRoot.selectedDayData.festivals : []
-                            Controls.Label {
+                            Label {
                                 text: `• ${modelData}`
                                 font.bold: true
                                 font.pixelSize: Kirigami.Units.gridUnit * 0.8
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
                             }
                         }
                     }
 
                     // Live Ghadi-Vipal Display (Only visible for today's selected day)
-                    Layouts.RowLayout {
-                        Layouts.fillWidth: true
+                    RowLayout {
+                        Layout.fillWidth: true
                         visible: fullRoot.selectedDayData && fullRoot.selectedDayData.date === root.getTodayString()
                         
-                        Controls.Label {
+                        Label {
                             text: i18n("Current Ghadi:Vipal time:")
                             font.bold: true
                         }
                         
-                        Controls.Label {
+                        Label {
                             text: root.liveGhadiTime
                             font.bold: true
                             font.pixelSize: Kirigami.Units.gridUnit * 1.1

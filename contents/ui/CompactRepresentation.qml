@@ -1,23 +1,34 @@
 import QtQuick
-import QtQuick.Layouts as Layouts
+import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
 Item {
     id: compactRoot
     implicitWidth: layout.implicitWidth
-    implicitHeight: layout.implicitHeight
+    implicitHeight: Kirigami.Units.gridUnit * 2
 
-    Layouts.RowLayout {
+    Layout.minimumWidth: Kirigami.Units.gridUnit * 6
+    Layout.minimumHeight: Kirigami.Units.gridUnit * 1.5
+    Layout.preferredWidth: implicitWidth
+    Layout.preferredHeight: implicitHeight
+
+    RowLayout {
         id: layout
-        anchors.fill: parent
+        anchors.left: parent.left
+        anchors.verticalCenter: parent.verticalCenter
         spacing: Kirigami.Units.smallSpacing
 
         // Moon phase indicator
         Rectangle {
             id: moonIndicator
-            width: Kirigami.Units.iconSizes.small
-            height: width
+            implicitWidth: Kirigami.Units.iconSizes.small
+            implicitHeight: implicitWidth
+            width: implicitWidth
+            height: implicitHeight
             radius: width / 2
+            Layout.alignment: Qt.AlignVCenter
+            Layout.preferredWidth: implicitWidth
+            Layout.preferredHeight: implicitHeight
             
             // Gold for Shukla (waxing), Slate-blue for Krishna (waning)
             color: {
@@ -41,24 +52,24 @@ Item {
             }
         }
 
-        // Tithi and Masa text
-        Layouts.ColumnLayout {
+        ColumnLayout {
             spacing: 0
+            Layout.alignment: Qt.AlignVCenter
             
             Kirigami.Heading {
+                id: firstLine
                 level: 5
-                text: root.currentPanchanga ? root.currentPanchanga.tithi : i18n("Loading...")
+                text: root.currentPanchanga ? `${root.currentPanchanga.vaara} • ${root.currentPanchanga.tithi} • ${(plasmoid.configuration.lang === "devanagari") ? "घ" : "Gh"}: ${root.liveGhadiTime}` : "Loading..."
                 font.bold: true
-                Layouts.fillWidth: true
                 elide: Text.ElideRight
             }
 
             Kirigami.Heading {
+                id: secondLine
                 level: 6
-                text: root.currentPanchanga ? `${root.currentPanchanga.paksha} • ${root.currentPanchanga.masa}` : ""
+                text: root.currentPanchanga ? `${root.currentPanchanga.masa} ${root.currentPanchanga.paksha} • ${root.currentPanchanga.samvatsara} ${root.currentPanchanga.shaka_year}` : ""
                 font.pixelSize: Kirigami.Units.gridUnit * 0.6
                 opacity: 0.7
-                Layouts.fillWidth: true
                 elide: Text.ElideRight
             }
         }
@@ -67,7 +78,7 @@ Item {
     MouseArea {
         anchors.fill: parent
         onClicked: {
-            plasmoid.expanded = !plasmoid.expanded;
+            root.expanded = !root.expanded;
         }
     }
 }

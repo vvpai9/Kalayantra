@@ -5,11 +5,25 @@ import org.kde.kirigami as Kirigami
 PlasmoidItem {
     id: root
 
+    width: Kirigami.Units.gridUnit * 35
+    height: Kirigami.Units.gridUnit * 25
+
+    toolTipMainText: currentPanchanga ? `${currentPanchanga.masa} • ${currentPanchanga.paksha} ${plasmoid.configuration.lang === "devanagari" ? "पक्ष" : "Paksha"} • ${currentPanchanga.tithi}` : i18n("Kālayantra")
+    toolTipSubText: currentPanchanga ? (
+        `Sunrise: ${currentPanchanga.sunrise}\n` +
+        `Sunset: ${currentPanchanga.sunset}\n\n` +
+        `Current Ghadi: ${liveGhadiTime.split(':')[0]}\n` +
+        `Current Vipal: ${liveGhadiTime.split(':')[1] || "00"}\n\n` +
+        `Nakshatra: ${currentPanchanga.nakshatra}\n` +
+        `Yoga: ${currentPanchanga.yoga}\n` +
+        `Karana: ${currentPanchanga.karana}`
+    ) : ""
+
     // Calendar state properties
     property int currentYear: new Date().getFullYear()
     property int currentMonth: new Date().getMonth() + 1 // 1-indexed
 
-    property var monthData: []
+    property var threeMonthsData: []
     property var currentPanchanga: null
     property string liveGhadiTime: "00:00"
 
@@ -66,76 +80,61 @@ PlasmoidItem {
         xhr.send();
     }
 
-    // Asynchronous network fetch for the calendar month grid
-    function fetchMonth(year, month) {
-        var xhr = new XMLHttpRequest();
-        var query = buildQueryString(`year=${year}&month=${month}`);
-        xhr.open("GET", `http://127.0.0.1:8642/month?${query}`, true);
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
-                try {
-                    monthData = JSON.parse(xhr.responseText);
-                } catch(e) {
-                    console.error("Failed to parse month response: ", e);
-                }
+    // Asynchronous network fetch for 3 consecutive months to cover full Hindu lunar month range
+    function fetchThreeMonths(year, month) {
+        var prevY = year;
+        var prevM = month - 1;
+        if (prevM === 0) { prevM = 12; prevY -= 1; }
+        
+        var nextY = year;
+        var nextM = month + 1;
+        if (nextM === 13) { nextM = 1; nextY += 1; }
+        
+        var results = { "prev": [], "curr": [], "next": [] };
+        var completed = 0;
+        
+        function handleCompleted() {
+            completed++;
+            if (completed === 3) {
+                var combined = [];
+                combined = combined.concat(results.prev);
+                combined = combined.concat(results.curr);
+                combined = combined.concat(results.next);
+                threeMonthsData = combined;
             }
-        };
-        xhr.send();
-    }
-
-    // Grid construction helper for FullRepresentation
-    function generateGridItems(year, month, data) {
-        if (!data || data.length === 0) return [];
-        
-        var firstDay = new Date(year, month - 1, 1).getDay(); // Sunday = 0
-        var items = [];
-        
-        // Front padding
-        for (var i = 0; i < firstDay; i++) {
-            items.push({"type": "empty"});
         }
         
-        // Days
-        for (var d = 0; d < data.length; d++) {
-            var dayData = data[d];
-            dayData.type = "day";
-            dayData.dayNumber = d + 1;
-            items.push(dayData);
+        function fetchSingle(y, m, key) {
+            var xhr = new XMLHttpRequest();
+            var query = buildQueryString("year=" + y + "&month=" + m);
+            xhr.open("GET", "http://127.0.0.1:8642/month?" + query, true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status === 200) {
+                        try {
+                            results[key] = JSON.parse(xhr.responseText);
+                        } catch(e) {
+                            console.error("Failed to parse month data for", y, m, e);
+                            results[key] = [];
+                        }
+                    } else {
+                        results[key] = [];
+                    }
+                    handleCompleted();
+                }
+            };
+            xhr.send();
         }
         
-        // End padding
-        while (items.length < 42) {
-            items.push({"type": "empty"});
-        }
-        
-        return items;
-    }
-
-    // Month Navigation Functions
-    function nextMonth() {
-        if (currentMonth === 12) {
-            currentMonth = 1;
-            currentYear += 1;
-        } else {
-            currentMonth += 1;
-        }
-        fetchMonth(currentYear, currentMonth);
-    }
-
-    function prevMonth() {
-        if (currentMonth === 1) {
-            currentMonth = 12;
-            currentYear -= 1;
-        } else {
-            currentMonth -= 1;
-        }
-        fetchMonth(currentYear, currentMonth);
+        fetchSingle(prevY, prevM, "prev");
+        fetchSingle(year, month, "curr");
+        fetchSingle(nextY, nextM, "next");
     }
 
     // Reload all data on configuration changes
     function reloadAll() {
         fetchDay(getTodayString());
-        fetchMonth(currentYear, currentMonth);
+        fetchThreeMonths(currentYear, currentMonth);
     }
 
     // Configuration change connections

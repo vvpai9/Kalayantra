@@ -154,9 +154,9 @@ PAKSHAS = {
 }
 
 VAARAS = {
-    "en": ["Monday (Somavaara)", "Tuesday (Bhaumavaara)", "Wednesday (Budhavaara)", "Thursday (Guruvaara)", "Friday (Shukravaara)", "Saturday (Shanivaara)", "Sunday (Bhanuvaara)"],
-    "iast": ["Somavāra", "Bhaumavāra", "Budhavāra", "Guruvāra", "Śukravāra", "Śanivāra", "Bhānuvāra"],
-    "devanagari": ["सोमवार", "भौमवार", "बुधवार", "गुरुवार", "शुक्रवार", "शनिवार", "भानुवार"]
+    "en": ["Indu", "Bhauma", "Saumya", "Guru", "Bhargava", "Sthira", "Bhanu"],
+    "iast": ["Indu", "Bhauma", "Saumya", "Guru", "Bhargava", "Sthira", "Bhanu"],
+    "devanagari": ["इन्दु", "भौम", "सौम्य", "गुरु", "भार्गव", "स्थिर", "भानु"]
 }
 
 
