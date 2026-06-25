@@ -31,7 +31,7 @@ After=default.target
 
 [Service]
 Type=simple
-ExecStart=$(which python3) $(pwd)/contents/scripts/PanchangaService.py
+ExecStart=$(which python3) $(pwd)/contents/scripts/Kalachakra.py
 Restart=on-failure
 RestartSec=5
 

@@ -32,7 +32,13 @@ Ensure you have python3 and the Swiss Ephemeris package installed on your system
 
 - **Arch Linux:** `sudo pacman -S python-pyswisseph` or install via pip: `pip3 install pyswisseph`
 - **Fedora:** `sudo dnf install python3-pyswisseph` or `pip3 install pyswisseph`
-- **Ubuntu/KNeon/Kubuntu:** `pip3 install pyswisseph`
+- **Ubuntu/KDE Neon/Kubuntu:** `pip3 install pyswisseph`
+
+### Clone the repository
+
+```bash
+git clone https://github.com/vvpai9/Kalayantra.git
+```
 
 ### Install script
 

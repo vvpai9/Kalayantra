@@ -5,7 +5,7 @@ import os
 
 # Include current directory in import path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-import PanchangaService as ps
+import Kalachakra as ps
 
 class TestPanchangaCalculations(unittest.TestCase):
     def test_samvatsara_jovian_cycle(self):
