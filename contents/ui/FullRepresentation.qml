@@ -56,7 +56,8 @@ Item {
         var grid = [];
         
         // Find the weekday of the first day
-        var firstDayDate = new Date(days[0].date);
+        var parts = days[0].date.split('-');
+        var firstDayDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
         var firstWeekday = firstDayDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
         
         // Front padding
@@ -272,40 +273,34 @@ Item {
                 }
             }
 
-            // Days of the week header
+            // Calendar Grid containing both Week Header and Days
             GridLayout {
+                id: calendarGrid
                 columns: 7
                 Layout.fillWidth: true
+                Layout.fillHeight: true
                 columnSpacing: Kirigami.Units.smallSpacing
-                rowSpacing: 0
-                
+                rowSpacing: Kirigami.Units.smallSpacing
+
+                // Weekday Header Labels (Row 1)
                 Repeater {
                     model: [
-                        i18n("Sun"), i18n("Mon"), i18n("Tue"), i18n("Wed"), 
-                        i18n("Thu"), i18n("Fri"), i18n("Sat")
+                        i18n("Bhanu"), i18n("Indu"), i18n("Bhauma"), i18n("Saumya"), 
+                        i18n("Guru"), i18n("Bhargava"), i18n("Sthira")
                     ]
                     
                     Label {
                         text: modelData
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter
-                        font.pixelSize: Kirigami.Units.gridUnit * 0.75
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.7
                         opacity: 0.8
                         Layout.fillWidth: true
+                        Layout.preferredWidth: 0
                     }
                 }
-            }
 
-            // 6x7 Calendar Grid
-            GridLayout {
-                id: calendarGrid
-                columns: 7
-                rows: 6
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                columnSpacing: Kirigami.Units.smallSpacing
-                rowSpacing: Kirigami.Units.smallSpacing
-
+                // Calendar Days (Rows 2-7)
                 Repeater {
                     model: fullRoot.gridItems
 
@@ -313,16 +308,17 @@ Item {
                         id: cell
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        visible: modelData.type !== "empty"
+                        Layout.preferredWidth: 0
 
                         Rectangle {
                             anchors.fill: parent
                             radius: 4
                             border.width: 1
+                            visible: modelData && modelData.type === "day"
                             
                             // Visual theme logic based on Shukla/Krishna Pakshas
                             color: {
-                                if (modelData.type === "empty") return "transparent";
+                                if (!modelData || modelData.type !== "day") return "transparent";
                                 if (modelData.is_krishna_paksha) {
                                     return cellMouse.containsMouse ? "#1c252c" : "#121b22";
                                 } else {
@@ -331,6 +327,7 @@ Item {
                             }
                             
                             border.color: {
+                                if (!modelData || modelData.type !== "day") return "transparent";
                                 if (fullRoot.selectedDayData && fullRoot.selectedDayData.date === modelData.date) {
                                     return Kirigami.Theme.highlightColor;
                                 }
@@ -346,18 +343,18 @@ Item {
                                 spacing: 1
                                 
                                 Label {
-                                    text: modelData.type === "day" ? modelData.tithi_num : ""
+                                    text: modelData && modelData.type === "day" ? modelData.tithi_num : ""
                                     font.bold: true
                                     font.pixelSize: Kirigami.Units.gridUnit * 0.85
-                                    color: modelData.is_krishna_paksha ? "#9eb1c2" : "#ffe473"
+                                    color: modelData && modelData.is_krishna_paksha ? "#9eb1c2" : "#ffe473"
                                     Layout.alignment: Qt.AlignHCenter
                                 }
 
                                 Label {
-                                    text: modelData.type === "day" ? `(${parseInt(modelData.date.split('-')[2])})` : ""
+                                    text: modelData && modelData.type === "day" ? `(${parseInt(modelData.date.split('-')[2])})` : ""
                                     font.pixelSize: Kirigami.Units.gridUnit * 0.55
                                     opacity: 0.7
-                                    color: modelData.is_krishna_paksha ? "#9eb1c2" : "#ffe473"
+                                    color: modelData && modelData.is_krishna_paksha ? "#9eb1c2" : "#ffe473"
                                     Layout.alignment: Qt.AlignHCenter
                                 }
                             }
@@ -378,7 +375,8 @@ Item {
                         MouseArea {
                             id: cellMouse
                             anchors.fill: parent
-                            hoverEnabled: true
+                            hoverEnabled: modelData && modelData.type === "day"
+                            enabled: modelData && modelData.type === "day"
                             onClicked: {
                                 fullRoot.selectedDayData = modelData;
                             }
