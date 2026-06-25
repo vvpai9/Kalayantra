@@ -38,6 +38,7 @@ Ensure you have python3 and the Swiss Ephemeris package installed on your system
 
 ```bash
 git clone https://github.com/vvpai9/Kalayantra.git
+cd Kalayantra
 ```
 
 ### Install script
