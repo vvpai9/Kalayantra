@@ -2,6 +2,12 @@
 
 Kālayantra is a native KDE Plasma 6 widget and offline Panchanga (Hindu Calendar) that brings precise Hindu astronomical calculations directly to your desktop.
 
+<img width="303" height="43" alt="Screenshot_20260626_093019" src="https://github.com/user-attachments/assets/63e6a0cd-0e1f-483d-8b98-ea5a1e14972e" />
+
+<img width="1253" height="872" alt="Screenshot_20260626_093050" src="https://github.com/user-attachments/assets/0d7e535f-6ca6-4898-9cdc-75e54f44d65c" />
+
+<img width="1022" height="817" alt="Screenshot_20260626_093122" src="https://github.com/user-attachments/assets/3c2cfeb4-cee1-4b17-9a19-7789cbb45e97" />
+
 ## Features
 
 - **Precise Lunisolar Astronomical Engine:** Powered by the local **Kālachakra** backend calculations engine using the Swiss Ephemeris (`pyswisseph`).
