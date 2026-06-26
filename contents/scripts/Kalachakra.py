@@ -460,7 +460,7 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="sunrise
             m = 0
         return f"{h:02d}:{m:02d}"
         
-    # Ghadi-Vipal time calculation (local time)
+    # Ghadi-Pal time calculation (local time)
     # Find active sunrise for Ghadi calculation
     dt_now = datetime.datetime.now()
     jd_now_ut = swe.julday(dt_now.year, dt_now.month, dt_now.day, dt_now.hour + dt_now.minute/60.0 + dt_now.second/3600.0 - tz)
@@ -483,7 +483,7 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="sunrise
     proportion = elapsed / day_length
     total_ghadis = proportion * 60.0
     ghadi = int(total_ghadis)
-    vipal = int((total_ghadis - ghadi) * 60.0)
+    pal = int((total_ghadis - ghadi) * 60.0)
     
     # 9. Festivals (Vaishnava vs Smarta)
     festivals = []
@@ -616,7 +616,7 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="sunrise
         "yamaganda": f"{jd_to_time_str(yama_start)} - {jd_to_time_str(yama_end)}",
         "gulika": f"{jd_to_time_str(gulika_start)} - {jd_to_time_str(gulika_end)}",
         "abhijit_muhurta": f"{jd_to_time_str(abhijit_start)} - {jd_to_time_str(abhijit_end)}",
-        "ghadi": f"{ghadi:02d}:{vipal:02d}",
+        "ghadi": f"{ghadi:02d}:{pal:02d}",
         "festivals": festivals,
         "is_krishna_paksha": is_krishna,
         "tithi_num": (t_num_idx % 15) + 1

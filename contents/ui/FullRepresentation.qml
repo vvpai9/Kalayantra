@@ -630,13 +630,13 @@ Item {
                         }
                     }
 
-                    // Live Ghadi-Vipal Display (Only visible for today's selected day)
+                    // Live Ghadi-Pal Display (Only visible for today's selected day)
                     RowLayout {
                         Layout.fillWidth: true
                         visible: fullRoot.selectedDayData && fullRoot.selectedDayData.date === root.getTodayString()
                         
                         Label {
-                            text: i18n("Current Ghadi:Vipal time:")
+                            text: i18n("Current Ghadi:Pal time:")
                             font.bold: true
                         }
                         
