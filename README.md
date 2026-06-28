@@ -16,22 +16,22 @@ Kālayantra is a native KDE Plasma 6 widget and offline Panchanga (Hindu Calenda
 - **Detailed Panchanga Elements:**
   - Tithi, Vaara, Nakshatra, Yoga, Karana (along with their exact transit end times)
   - Ritu (6 seasons) and Ayana (Uttarayana/Dakshinayana)
-  - Year counts for Shalivahana Shaka, Vikram Samvat, and Kali Yuga
+  - Year counts for Shalivahana Shaka, Vikram Samvat and Kali Yuga
   - Samvatsara (60-year Jovian cycle name, dynamically calculated for the chosen era)
 - **High-Precision Ghadi/Vipal Clock:** Microsecond UTC calculations for accurate Ghadi and Vipal tracking.
 - **Auspicious & Inauspicious Times:**
-  - Rahu Kala (🔴 inauspicious), Yamaghanta (🔴 inauspicious), Gulika (🟡 moderate), and Abhijit Muhurta (🟢 auspicious)
+  - Rahu Kala, Yamaghanta, Gulika and Abhijit Muhurta
   - **Brahma Muhurta** calculation and display
   - **Choghadiya Muhurtas** (both Daytime and Nighttime segments color-coded: 🟢 Auspicious, 🟡 Neutral, 🔴 Inauspicious)
 - **Vedic Transition Formatting:** Times falling after local midnight but before the next day's sunrise are formatted using the 24+h style (e.g., 27:07) to avoid Gregorian date confusion.
-- **Daily Sun/Moon Events:** Accurate calculations for Sunrise, Sunset, Moonrise, and Moonset based on coordinates.
-- **Festivals & Sankrantis:** Dynamic calculation of all 12 Rashi Sankrantis, monthly Sankashti Chaturthi, and major lunisolar festivals with localized multi-language translations.
+- **Daily Sun/Moon Events:** Accurate calculations for Sunrise, Sunset, Moonrise and Moonset based on coordinates.
+- **Festivals & Sankrantis:** Dynamic calculation of all 12 Rashi Sankrantis, monthly Sankashti Chaturthi and major lunisolar festivals with localized multi-language translations.
 - **Customized Calendar Views:**
-  - Select between Shalivahana Shaka, Vikram Samvat (Chaitradi), and Vikram Kartak (Kartikadi) calendar systems.
+  - Select between Shalivahana Shaka, Vikram Samvat (Chaitradi) and Vikram Kartak (Kartikadi) calendar systems.
   - Choose Amavasyanta (default) or Purnimanta month systems.
   - Select Smarta or Vaishnava festival rules (affecting Ekadashi determination).
   - Clear visual distinction between Shukla Paksha (golden theme, waxing moon) and Krishna Paksha (slate theme, waning moon).
-- **Multi-language Support:** Choose display language from English, IAST (Sanskrit transliteration), and Devanagari.
+- **Multi-language Support:** Choose display language from English, IAST (Sanskrit transliteration) and Devanagari.
 - **Reactive Settings Synchronization:** Fully functional configuration panel with bidirectional bindings that propagate settings to the backend instantly.
 - **Offline & Privacy-Respecting:** Spawns no cloud connections; all calculations run 100% locally.
 
