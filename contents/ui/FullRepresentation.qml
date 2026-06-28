@@ -5,13 +5,13 @@ import org.kde.kirigami as Kirigami
 
 Item {
     id: fullRoot
-    implicitWidth: 720
-    implicitHeight: 500
+    implicitWidth: 1024
+    implicitHeight: 640
 
     Layout.preferredWidth: implicitWidth
     Layout.preferredHeight: implicitHeight
-    Layout.minimumWidth: 640
-    Layout.minimumHeight: 440
+    Layout.minimumWidth: 900
+    Layout.minimumHeight: 580
     
     property var selectedDayData: null
     property var gridItems: []
@@ -461,8 +461,8 @@ Item {
             id: detailsCard
             Layout.fillWidth: false
             Layout.fillHeight: true
-            Layout.minimumWidth: 240
-            Layout.preferredWidth: 270
+            Layout.minimumWidth: 400
+            Layout.preferredWidth: 440
             
             // Slate/Warm tinted card background depending on Paksha
             background: Rectangle {
@@ -481,8 +481,13 @@ Item {
                 
                 ColumnLayout {
                     id: detailsLayout
-                    width: parent.width
-                    spacing: Kirigami.Units.largeSpacing
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.leftMargin: 16
+                    anchors.rightMargin: 16
+                    spacing: Kirigami.Units.largeSpacing * 1.5
+
+
 
                     // Detail Card Header
                     ColumnLayout {
@@ -516,25 +521,61 @@ Item {
                     // Detailed Astronomical Grid
                     GridLayout {
                         columns: 2
-                        rowSpacing: Kirigami.Units.smallSpacing
-                        columnSpacing: Kirigami.Units.largeSpacing
+                        rowSpacing: Kirigami.Units.smallSpacing * 1.5
+                        columnSpacing: Kirigami.Units.largeSpacing * 1.5
                         Layout.fillWidth: true
 
                         // Row: Masa
                         Label { text: i18n("Masa (Month):"); font.bold: true; opacity: 0.8 }
                         Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.masa : "--"; Layout.fillWidth: true; wrapMode: Text.WordWrap }
 
+                        // Row: Tithi
+                        Label { text: i18n("Tithi:"); font.bold: true; opacity: 0.8 }
+                        Label {
+                            text: {
+                                if (!fullRoot.selectedDayData) return "--";
+                                var color = fullRoot.selectedDayData.is_krishna_paksha ? "#3daee9" : "#ffb300";
+                                return `${fullRoot.selectedDayData.tithi} &nbsp;&nbsp;&nbsp;<font color='${color}'>${fullRoot.selectedDayData.tithi_end}</font>`;
+                            }
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                        }
+
                         // Row: Nakshatra
                         Label { text: i18n("Nakshatra:"); font.bold: true; opacity: 0.8 }
-                        Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.nakshatra : "--"; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                        Label {
+                            text: {
+                                if (!fullRoot.selectedDayData) return "--";
+                                var color = fullRoot.selectedDayData.is_krishna_paksha ? "#3daee9" : "#ffb300";
+                                return `${fullRoot.selectedDayData.nakshatra} &nbsp;&nbsp;&nbsp;<font color='${color}'>${fullRoot.selectedDayData.nakshatra_end}</font>`;
+                            }
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                        }
 
                         // Row: Yoga
                         Label { text: i18n("Yoga:"); font.bold: true; opacity: 0.8 }
-                        Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.yoga : "--"; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                        Label {
+                            text: {
+                                if (!fullRoot.selectedDayData) return "--";
+                                var color = fullRoot.selectedDayData.is_krishna_paksha ? "#3daee9" : "#ffb300";
+                                return `${fullRoot.selectedDayData.yoga} &nbsp;&nbsp;&nbsp;<font color='${color}'>${fullRoot.selectedDayData.yoga_end}</font>`;
+                            }
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                        }
 
                         // Row: Karana
                         Label { text: i18n("Karana:"); font.bold: true; opacity: 0.8 }
-                        Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.karana : "--"; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                        Label {
+                            text: {
+                                if (!fullRoot.selectedDayData) return "--";
+                                var color = fullRoot.selectedDayData.is_krishna_paksha ? "#3daee9" : "#ffb300";
+                                return `${fullRoot.selectedDayData.karana} &nbsp;&nbsp;&nbsp;<font color='${color}'>${fullRoot.selectedDayData.karana_end}</font>`;
+                            }
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                        }
 
                         // Row: Ritu & Ayana
                         Label { text: i18n("Ritu & Ayana:"); font.bold: true; opacity: 0.8 }
@@ -563,23 +604,32 @@ Item {
                     // Sunrise, Sunset, Moonrise, Moonset Timings
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: Kirigami.Units.smallSpacing
+                        spacing: Kirigami.Units.smallSpacing * 1.5
 
                         Label { text: i18n("Daily Sun & Moon Times:"); font.bold: true }
                         
-                        RowLayout {
-                            spacing: Kirigami.Units.largeSpacing
+                        GridLayout {
+                            columns: 3
+                            rowSpacing: 6
+                            columnSpacing: Kirigami.Units.largeSpacing * 1.5
+                            Layout.fillWidth: true
                             
                             ColumnLayout {
-                                spacing: 2
+                                spacing: 4
                                 Label { text: `☀️ Rise: ${fullRoot.selectedDayData ? fullRoot.selectedDayData.sunrise : "--"}` }
                                 Label { text: `☀️ Set:  ${fullRoot.selectedDayData ? fullRoot.selectedDayData.sunset : "--"}` }
                             }
 
                             ColumnLayout {
-                                spacing: 2
+                                spacing: 4
                                 Label { text: `🌙 Rise: ${fullRoot.selectedDayData ? fullRoot.selectedDayData.moonrise : "--"}` }
                                 Label { text: `🌙 Set:  ${fullRoot.selectedDayData ? fullRoot.selectedDayData.moonset : "--"}` }
+                            }
+
+                            ColumnLayout {
+                                spacing: 4
+                                Label { text: `✨ Brahma:` }
+                                Label { text: `${fullRoot.selectedDayData ? fullRoot.selectedDayData.brahma_muhurta : "--"}` }
                             }
                         }
                     }
@@ -587,14 +637,14 @@ Item {
                     // Auspicious/Inauspicious segments
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: Kirigami.Units.smallSpacing
+                        spacing: Kirigami.Units.smallSpacing * 1.5
 
                         Label { text: i18n("Auspicious / Inauspicious Periods:"); font.bold: true }
                         
                         GridLayout {
                             columns: 2
-                            rowSpacing: 2
-                            columnSpacing: Kirigami.Units.largeSpacing
+                            rowSpacing: Kirigami.Units.smallSpacing * 1.2
+                            columnSpacing: Kirigami.Units.largeSpacing * 1.5
 
                             Label { text: "Abhijit Muhurta:" }
                             Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.abhijit_muhurta : "--"; font.bold: true; color: "#2ecc71" }
@@ -602,18 +652,18 @@ Item {
                             Label { text: "Rahu Kala:" }
                             Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.rahu_kala : "--"; font.bold: true; color: "#e74c3c" }
 
-                            Label { text: "Yamaganda:" }
-                            Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.yamaganda : "--" }
+                            Label { text: "Yamaghanta:" }
+                            Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.yamaghanta : "--"; font.bold: true; color: "#e74c3c" }
 
                             Label { text: "Gulika:" }
-                            Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.gulika : "--" }
+                            Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.gulika : "--"; font.bold: true; color: "#f1c40f" }
                         }
                     }
 
                     // Festivals & Observances
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: Kirigami.Units.smallSpacing
+                        spacing: Kirigami.Units.smallSpacing * 1.5
                         visible: fullRoot.selectedDayData && fullRoot.selectedDayData.festivals && fullRoot.selectedDayData.festivals.length > 0
 
                         Label { text: i18n("Festivals & Observances:"); font.bold: true; color: "#ff4d4d" }
@@ -630,13 +680,72 @@ Item {
                         }
                     }
 
-                    // Live Ghadi-Pal Display (Only visible for today's selected day)
+                    // Choghadiya Muhurtas Section
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: Kirigami.Units.smallSpacing * 1.5
+
+                        Label { text: i18n("Choghadiya Muhurtas:"); font.bold: true }
+
+                        TabBar {
+                            id: choghadiyaTabBar
+                            Layout.fillWidth: true
+                            TabButton { text: i18n("Daytime") }
+                            TabButton { text: i18n("Nighttime") }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+
+                            Repeater {
+                                model: choghadiyaTabBar.currentIndex === 0 
+                                       ? (fullRoot.selectedDayData ? fullRoot.selectedDayData.day_choghadiya : [])
+                                       : (fullRoot.selectedDayData ? fullRoot.selectedDayData.night_choghadiya : [])
+                                
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: Kirigami.Units.smallSpacing
+                                    
+                                    Label {
+                                        text: {
+                                            if (modelData.nature === "Auspicious" || modelData.nature === "शुभ") return "🟢";
+                                            if (modelData.nature === "Neutral" || modelData.nature === "सामान्य") return "🟡";
+                                            return "🔴";
+                                        }
+                                    }
+                                    
+                                    Label {
+                                        text: `${modelData.name}`
+                                        font.bold: true
+                                        Layout.preferredWidth: Kirigami.Units.gridUnit * 5
+                                    }
+                                    
+                                    Label {
+                                        text: `${modelData.end}`
+                                        opacity: 0.9
+                                        color: {
+                                            if (modelData.nature === "Auspicious" || modelData.nature === "शुभ") return "#2ecc71";
+                                            if (modelData.nature === "Neutral" || modelData.nature === "सामान्य") return "#f1c40f";
+                                            return "#e74c3c";
+                                        }
+                                        font.bold: true
+                                        horizontalAlignment: Text.AlignRight
+                                        Layout.fillWidth: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Live Ghadi-Vipal Display (Only visible for today's selected day)
                     RowLayout {
                         Layout.fillWidth: true
+                        Layout.topMargin: Kirigami.Units.largeSpacing
                         visible: fullRoot.selectedDayData && fullRoot.selectedDayData.date === root.getTodayString()
                         
                         Label {
-                            text: i18n("Current Ghadi:Pal time:")
+                            text: (plasmoid.configuration.lang === "devanagari") ? "वर्तमान घडी:विपल काल:" : i18n("Current Ghadi:Vipal time:")
                             font.bold: true
                         }
                         

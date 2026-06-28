@@ -159,8 +159,79 @@ VAARAS = {
     "devanagari": ["इन्दु", "भौम", "सौम्य", "गुरु", "भार्गव", "स्थिर", "भानु"]
 }
 
+CHOGHADIYAS = {
+    "en": ["Udveg", "Char", "Labh", "Amrit", "Kaal", "Shubh", "Rog"],
+    "iast": ["Udvega", "Cara", "Lābha", "Amṛta", "Kāla", "Śubha", "Roga"],
+    "devanagari": ["उद्वेग", "चर", "लाभ", "अमृत", "काल", "शुभ", "रोग"]
+}
+
+CHOGHADIYA_NATURES = {
+    "en": {
+        "Udveg": "Inauspicious",
+        "Char": "Neutral",
+        "Labh": "Auspicious",
+        "Amrit": "Auspicious",
+        "Kaal": "Inauspicious",
+        "Shubh": "Auspicious",
+        "Rog": "Inauspicious"
+    },
+    "iast": {
+        "Udvega": "Inauspicious",
+        "Cara": "Neutral",
+        "Lābha": "Auspicious",
+        "Amṛta": "Auspicious",
+        "Kāla": "Inauspicious",
+        "Śubha": "Auspicious",
+        "Roga": "Inauspicious"
+    },
+    "devanagari": {
+        "उद्वेग": "अशुभ",
+        "चर": "सामान्य",
+        "लाभ": "शुभ",
+        "अमृत": "शुभ",
+        "काल": "अशुभ",
+        "शुभ": "शुभ",
+        "रोग": "अशुभ"
+    }
+}
+
+# Day starts for Monday(0) to Sunday(6)
+# Sunday(6): Sun(0), Monday(0): Moon(3), Tuesday(1): Mars(6), Wednesday(2): Mercury(2), Thursday(3): Jupiter(5), Friday(4): Venus(1), Saturday(5): Saturn(4)
+CHOGHADIYA_DAY_START = {0: 3, 1: 6, 2: 2, 3: 5, 4: 1, 5: 4, 6: 0}
+
+# Night starts for Monday(0) to Sunday(6)
+# Sunday(6): Jupiter(5), Monday(0): Mars(6), Tuesday(1): Mercury(2), Wednesday(2): Sun(0), Thursday(3): Venus(1), Friday(4): Saturn(4), Saturday(5): Moon(3)
+CHOGHADIYA_NIGHT_START = {0: 6, 1: 2, 2: 0, 3: 1, 4: 4, 5: 3, 6: 5}
+
 
 # Calculation engine utilities
+def find_transition(jd_start, get_index_func, max_days=1.2, step_days=0.05):
+    start_idx = get_index_func(jd_start)
+    jd_low = jd_start
+    jd_high = None
+    t = jd_start
+    limit = jd_start + max_days
+    
+    while t < limit:
+        t += step_days
+        if get_index_func(t) != start_idx:
+            jd_high = t
+            break
+        jd_low = t
+        
+    if jd_high is None:
+        return None
+        
+    for _ in range(20):
+        mid = (jd_low + jd_high) / 2.0
+        if get_index_func(mid) == start_idx:
+            jd_low = mid
+        else:
+            jd_high = mid
+            
+    return (jd_low + jd_high) / 2.0
+
+
 def get_sidereal_longitudes(jd_ut):
     swe.set_sid_mode(swe.SIDM_LAHIRI)
     # Calculate Sun position
@@ -298,19 +369,19 @@ def get_sun_moon_rise_set(jd_ut_day_start, lat, lon, alt):
     sunrise_jd = res_rise[0]
     
     # Sunset
-    _, res_set = swe.rise_trans_true_hor(jd_ut_day_start, swe.SUN, swe.CALC_SET, geopos, 1013.25, 15.0, 0.0, swe.FLG_SWIEPH)
+    _, res_set = swe.rise_trans_true_hor(sunrise_jd, swe.SUN, swe.CALC_SET, geopos, 1013.25, 15.0, 0.0, swe.FLG_SWIEPH)
     sunset_jd = res_set[0]
     
     # Moonrise
     try:
-        _, res_mrise = swe.rise_trans_true_hor(jd_ut_day_start, swe.MOON, swe.CALC_RISE, geopos, 1013.25, 15.0, 0.0, swe.FLG_SWIEPH)
+        _, res_mrise = swe.rise_trans_true_hor(sunrise_jd, swe.MOON, swe.CALC_RISE, geopos, 1013.25, 15.0, 0.0, swe.FLG_SWIEPH)
         moonrise_jd = res_mrise[0]
     except Exception:
         moonrise_jd = None
         
     # Moonset
     try:
-        _, res_mset = swe.rise_trans_true_hor(jd_ut_day_start, swe.MOON, swe.CALC_SET, geopos, 1013.25, 15.0, 0.0, swe.FLG_SWIEPH)
+        _, res_mset = swe.rise_trans_true_hor(sunrise_jd, swe.MOON, swe.CALC_SET, geopos, 1013.25, 15.0, 0.0, swe.FLG_SWIEPH)
         moonset_jd = res_mset[0]
     except Exception:
         moonset_jd = None
@@ -427,7 +498,7 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="sunrise
     
     # Part indices for Monday(0) to Sunday(6)
     rahu_parts = {0: 2, 1: 7, 2: 5, 3: 6, 4: 4, 5: 3, 6: 8}
-    yama_parts = {0: 4, 1: 3, 2: 2, 3: 1, 4: 8, 5: 7, 6: 5}
+    yama_parts = {0: 4, 1: 3, 2: 2, 3: 1, 4: 7, 5: 6, 6: 5}
     gulika_parts = {0: 6, 1: 5, 2: 4, 3: 3, 4: 2, 5: 1, 6: 7}
     
     rahu_k = rahu_parts[vaara_idx]
@@ -448,6 +519,9 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="sunrise
     abhijit_end = sunrise_jd + 8 * muhurta_duration
     
     # Format JD time utilities
+    jd_tomorrow_start = jd_ut_start + 1.0
+    tomorrow_sunrise_jd, _, _, _ = get_sun_moon_rise_set(jd_tomorrow_start, lat, lon, alt)
+
     def jd_to_time_str(jd):
         if jd is None:
             return "--:--"
@@ -458,12 +532,42 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="sunrise
         if m == 60:
             h = (h + 1) % 24
             m = 0
+            
+        # Format times after midnight but before sunrise of next day as 24+h
+        if jd_tomorrow_start <= jd <= tomorrow_sunrise_jd:
+            h += 24
+            
         return f"{h:02d}:{m:02d}"
+
+    # Getter functions for indices
+    def get_tithi_idx(jd):
+        s_l, m_l = get_sidereal_longitudes(jd)
+        return int(((m_l - s_l) % 360) / 12.0)
         
-    # Ghadi-Pal time calculation (local time)
-    # Find active sunrise for Ghadi calculation
-    dt_now = datetime.datetime.now()
-    jd_now_ut = swe.julday(dt_now.year, dt_now.month, dt_now.day, dt_now.hour + dt_now.minute/60.0 + dt_now.second/3600.0 - tz)
+    def get_nakshatra_idx(jd):
+        _, m_l = get_sidereal_longitudes(jd)
+        return int(m_l / 13.333333) % 27
+        
+    def get_yoga_idx(jd):
+        s_l, m_l = get_sidereal_longitudes(jd)
+        return int(((m_l + s_l) % 360) / 13.333333) % 27
+
+    # Calculate end times
+    tithi_end_jd = find_transition(jd_calc, get_tithi_idx)
+    nakshatra_end_jd = find_transition(jd_calc, get_nakshatra_idx)
+    yoga_end_jd = find_transition(jd_calc, get_yoga_idx)
+    karana_end_jd = find_transition(jd_calc, lambda jd: int(((get_sidereal_longitudes(jd)[1] - get_sidereal_longitudes(jd)[0]) % 360) / 6.0))
+
+    tithi_end = jd_to_time_str(tithi_end_jd)
+    nakshatra_end = jd_to_time_str(nakshatra_end_jd)
+    yoga_end = jd_to_time_str(yoga_end_jd)
+    karana_end = jd_to_time_str(karana_end_jd)
+
+    # Ghadi-Pal time calculation (local time) using high-precision UTC with microseconds
+    dt_utc = datetime.datetime.now(datetime.timezone.utc)
+    jd_now_ut = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day,
+                           dt_utc.hour + dt_utc.minute/60.0 + 
+                           (dt_utc.second + dt_utc.microsecond/1000000.0)/3600.0)
     
     # Determine the start of day (sunrise of today, or yesterday if before sunrise)
     if jd_now_ut < sunrise_jd:
@@ -483,7 +587,51 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="sunrise
     proportion = elapsed / day_length
     total_ghadis = proportion * 60.0
     ghadi = int(total_ghadis)
-    pal = int((total_ghadis - ghadi) * 60.0)
+    vipal = int((total_ghadis - ghadi) * 60.0)
+
+    # Brahma Muhurta (starts 96 mins before sunrise, ends 48 mins before sunrise)
+    brahma_start = sunrise_jd - (96.0 / 1440.0)
+    brahma_end = sunrise_jd - (48.0 / 1440.0)
+    brahma_muhurta = f"{jd_to_time_str(brahma_start)} - {jd_to_time_str(brahma_end)}"
+
+    # Choghadiya calculations
+    day_duration = sunset_jd - sunrise_jd
+    day_part = day_duration / 8.0
+    
+    # Tomorrow's sunrise for night Choghadiya
+    night_duration = tomorrow_sunrise_jd - sunset_jd
+    night_part = night_duration / 8.0
+    
+    day_choghadiyas = []
+    night_choghadiyas = []
+    
+    for i in range(8):
+        # Day segment
+        d_start = sunrise_jd + i * day_part
+        d_end = sunrise_jd + (i + 1) * day_part
+        d_idx = (CHOGHADIYA_DAY_START[vaara_idx] + i) % 7
+        d_name = CHOGHADIYAS[lang][d_idx]
+        day_choghadiyas.append({
+            "name": d_name,
+            "start": jd_to_time_str(d_start),
+            "end": jd_to_time_str(d_end),
+            "nature": CHOGHADIYA_NATURES[lang][d_name]
+        })
+        
+        # Night segment
+        n_start = sunset_jd + i * night_part
+        n_end = sunset_jd + (i + 1) * night_part
+        n_idx = (CHOGHADIYA_NIGHT_START[vaara_idx] + i) % 7
+        n_name = CHOGHADIYAS[lang][n_idx]
+        night_choghadiyas.append({
+            "name": n_name,
+            "start": jd_to_time_str(n_start),
+            "end": jd_to_time_str(n_end),
+            "nature": CHOGHADIYA_NATURES[lang][n_name]
+        })
+
+    # Determine if we are calculating for today
+
     
     # 9. Festivals (Vaishnava vs Smarta)
     festivals = []
@@ -595,11 +743,15 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="sunrise
         "date": f"{year:04d}-{month:02d}-{day:02d}",
         "vaara": vaara_name,
         "tithi": tithi_name,
+        "tithi_end": tithi_end,
         "paksha": paksha_name,
         "masa": masa_name,
         "nakshatra": nakshatra_name,
+        "nakshatra_end": nakshatra_end,
         "yoga": yoga_name,
+        "yoga_end": yoga_end,
         "karana": karana_name,
+        "karana_end": karana_end,
         "ritu": ritu_name,
         "ayana": ayana_name,
         "samvatsara": samvatsara_name,
@@ -613,10 +765,13 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="sunrise
         "moonrise": jd_to_time_str(moonrise_jd),
         "moonset": jd_to_time_str(moonset_jd),
         "rahu_kala": f"{jd_to_time_str(rahu_start)} - {jd_to_time_str(rahu_end)}",
-        "yamaganda": f"{jd_to_time_str(yama_start)} - {jd_to_time_str(yama_end)}",
+        "yamaghanta": f"{jd_to_time_str(yama_start)} - {jd_to_time_str(yama_end)}",
         "gulika": f"{jd_to_time_str(gulika_start)} - {jd_to_time_str(gulika_end)}",
         "abhijit_muhurta": f"{jd_to_time_str(abhijit_start)} - {jd_to_time_str(abhijit_end)}",
-        "ghadi": f"{ghadi:02d}:{pal:02d}",
+        "ghadi": f"{ghadi:02d}:{vipal:02d}",
+        "brahma_muhurta": brahma_muhurta,
+        "day_choghadiya": day_choghadiyas,
+        "night_choghadiya": night_choghadiyas,
         "festivals": festivals,
         "is_krishna_paksha": is_krishna,
         "tithi_num": (t_num_idx % 15) + 1

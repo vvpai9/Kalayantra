@@ -34,7 +34,7 @@ PlasmoidItem {
         `Sunrise: ${currentPanchanga.sunrise}\n` +
         `Sunset: ${currentPanchanga.sunset}\n\n` +
         `Current Ghadi: ${liveGhadiTime.split(':')[0]}\n` +
-        `Current Pal: ${liveGhadiTime.split(':')[1] || "00"}\n\n` +
+        `Current Vipal: ${liveGhadiTime.split(':')[1] || "00"}\n\n` +
         `Nakshatra: ${currentPanchanga.nakshatra}\n` +
         `Yoga: ${currentPanchanga.yoga}\n` +
         `Karana: ${currentPanchanga.karana}`

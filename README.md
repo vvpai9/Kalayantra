@@ -11,15 +11,19 @@ Kālayantra is a native KDE Plasma 6 widget and offline Panchanga (Hindu Calenda
 ## Features
 
 - **Precise Lunisolar Astronomical Engine:** Powered by the local **Kālachakra** backend calculations engine using the Swiss Ephemeris (`pyswisseph`).
-- **Modern Kirigami Interface:** Fully native Plasma 6 integration with beautiful, responsive horizontal and vertical layouts.
+- **Modern Kirigami Interface:** Fully native Plasma 6 integration with beautiful, responsive layouts.
 - **Swipe Transitions:** Smooth monthly calendar navigation with slide/swipe animations.
 - **Detailed Panchanga Elements:**
-  - Tithi, Vaara, Nakshatra, Yoga, Karana
+  - Tithi, Vaara, Nakshatra, Yoga, Karana (along with their exact transit end times)
   - Ritu (6 seasons) and Ayana (Uttarayana/Dakshinayana)
   - Year counts for Shalivahana Shaka, Vikram Samvat, and Kali Yuga
   - Samvatsara (60-year Jovian cycle name, dynamically calculated for the chosen era)
+- **High-Precision Ghadi/Vipal Clock:** Microsecond UTC calculations for accurate Ghadi and Vipal tracking.
 - **Auspicious & Inauspicious Times:**
-  - Rahu Kala, Yamaganda, Gulika, and Abhijit Muhurta
+  - Rahu Kala (🔴 inauspicious), Yamaghanta (🔴 inauspicious), Gulika (🟡 moderate), and Abhijit Muhurta (🟢 auspicious)
+  - **Brahma Muhurta** calculation and display
+  - **Choghadiya Muhurtas** (both Daytime and Nighttime segments color-coded: 🟢 Auspicious, 🟡 Neutral, 🔴 Inauspicious)
+- **Vedic Transition Formatting:** Times falling after local midnight but before the next day's sunrise are formatted using the 24+h style (e.g., 27:07) to avoid Gregorian date confusion.
 - **Daily Sun/Moon Events:** Accurate calculations for Sunrise, Sunset, Moonrise, and Moonset based on coordinates.
 - **Customized Calendar Views:**
   - Select between Shalivahana Shaka, Vikram Samvat (Chaitradi), and Vikram Kartak (Kartikadi) calendar systems.
@@ -27,6 +31,7 @@ Kālayantra is a native KDE Plasma 6 widget and offline Panchanga (Hindu Calenda
   - Select Smarta or Vaishnava festival rules (affecting Ekadashi determination).
   - Clear visual distinction between Shukla Paksha (golden theme, waxing moon) and Krishna Paksha (slate theme, waning moon).
 - **Multi-language Support:** Choose display language from English, IAST (Sanskrit transliteration), and Devanagari.
+- **Expanded Presets:** Expanded predefined list of Indian cities with true altitude elevations.
 - **Reactive Settings Synchronization:** Fully functional configuration panel with bidirectional bindings that propagate settings to the backend instantly.
 - **Offline & Privacy-Respecting:** Spawns no cloud connections; all calculations run 100% locally.
 

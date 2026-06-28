@@ -59,7 +59,7 @@ Item {
             Kirigami.Heading {
                 id: firstLine
                 level: 5
-                text: root.currentPanchanga ? `${root.currentPanchanga.vaara} • ${root.currentPanchanga.tithi} • ${(plasmoid.configuration.lang === "devanagari") ? "घ" : "Gh"}: ${root.liveGhadiTime}` : "Loading..."
+                text: root.currentPanchanga ? `${root.currentPanchanga.tithi} • ${root.currentPanchanga.vaara} • ${(plasmoid.configuration.lang === "devanagari") ? "घ" : "Gh"}: ${root.liveGhadiTime}` : "Loading..."
                 font.bold: true
                 elide: Text.ElideRight
             }
