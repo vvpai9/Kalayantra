@@ -14,6 +14,37 @@ Item {
     Layout.minimumHeight: 580
     
     property var selectedDayData: null
+    property bool userSelectedDate: false
+    
+    // Helper to format astronomical element with active highlights
+    function formatAstroElement(el1, el1_end, el2, el2_end, activeIdx, isKrishna) {
+        if (!el1) return "--";
+        var color = isKrishna ? "#3daee9" : "#ffb300";
+        
+        var part1 = "";
+        if (el1_end && el1_end !== "--") {
+            part1 = `${el1} <font color='${color}'>${el1_end}</font>`;
+        } else {
+            part1 = el1;
+        }
+        
+        var part2 = "";
+        if (el2 && el2 !== "--") {
+            if (el2_end && el2_end !== "--") {
+                part2 = `${el2} <font color='${color}'>${el2_end}</font>`;
+            } else {
+                part2 = el2;
+            }
+        }
+        
+        if (activeIdx === 1) {
+            return `<b>👉 ${part1}</b>` + (part2 ? ` &nbsp;&nbsp;•&nbsp;&nbsp; <font color='#888888'>${part2}</font>` : "");
+        } else if (activeIdx === 2) {
+            return `<font color='#888888'>${part1}</font>` + (part2 ? ` &nbsp;&nbsp;•&nbsp;&nbsp; <b>👉 ${part2}</b>` : "");
+        } else {
+            return part1 + (part2 ? ` &nbsp;&nbsp;•&nbsp;&nbsp; ${part2}` : "");
+        }
+    }
     property var gridItems: []
 
     // Hindu month navigation state
@@ -100,9 +131,13 @@ Item {
                 }
             }
             if (foundTargetInMonth) {
-                selectedDayData = foundTargetInMonth;
+                if (!userSelectedDate) {
+                    selectedDayData = foundTargetInMonth;
+                }
             } else if (selectedMonthDays.length > 0) {
-                selectedDayData = selectedMonthDays[0];
+                if (!userSelectedDate) {
+                    selectedDayData = selectedMonthDays[0];
+                }
             }
         }
     }
@@ -170,6 +205,7 @@ Item {
         root.currentYear = targetY;
         root.currentMonth = targetM;
         
+        userSelectedDate = false;
         pendingSelectDate = `${targetY}-${String(targetM).padStart(2, '0')}-${String(targetD).padStart(2, '0')}`;
         root.fetchThreeMonths(targetY, targetM);
     }
@@ -190,6 +226,7 @@ Item {
         root.currentYear = targetY;
         root.currentMonth = targetM;
         
+        userSelectedDate = false;
         pendingSelectDate = `${targetY}-${String(targetM).padStart(2, '0')}-${String(targetD).padStart(2, '0')}`;
         root.fetchThreeMonths(targetY, targetM);
     }
@@ -198,7 +235,11 @@ Item {
         if (root.threeMonthsData && root.threeMonthsData.length > 0) {
             var targetDate = pendingSelectDate;
             if (!targetDate) {
-                targetDate = root.getTodayString();
+                if (userSelectedDate && selectedDayData) {
+                    targetDate = selectedDayData.date;
+                } else {
+                    targetDate = root.getTodayString();
+                }
             }
             
             var foundDay = null;
@@ -236,9 +277,17 @@ Item {
     // Refresh grid items when three-month window data changes
     Connections {
         target: root
-
+ 
         function onThreeMonthsDataChanged() {
             initializeData();
+        }
+
+        function onExpandedChanged() {
+            if (!root.expanded) {
+                userSelectedDate = false;
+                pendingSelectDate = "";
+                initializeData();
+            }
         }
     }
 
@@ -448,6 +497,7 @@ Item {
                             enabled: modelData && modelData.type === "day"
                             onClicked: {
                                 fullRoot.selectedDayData = modelData;
+                                fullRoot.userSelectedDate = true;
                             }
                         }
                     }
@@ -514,6 +564,26 @@ Item {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                         }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 2
+                            visible: fullRoot.selectedDayData && fullRoot.selectedDayData.festivals && fullRoot.selectedDayData.festivals.length > 0
+                            Layout.topMargin: 4
+                            Layout.bottomMargin: 4
+
+                            Repeater {
+                                model: fullRoot.selectedDayData ? fullRoot.selectedDayData.festivals : []
+                                Label {
+                                    text: ` ${modelData}`
+                                    font.bold: true
+                                    font.pixelSize: Kirigami.Units.gridUnit * 0.95
+                                    color: "#ff4d4d"
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
+                        }
                     }
 
                     Kirigami.Separator { Layout.fillWidth: true }
@@ -534,8 +604,14 @@ Item {
                         Label {
                             text: {
                                 if (!fullRoot.selectedDayData) return "--";
-                                var color = fullRoot.selectedDayData.is_krishna_paksha ? "#3daee9" : "#ffb300";
-                                return `${fullRoot.selectedDayData.tithi} &nbsp;&nbsp;&nbsp;<font color='${color}'>${fullRoot.selectedDayData.tithi_end}</font>`;
+                                return fullRoot.formatAstroElement(
+                                    fullRoot.selectedDayData.tithi_1,
+                                    fullRoot.selectedDayData.tithi_1_end,
+                                    fullRoot.selectedDayData.tithi_2,
+                                    fullRoot.selectedDayData.tithi_2_end,
+                                    fullRoot.selectedDayData.tithi_active_idx,
+                                    fullRoot.selectedDayData.is_krishna_paksha
+                                );
                             }
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
@@ -546,8 +622,14 @@ Item {
                         Label {
                             text: {
                                 if (!fullRoot.selectedDayData) return "--";
-                                var color = fullRoot.selectedDayData.is_krishna_paksha ? "#3daee9" : "#ffb300";
-                                return `${fullRoot.selectedDayData.nakshatra} &nbsp;&nbsp;&nbsp;<font color='${color}'>${fullRoot.selectedDayData.nakshatra_end}</font>`;
+                                return fullRoot.formatAstroElement(
+                                    fullRoot.selectedDayData.nakshatra_1,
+                                    fullRoot.selectedDayData.nakshatra_1_end,
+                                    fullRoot.selectedDayData.nakshatra_2,
+                                    fullRoot.selectedDayData.nakshatra_2_end,
+                                    fullRoot.selectedDayData.nakshatra_active_idx,
+                                    fullRoot.selectedDayData.is_krishna_paksha
+                                );
                             }
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
@@ -558,8 +640,14 @@ Item {
                         Label {
                             text: {
                                 if (!fullRoot.selectedDayData) return "--";
-                                var color = fullRoot.selectedDayData.is_krishna_paksha ? "#3daee9" : "#ffb300";
-                                return `${fullRoot.selectedDayData.yoga} &nbsp;&nbsp;&nbsp;<font color='${color}'>${fullRoot.selectedDayData.yoga_end}</font>`;
+                                return fullRoot.formatAstroElement(
+                                    fullRoot.selectedDayData.yoga_1,
+                                    fullRoot.selectedDayData.yoga_1_end,
+                                    fullRoot.selectedDayData.yoga_2,
+                                    fullRoot.selectedDayData.yoga_2_end,
+                                    fullRoot.selectedDayData.yoga_active_idx,
+                                    fullRoot.selectedDayData.is_krishna_paksha
+                                );
                             }
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
@@ -570,8 +658,14 @@ Item {
                         Label {
                             text: {
                                 if (!fullRoot.selectedDayData) return "--";
-                                var color = fullRoot.selectedDayData.is_krishna_paksha ? "#3daee9" : "#ffb300";
-                                return `${fullRoot.selectedDayData.karana} &nbsp;&nbsp;&nbsp;<font color='${color}'>${fullRoot.selectedDayData.karana_end}</font>`;
+                                return fullRoot.formatAstroElement(
+                                    fullRoot.selectedDayData.karana_1,
+                                    fullRoot.selectedDayData.karana_1_end,
+                                    fullRoot.selectedDayData.karana_2,
+                                    fullRoot.selectedDayData.karana_2_end,
+                                    fullRoot.selectedDayData.karana_active_idx,
+                                    fullRoot.selectedDayData.is_krishna_paksha
+                                );
                             }
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
@@ -660,25 +754,7 @@ Item {
                         }
                     }
 
-                    // Festivals & Observances
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: Kirigami.Units.smallSpacing * 1.5
-                        visible: fullRoot.selectedDayData && fullRoot.selectedDayData.festivals && fullRoot.selectedDayData.festivals.length > 0
 
-                        Label { text: i18n("Festivals & Observances:"); font.bold: true; color: "#ff4d4d" }
-                        
-                        Repeater {
-                            model: fullRoot.selectedDayData ? fullRoot.selectedDayData.festivals : []
-                            Label {
-                                text: `• ${modelData}`
-                                font.bold: true
-                                font.pixelSize: Kirigami.Units.gridUnit * 0.8
-                                Layout.fillWidth: true
-                                wrapMode: Text.WordWrap
-                            }
-                        }
-                    }
 
                     // Choghadiya Muhurtas Section
                     ColumnLayout {

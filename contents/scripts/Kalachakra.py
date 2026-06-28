@@ -388,6 +388,18 @@ def get_sun_moon_rise_set(jd_ut_day_start, lat, lon, alt):
         
     return sunrise_jd, sunset_jd, moonrise_jd, moonset_jd
 
+def get_karana_name_from_idx(k_idx, lang):
+    if k_idx == 0:
+        return KARANAS[lang][7]
+    elif 1 <= k_idx <= 56:
+        return KARANAS[lang][(k_idx - 1) % 7]
+    elif k_idx == 57:
+        return KARANAS[lang][8]
+    elif k_idx == 58:
+        return KARANAS[lang][9]
+    else:
+        return KARANAS[lang][10]
+
 def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="sunrise", calendar_system="shaka", month_system="amavasyanta", festival_rule="vaishnava", lang="en"):
     # Target date local 12:00 AM (midnight) in UTC to ensure sunrise/sunset are for the same calendar date
     jd_ut_start = swe.julday(year, month, day, 0.0 - tz)
@@ -553,21 +565,87 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="sunrise
         return int(((m_l + s_l) % 360) / 13.333333) % 27
 
     # Calculate end times
+    get_karana_idx = lambda jd: int(((get_sidereal_longitudes(jd)[1] - get_sidereal_longitudes(jd)[0]) % 360) / 6.0)
+    
     tithi_end_jd = find_transition(jd_calc, get_tithi_idx)
     nakshatra_end_jd = find_transition(jd_calc, get_nakshatra_idx)
     yoga_end_jd = find_transition(jd_calc, get_yoga_idx)
-    karana_end_jd = find_transition(jd_calc, lambda jd: int(((get_sidereal_longitudes(jd)[1] - get_sidereal_longitudes(jd)[0]) % 360) / 6.0))
+    karana_end_jd = find_transition(jd_calc, get_karana_idx)
 
     tithi_end = jd_to_time_str(tithi_end_jd)
     nakshatra_end = jd_to_time_str(nakshatra_end_jd)
     yoga_end = jd_to_time_str(yoga_end_jd)
     karana_end = jd_to_time_str(karana_end_jd)
 
+    # Next (second) elements
+    tithi_2_name = "--"
+    tithi_2_end = "--"
+    if tithi_end_jd is not None:
+        tithi_2_idx = get_tithi_idx(tithi_end_jd + 0.001)
+        tithi_2_name = TITHIS[lang][tithi_2_idx]
+        tithi_2_end_jd = find_transition(tithi_end_jd + 0.001, get_tithi_idx)
+        tithi_2_end = jd_to_time_str(tithi_2_end_jd)
+        
+    nakshatra_2_name = "--"
+    nakshatra_2_end = "--"
+    if nakshatra_end_jd is not None:
+        nakshatra_2_idx = get_nakshatra_idx(nakshatra_end_jd + 0.001)
+        nakshatra_2_name = NAKSHATRAS[lang][nakshatra_2_idx]
+        nakshatra_2_end_jd = find_transition(nakshatra_end_jd + 0.001, get_nakshatra_idx)
+        nakshatra_2_end = jd_to_time_str(nakshatra_2_end_jd)
+        
+    yoga_2_name = "--"
+    yoga_2_end = "--"
+    if yoga_end_jd is not None:
+        yoga_2_idx = get_yoga_idx(yoga_end_jd + 0.001)
+        yoga_2_name = YOGAS[lang][yoga_2_idx]
+        yoga_2_end_jd = find_transition(yoga_end_jd + 0.001, get_yoga_idx)
+        yoga_2_end = jd_to_time_str(yoga_2_end_jd)
+        
+    karana_2_name = "--"
+    karana_2_end = "--"
+    if karana_end_jd is not None:
+        karana_2_idx = get_karana_idx(karana_end_jd + 0.001)
+        karana_2_name = get_karana_name_from_idx(karana_2_idx, lang)
+        karana_2_end_jd = find_transition(karana_end_jd + 0.001, get_karana_idx)
+        karana_2_end = jd_to_time_str(karana_2_end_jd)
+
     # Ghadi-Pal time calculation (local time) using high-precision UTC with microseconds
     dt_utc = datetime.datetime.now(datetime.timezone.utc)
     jd_now_ut = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day,
                            dt_utc.hour + dt_utc.minute/60.0 + 
                            (dt_utc.second + dt_utc.microsecond/1000000.0)/3600.0)
+    
+    # Determine if today is selected
+    dt_local = dt_utc + datetime.timedelta(hours=tz)
+    is_today = (dt_local.year == year and dt_local.month == month and dt_local.day == day)
+    
+    tithi_active_idx = 0
+    nakshatra_active_idx = 0
+    yoga_active_idx = 0
+    karana_active_idx = 0
+    
+    if is_today:
+        tithi_active_idx = 2 if (tithi_end_jd is not None and jd_now_ut > tithi_end_jd) else 1
+        nakshatra_active_idx = 2 if (nakshatra_end_jd is not None and jd_now_ut > nakshatra_end_jd) else 1
+        yoga_active_idx = 2 if (yoga_end_jd is not None and jd_now_ut > yoga_end_jd) else 1
+        karana_active_idx = 2 if (karana_end_jd is not None and jd_now_ut > karana_end_jd) else 1
+
+    tithi_active_name = tithi_name
+    if is_today and tithi_end_jd is not None and jd_now_ut > tithi_end_jd:
+        tithi_active_name = tithi_2_name
+        
+    nakshatra_active_name = nakshatra_name
+    if is_today and nakshatra_end_jd is not None and jd_now_ut > nakshatra_end_jd:
+        nakshatra_active_name = nakshatra_2_name
+        
+    yoga_active_name = yoga_name
+    if is_today and yoga_end_jd is not None and jd_now_ut > yoga_end_jd:
+        yoga_active_name = yoga_2_name
+        
+    karana_active_name = karana_name
+    if is_today and karana_end_jd is not None and jd_now_ut > karana_end_jd:
+        karana_active_name = karana_2_name
     
     # Determine the start of day (sunrise of today, or yesterday if before sunrise)
     if jd_now_ut < sunrise_jd:
@@ -692,66 +770,112 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="sunrise
                     ekadashi_name = "Vaiṣṇava Ekādaśī"
                 festivals.append(ekadashi_name)
                 
-    # Other festivals (Rama Navami, Maha Shivaratri, etc.)
-    # Rama Navami: Chaitra Shukla Navami (masa = 0, paksha = Shukla, tithi = 8 (Navami is idx 8))
-    # We use Amavasyanta month index for these checks
-    amav_masa_idx, _, _, _, _ = get_lunar_month_details(jd_calc, "amavasyanta")
-    if amav_masa_idx == 0 and not is_krishna and t_num_idx == 8:
-        name = "Rama Navami"
-        if lang == "devanagari":
-            name = "राम नवमी"
-        elif lang == "iast":
-            name = "Rāma Navamī"
-        festivals.append(name)
-        
-    # Maha Shivaratri: Phalguna Krishna Chaturdashi (masa = 11, paksha = Krishna, tithi = 28 (Chaturdashi is idx 28))
-    if amav_masa_idx == 11 and is_krishna and t_num_idx == 28:
-        name = "Maha Shivaratri"
-        if lang == "devanagari":
-            name = "महाशिवरात्रि"
-        elif lang == "iast":
-            name = "Mahā Śivarātri"
-        festivals.append(name)
-        
-    # Krishna Janmashtami: Shravana Krishna Ashtami (masa = 4, paksha = Krishna, tithi = 22 (Ashtami is idx 22))
-    if amav_masa_idx == 4 and is_krishna and t_num_idx == 22:
-        name = "Krishna Janmashtami"
-        if lang == "devanagari":
-            name = "कृष्ण जन्माष्टमी"
-        elif lang == "iast":
-            name = "Kṛṣṇa Janmāṣṭamī"
-        festivals.append(name)
-        
-    # Makar Sankranti: Sun enters Capricorn (sidereal longitude 270 degrees)
-    # Check if Sun enters Makara on this day
-    # Get Sun longitude at sunrise and next sunrise
+    # 1. Sankrantis: Sun enters any Rashi (we check if Sun's Rashi changes from today to tomorrow)
     sun_long_today, _ = get_sidereal_longitudes(sunrise_jd)
-    # Next day sunrise
     jd_next_sunrise = sunrise_jd + 1.0
     sun_long_next, _ = get_sidereal_longitudes(jd_next_sunrise)
     
-    # Check if crossed 270
-    if sun_long_today < 270 <= sun_long_next or (sun_long_today > 350 and sun_long_next < 10 and 270 <= sun_long_today):
-        name = "Makar Sankranti"
+    rashi_today = int(sun_long_today / 30.0)
+    rashi_tomorrow = int(sun_long_next / 30.0)
+    
+    if rashi_today != rashi_tomorrow:
+        # Crosses boundary
+        SANKRANTIS = {
+            "en": ["Mesha Sankranti", "Vrishabha Sankranti", "Mithuna Sankranti", "Karka Sankranti", "Simha Sankranti", "Kanya Sankranti", "Tula Sankranti", "Vrishchika Sankranti", "Dhanu Sankranti", "Makar Sankranti", "Kumbha Sankranti", "Meena Sankranti"],
+            "iast": ["Meṣa Saṅkrānti", "Vṛṣabha Saṅkrānti", "Mithuna Saṅkrānti", "Karka Saṅkrānti", "Siṃha Saṅkrānti", "Kanyā Saṅkrānti", "Tulā Saṅkrānti", "Vṛścika Saṅkrānti", "Dhanu Saṅkrānti", "Makara Saṅkrānti", "Kumbha Saṅkrānti", "Mīna Saṅkrānti"],
+            "devanagari": ["मेष संक्रान्ति", "वृषभ संक्रान्ति", "मिथुन संक्रान्ति", "कर्क संक्रान्ति", "सिंह संक्रान्ति", "कन्या संक्रान्ति", "तुला संक्रान्ति", "वृश्चिक संक्रान्ति", "धनु संक्रान्ति", "मकर संक्रान्ति", "कुम्भ संक्रान्ति", "मीन संक्रान्ति"]
+        }
+        festivals.append(SANKRANTIS[lang][rashi_tomorrow])
+
+    # 2. Lunar month and Tithi based festivals
+    amav_masa_idx, _, _, _, _ = get_lunar_month_details(jd_calc, "amavasyanta")
+    
+    # Predefined Hindu festivals mapping
+    # (month_idx, is_krishna, tithi_num_idx, en, iast, devanagari)
+    festivals_db = [
+        # Chaitra Shukla Pratipada: Ugadi / Gudi Padwa
+        (0, False, 0, "Ugadi / Gudi Padwa", "Yugādi / Guḍhī Pāḍavā", "युगादि / गुढी पाडवा"),
+        # Chaitra Shukla Navami: Ram Navami
+        (0, False, 8, "Rama Navami", "Rāma Navamī", "राम नवमी"),
+        # Chaitra Purnima: Hanuman Janmotsav
+        (0, False, 14, "Hanuman Janmotsav", "Hanumān Janmotsava", "हनुमान जन्मोत्सव"),
+        # Vaishakha Shukla Tritiya: Akshaya Tritiya
+        (1, False, 2, "Akshaya Tritiya", "Akṣaya Tṛtīyā", "अक्षय तृतीया"),
+        # Jyeshtha Amavasya: Vat Savitri Vrat (Amavasya)
+        (2, True, 29, "Vat Savitri Vrat (Amavasya)", "Vaṭa Sāvitrī Vrata (Amāvāsyā)", "वट सावित्री व्रत (अमावस्या)"),
+        # Jyeshtha Purnima: Vat Savitri Vrat (Purnima)
+        (2, False, 14, "Vat Savitri Vrat (Purnima)", "Vaṭa Sāvitrī Vrata (Pūrṇimā)", "वट सावित्री व्रत (पूर्णिमा)"),
+        # Ashadha Purnima: Guru Purnima
+        (3, False, 14, "Guru Purnima", "Guru Pūrṇimā", "गुरु पूर्णिमा"),
+        # Shravana Krishna Ashtami: Krishna Janmashtami
+        (4, True, 22, "Krishna Janmashtami", "Kṛṣṇa Janmāṣṭamī", "कृष्ण जन्माष्टमी"),
+        # Shravana Purnima: Raksha Bandhan
+        (4, False, 14, "Raksha Bandhan", "Rakṣābandhana", "रक्षाबन्धन"),
+        # Bhadrapada Shukla Chaturthi: Ganesh Chaturthi
+        (5, False, 3, "Ganesh Chaturthi", "Gaṇeśa Caturthī", "गणेश चतुर्थी"),
+        # Bhadrapada Shukla Chaturdashi: Anant Chaturdashi
+        (5, False, 13, "Anant Chaturdashi", "Ananta Caturdaśī", "अनन्त चतुर्दशी"),
+        # Ashvina Shukla Navami: Maha Navami
+        (6, False, 8, "Maha Navami", "Mahā Navamī", "महानवमी"),
+        # Ashvina Shukla Dashami: Dasara / Vijayadashami
+        (6, False, 9, "Dasara / Vijayadashami", "Dasaharā / Vijayadaśamī", "दशहरा / विजयादशमी"),
+        # Ashvina Amavasya: Deepawali (Diwali)
+        (6, True, 29, "Deepawali", "Dīpāvalī", "दीपावली"),
+        # Kartika Shukla Dwadashi: Tulsi Vivah
+        (7, False, 11, "Tulsi Vivah", "Tulasī Vivāha", "तुलसी विवाह"),
+        # Phalguna Krishna Chaturdashi: Maha Shivaratri
+        (11, True, 28, "Maha Shivaratri", "Mahā Śivarātri", "महाशिवरात्रि"),
+        # Phalguna Purnima: Holi
+        (11, False, 14, "Holi", "Holī", "होली")
+    ]
+    
+    for m_idx, is_k, t_idx, name_en, name_iast, name_dev in festivals_db:
+        if amav_masa_idx == m_idx and is_krishna == is_k and t_num_idx == t_idx:
+            fname = name_dev if lang == "devanagari" else (name_iast if lang == "iast" else name_en)
+            festivals.append(fname)
+            
+    # 3. Sankashti Chaturthi (Krishna Paksha Chaturthi of every month)
+    if is_krishna and t_num_idx == 18:
+        sc_name = "Sankashti Chaturthi"
         if lang == "devanagari":
-            name = "मकर संक्रान्ति"
+            sc_name = "संकष्टी चतुर्थी"
         elif lang == "iast":
-            name = "Makara Saṅkrānti"
-        festivals.append(name)
+            sc_name = "Saṅkaṣṭī Caturthī"
+        festivals.append(sc_name)
         
     return {
         "date": f"{year:04d}-{month:02d}-{day:02d}",
         "vaara": vaara_name,
-        "tithi": tithi_name,
+        "tithi": tithi_active_name,
         "tithi_end": tithi_end,
+        "tithi_1": tithi_name,
+        "tithi_1_end": tithi_end,
+        "tithi_2": tithi_2_name,
+        "tithi_2_end": tithi_2_end,
+        "tithi_active_idx": tithi_active_idx,
         "paksha": paksha_name,
         "masa": masa_name,
-        "nakshatra": nakshatra_name,
+        "nakshatra": nakshatra_active_name,
         "nakshatra_end": nakshatra_end,
-        "yoga": yoga_name,
+        "nakshatra_1": nakshatra_name,
+        "nakshatra_1_end": nakshatra_end,
+        "nakshatra_2": nakshatra_2_name,
+        "nakshatra_2_end": nakshatra_2_end,
+        "nakshatra_active_idx": nakshatra_active_idx,
+        "yoga": yoga_active_name,
         "yoga_end": yoga_end,
-        "karana": karana_name,
+        "yoga_1": yoga_name,
+        "yoga_1_end": yoga_end,
+        "yoga_2": yoga_2_name,
+        "yoga_2_end": yoga_2_end,
+        "yoga_active_idx": yoga_active_idx,
+        "karana": karana_active_name,
         "karana_end": karana_end,
+        "karana_1": karana_name,
+        "karana_1_end": karana_end,
+        "karana_2": karana_2_name,
+        "karana_2_end": karana_2_end,
+        "karana_active_idx": karana_active_idx,
         "ritu": ritu_name,
         "ayana": ayana_name,
         "samvatsara": samvatsara_name,
