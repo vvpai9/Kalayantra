@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
 Item {
-    id: fullRoot
+    id: kaladarshana
     implicitWidth: 1024
     implicitHeight: 640
 
@@ -17,24 +17,19 @@ Item {
     property bool userSelectedDate: false
     
     // Helper to format astronomical element with active highlights
-    function formatAstroElement(el1, el1_end, el2, el2_end, activeIdx, isKrishna) {
+    function formatAstroElement(el1, el1_end, el2, el2_end, activeIdx, isKrishna, survives, mode) {
         if (!el1) return "--";
         var color = isKrishna ? "#3daee9" : "#ffb300";
         
-        var part1 = "";
-        if (el1_end && el1_end !== "--") {
-            part1 = `${el1} <font color='${color}'>${el1_end}</font>`;
-        } else {
-            part1 = el1;
+        if ((mode === "traditional" || mode === "sunrise") && survives) {
+            var single = (el1_end && el1_end !== "--") ? `${el1} <font color='${color}'>${el1_end}</font>` : el1;
+            return `<b>${single}</b>`;
         }
         
+        var part1 = (el1_end && el1_end !== "--") ? `${el1} <font color='${color}'>${el1_end}</font>` : el1;
         var part2 = "";
         if (el2 && el2 !== "--") {
-            if (el2_end && el2_end !== "--") {
-                part2 = `${el2} <font color='${color}'>${el2_end}</font>`;
-            } else {
-                part2 = el2;
-            }
+            part2 = (el2_end && el2_end !== "--") ? `${el2} <font color='${color}'>${el2_end}</font>` : el2;
         }
         
         if (activeIdx === 1) {
@@ -44,6 +39,16 @@ Item {
         } else {
             return part1 + (part2 ? ` &nbsp;&nbsp;•&nbsp;&nbsp; ${part2}` : "");
         }
+    }
+
+    function formatGregorianDateStr(dateStr) {
+        if (!dateStr) return "";
+        var parts = dateStr.split('-');
+        if (parts.length < 3) return dateStr;
+        var day = parseInt(parts[2]);
+        var monthIdx = parseInt(parts[1]);
+        var year = parts[0];
+        return `${day} ${getGregorianMonthName(monthIdx)} ${year}`;
     }
     property var gridItems: []
 
@@ -283,7 +288,14 @@ Item {
         }
 
         function onExpandedChanged() {
-            if (!root.expanded) {
+            if (root.expanded) {
+                userSelectedDate = false;
+                pendingSelectDate = "";
+                root.currentYear = new Date().getFullYear();
+                root.currentMonth = new Date().getMonth() + 1;
+                root.fetchThreeMonths(root.currentYear, root.currentMonth);
+                initializeData();
+            } else {
                 userSelectedDate = false;
                 pendingSelectDate = "";
                 initializeData();
@@ -321,7 +333,7 @@ Item {
                     
                     Kirigami.Heading {
                         level: 3
-                        text: `${selectedMasaName} ${selectedDayData ? selectedDayData.paksha : ""} Paksha`
+                        text: selectedDayData ? `${selectedMasaName} ${selectedDayData.paksha} Paksha` : selectedMasaName
                         font.bold: true
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
@@ -420,7 +432,7 @@ Item {
 
                 // Calendar Days (Rows 2-7)
                 Repeater {
-                    model: fullRoot.gridItems
+                    model: kaladarshana.gridItems
 
                     Item {
                         id: cell
@@ -446,7 +458,7 @@ Item {
                             
                             border.color: {
                                 if (!modelData || modelData.type !== "day") return "transparent";
-                                if (fullRoot.selectedDayData && fullRoot.selectedDayData.date === modelData.date) {
+                                if (kaladarshana.selectedDayData && kaladarshana.selectedDayData.date === modelData.date) {
                                     return Kirigami.Theme.highlightColor;
                                 }
                                 if (modelData.date === root.getTodayString()) {
@@ -458,7 +470,7 @@ Item {
                             // Dynamic cell text content
                             ColumnLayout {
                                 anchors.centerIn: parent
-                                spacing: 1
+                                spacing: 2
                                 
                                 Label {
                                     text: modelData && modelData.type === "day" ? modelData.tithi_num : ""
@@ -485,7 +497,7 @@ Item {
                                 width: 5
                                 height: 5
                                 radius: 2.5
-                                color: "#ff4d4d"
+                                color: (modelData && modelData.festivals && modelData.festivals.length > 0) ? modelData.festivals[0].color : "#2ecc71"
                                 visible: modelData && modelData.festivals ? modelData.festivals.length > 0 : false
                             }
                         }
@@ -496,8 +508,8 @@ Item {
                             hoverEnabled: modelData && modelData.type === "day"
                             enabled: modelData && modelData.type === "day"
                             onClicked: {
-                                fullRoot.selectedDayData = modelData;
-                                fullRoot.userSelectedDate = true;
+                                kaladarshana.selectedDayData = modelData;
+                                kaladarshana.userSelectedDate = true;
                             }
                         }
                     }
@@ -518,10 +530,10 @@ Item {
             background: Rectangle {
                 radius: 8
                 color: {
-                    if (!fullRoot.selectedDayData) return Kirigami.Theme.backgroundColor;
-                    return fullRoot.selectedDayData.is_krishna_paksha ? "#141c22" : "#1a1608";
+                    if (!kaladarshana.selectedDayData) return Kirigami.Theme.backgroundColor;
+                    return kaladarshana.selectedDayData.is_krishna_paksha ? "#141c22" : "#1a1608";
                 }
-                border.color: fullRoot.selectedDayData && fullRoot.selectedDayData.is_krishna_paksha ? "#2e3b46" : "#d4af37"
+                border.color: kaladarshana.selectedDayData && kaladarshana.selectedDayData.is_krishna_paksha ? "#2e3b46" : "#d4af37"
                 border.width: 1.5
             }
 
@@ -542,23 +554,21 @@ Item {
                     // Detail Card Header
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: 2
-
-                        Label {
-                            text: fullRoot.selectedDayData ? fullRoot.selectedDayData.date : ""
+                                           Label {
+                            text: kaladarshana.selectedDayData ? kaladarshana.formatGregorianDateStr(kaladarshana.selectedDayData.date) : ""
                             font.pixelSize: Kirigami.Units.gridUnit * 0.75
                             opacity: 0.8
                         }
 
                         Kirigami.Heading {
                             level: 2
-                            text: fullRoot.selectedDayData ? fullRoot.selectedDayData.tithi : i18n("Select a day")
-                            color: fullRoot.selectedDayData && fullRoot.selectedDayData.is_krishna_paksha ? "#7094b3" : "#ffcc00"
+                            text: kaladarshana.selectedDayData ? kaladarshana.selectedDayData.tithi : i18n("Select a day")
+                            color: kaladarshana.selectedDayData && kaladarshana.selectedDayData.is_krishna_paksha ? "#7094b3" : "#ffcc00"
                             font.bold: true
                         }
 
                         Label {
-                            text: fullRoot.selectedDayData ? `${fullRoot.selectedDayData.paksha} Paksha • ${fullRoot.selectedDayData.vaara}` : ""
+                            text: kaladarshana.selectedDayData ? `${kaladarshana.selectedDayData.paksha} Paksha • ${kaladarshana.selectedDayData.vaara}` : ""
                             font.bold: true
                             font.pixelSize: Kirigami.Units.gridUnit * 0.85
                             Layout.fillWidth: true
@@ -567,20 +577,29 @@ Item {
 
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 2
-                            visible: fullRoot.selectedDayData && fullRoot.selectedDayData.festivals && fullRoot.selectedDayData.festivals.length > 0
+                            spacing: 4
+                            visible: kaladarshana.selectedDayData && kaladarshana.selectedDayData.festivals && kaladarshana.selectedDayData.festivals.length > 0
                             Layout.topMargin: 4
                             Layout.bottomMargin: 4
 
                             Repeater {
-                                model: fullRoot.selectedDayData ? fullRoot.selectedDayData.festivals : []
+                                model: kaladarshana.selectedDayData ? kaladarshana.selectedDayData.festivals : []
                                 Label {
-                                    text: ` ${modelData}`
+                                    text: `🎉 ${modelData.name}`
                                     font.bold: true
                                     font.pixelSize: Kirigami.Units.gridUnit * 0.95
-                                    color: "#ff4d4d"
+                                    color: modelData.color || "#2ecc71"
                                     Layout.fillWidth: true
                                     wrapMode: Text.WordWrap
+
+                                    ToolTip.visible: festivalMouse.containsMouse
+                                    ToolTip.text: (modelData.description ? modelData.description + "\n" : "") + (modelData.rule ? `Rule: ${modelData.rule}` : "")
+
+                                    MouseArea {
+                                        id: festivalMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                    }
                                 }
                             }
                         }
@@ -597,20 +616,22 @@ Item {
 
                         // Row: Masa
                         Label { text: i18n("Masa (Month):"); font.bold: true; opacity: 0.8 }
-                        Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.masa : "--"; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                        Label { text: kaladarshana.selectedDayData ? kaladarshana.selectedDayData.masa : "--"; Layout.fillWidth: true; wrapMode: Text.WordWrap }
 
                         // Row: Tithi
                         Label { text: i18n("Tithi:"); font.bold: true; opacity: 0.8 }
                         Label {
                             text: {
-                                if (!fullRoot.selectedDayData) return "--";
-                                return fullRoot.formatAstroElement(
-                                    fullRoot.selectedDayData.tithi_1,
-                                    fullRoot.selectedDayData.tithi_1_end,
-                                    fullRoot.selectedDayData.tithi_2,
-                                    fullRoot.selectedDayData.tithi_2_end,
-                                    fullRoot.selectedDayData.tithi_active_idx,
-                                    fullRoot.selectedDayData.is_krishna_paksha
+                                if (!kaladarshana.selectedDayData) return "--";
+                                return kaladarshana.formatAstroElement(
+                                    kaladarshana.selectedDayData.tithi_1,
+                                    kaladarshana.selectedDayData.tithi_1_end,
+                                    kaladarshana.selectedDayData.tithi_2,
+                                    kaladarshana.selectedDayData.tithi_2_end,
+                                    kaladarshana.selectedDayData.tithi_active_idx,
+                                    kaladarshana.selectedDayData.is_krishna_paksha,
+                                    kaladarshana.selectedDayData.tithi_survives,
+                                    root.configTithiMode
                                 );
                             }
                             Layout.fillWidth: true
@@ -621,14 +642,16 @@ Item {
                         Label { text: i18n("Nakshatra:"); font.bold: true; opacity: 0.8 }
                         Label {
                             text: {
-                                if (!fullRoot.selectedDayData) return "--";
-                                return fullRoot.formatAstroElement(
-                                    fullRoot.selectedDayData.nakshatra_1,
-                                    fullRoot.selectedDayData.nakshatra_1_end,
-                                    fullRoot.selectedDayData.nakshatra_2,
-                                    fullRoot.selectedDayData.nakshatra_2_end,
-                                    fullRoot.selectedDayData.nakshatra_active_idx,
-                                    fullRoot.selectedDayData.is_krishna_paksha
+                                if (!kaladarshana.selectedDayData) return "--";
+                                return kaladarshana.formatAstroElement(
+                                    kaladarshana.selectedDayData.nakshatra_1,
+                                    kaladarshana.selectedDayData.nakshatra_1_end,
+                                    kaladarshana.selectedDayData.nakshatra_2,
+                                    kaladarshana.selectedDayData.nakshatra_2_end,
+                                    kaladarshana.selectedDayData.nakshatra_active_idx,
+                                    kaladarshana.selectedDayData.is_krishna_paksha,
+                                    kaladarshana.selectedDayData.nakshatra_survives,
+                                    root.configTithiMode
                                 );
                             }
                             Layout.fillWidth: true
@@ -639,14 +662,16 @@ Item {
                         Label { text: i18n("Yoga:"); font.bold: true; opacity: 0.8 }
                         Label {
                             text: {
-                                if (!fullRoot.selectedDayData) return "--";
-                                return fullRoot.formatAstroElement(
-                                    fullRoot.selectedDayData.yoga_1,
-                                    fullRoot.selectedDayData.yoga_1_end,
-                                    fullRoot.selectedDayData.yoga_2,
-                                    fullRoot.selectedDayData.yoga_2_end,
-                                    fullRoot.selectedDayData.yoga_active_idx,
-                                    fullRoot.selectedDayData.is_krishna_paksha
+                                if (!kaladarshana.selectedDayData) return "--";
+                                return kaladarshana.formatAstroElement(
+                                    kaladarshana.selectedDayData.yoga_1,
+                                    kaladarshana.selectedDayData.yoga_1_end,
+                                    kaladarshana.selectedDayData.yoga_2,
+                                    kaladarshana.selectedDayData.yoga_2_end,
+                                    kaladarshana.selectedDayData.yoga_active_idx,
+                                    kaladarshana.selectedDayData.is_krishna_paksha,
+                                    kaladarshana.selectedDayData.yoga_survives,
+                                    root.configTithiMode
                                 );
                             }
                             Layout.fillWidth: true
@@ -657,14 +682,16 @@ Item {
                         Label { text: i18n("Karana:"); font.bold: true; opacity: 0.8 }
                         Label {
                             text: {
-                                if (!fullRoot.selectedDayData) return "--";
-                                return fullRoot.formatAstroElement(
-                                    fullRoot.selectedDayData.karana_1,
-                                    fullRoot.selectedDayData.karana_1_end,
-                                    fullRoot.selectedDayData.karana_2,
-                                    fullRoot.selectedDayData.karana_2_end,
-                                    fullRoot.selectedDayData.karana_active_idx,
-                                    fullRoot.selectedDayData.is_krishna_paksha
+                                if (!kaladarshana.selectedDayData) return "--";
+                                return kaladarshana.formatAstroElement(
+                                    kaladarshana.selectedDayData.karana_1,
+                                    kaladarshana.selectedDayData.karana_1_end,
+                                    kaladarshana.selectedDayData.karana_2,
+                                    kaladarshana.selectedDayData.karana_2_end,
+                                    kaladarshana.selectedDayData.karana_active_idx,
+                                    kaladarshana.selectedDayData.is_krishna_paksha,
+                                    kaladarshana.selectedDayData.karana_survives,
+                                    root.configTithiMode
                                 );
                             }
                             Layout.fillWidth: true
@@ -673,12 +700,12 @@ Item {
 
                         // Row: Ritu & Ayana
                         Label { text: i18n("Ritu & Ayana:"); font.bold: true; opacity: 0.8 }
-                        Label { text: fullRoot.selectedDayData ? `${fullRoot.selectedDayData.ritu} • ${fullRoot.selectedDayData.ayana}` : "--"; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                        Label { text: kaladarshana.selectedDayData ? `${kaladarshana.selectedDayData.ritu} • ${kaladarshana.selectedDayData.ayana}` : "--"; Layout.fillWidth: true; wrapMode: Text.WordWrap }
 
                         // Row: Jovian Samvatsara & Years
                         Label { text: i18n("Samvatsara:"); font.bold: true; opacity: 0.8 }
                         Label { 
-                            text: fullRoot.selectedDayData ? `${fullRoot.selectedDayData.samvatsara}` : "--"
+                            text: kaladarshana.selectedDayData ? `${kaladarshana.selectedDayData.samvatsara}` : "--"
                             font.bold: true
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
@@ -686,7 +713,7 @@ Item {
 
                         Label { text: i18n("Era Years:"); font.bold: true; opacity: 0.8 }
                         Label { 
-                            text: fullRoot.selectedDayData ? `Shaka ${fullRoot.selectedDayData.shaka_year} • Vikram ${fullRoot.selectedDayData.vikram_year} • Kali ${fullRoot.selectedDayData.kali_year}` : "--"
+                            text: kaladarshana.selectedDayData ? `Shaka ${kaladarshana.selectedDayData.shaka_year} • Vikram ${kaladarshana.selectedDayData.vikram_year} • Kali ${kaladarshana.selectedDayData.kali_year}` : "--"
                             font.pixelSize: Kirigami.Units.gridUnit * 0.7
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
@@ -710,20 +737,20 @@ Item {
                             
                             ColumnLayout {
                                 spacing: 4
-                                Label { text: `☀️ Rise: ${fullRoot.selectedDayData ? fullRoot.selectedDayData.sunrise : "--"}` }
-                                Label { text: `☀️ Set:  ${fullRoot.selectedDayData ? fullRoot.selectedDayData.sunset : "--"}` }
+                                Label { text: `☀️ Rise: ${kaladarshana.selectedDayData ? kaladarshana.selectedDayData.sunrise : "--"}` }
+                                Label { text: `☀️ Set:  ${kaladarshana.selectedDayData ? kaladarshana.selectedDayData.sunset : "--"}` }
                             }
 
                             ColumnLayout {
                                 spacing: 4
-                                Label { text: `🌙 Rise: ${fullRoot.selectedDayData ? fullRoot.selectedDayData.moonrise : "--"}` }
-                                Label { text: `🌙 Set:  ${fullRoot.selectedDayData ? fullRoot.selectedDayData.moonset : "--"}` }
+                                Label { text: `🌙 Rise: ${kaladarshana.selectedDayData ? kaladarshana.selectedDayData.moonrise : "--"}` }
+                                Label { text: `🌙 Set:  ${kaladarshana.selectedDayData ? kaladarshana.selectedDayData.moonset : "--"}` }
                             }
 
                             ColumnLayout {
                                 spacing: 4
                                 Label { text: `✨ Brahma:` }
-                                Label { text: `${fullRoot.selectedDayData ? fullRoot.selectedDayData.brahma_muhurta : "--"}` }
+                                Label { text: `${kaladarshana.selectedDayData ? kaladarshana.selectedDayData.brahma_muhurta : "--"}` }
                             }
                         }
                     }
@@ -741,16 +768,16 @@ Item {
                             columnSpacing: Kirigami.Units.largeSpacing * 1.5
 
                             Label { text: "Abhijit Muhurta:" }
-                            Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.abhijit_muhurta : "--"; font.bold: true; color: "#2ecc71" }
+                            Label { text: kaladarshana.selectedDayData ? kaladarshana.selectedDayData.abhijit_muhurta : "--"; font.bold: true; color: "#2ecc71" }
 
                             Label { text: "Rahu Kala:" }
-                            Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.rahu_kala : "--"; font.bold: true; color: "#e74c3c" }
+                            Label { text: kaladarshana.selectedDayData ? kaladarshana.selectedDayData.rahu_kala : "--"; font.bold: true; color: "#e74c3c" }
 
                             Label { text: "Yamaghanta:" }
-                            Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.yamaghanta : "--"; font.bold: true; color: "#e74c3c" }
+                            Label { text: kaladarshana.selectedDayData ? kaladarshana.selectedDayData.yamaghanta : "--"; font.bold: true; color: "#e74c3c" }
 
                             Label { text: "Gulika:" }
-                            Label { text: fullRoot.selectedDayData ? fullRoot.selectedDayData.gulika : "--"; font.bold: true; color: "#f1c40f" }
+                            Label { text: kaladarshana.selectedDayData ? kaladarshana.selectedDayData.gulika : "--"; font.bold: true; color: "#f1c40f" }
                         }
                     }
 
@@ -776,8 +803,8 @@ Item {
 
                             Repeater {
                                 model: choghadiyaTabBar.currentIndex === 0 
-                                       ? (fullRoot.selectedDayData ? fullRoot.selectedDayData.day_choghadiya : [])
-                                       : (fullRoot.selectedDayData ? fullRoot.selectedDayData.night_choghadiya : [])
+                                       ? (kaladarshana.selectedDayData ? kaladarshana.selectedDayData.day_choghadiya : [])
+                                       : (kaladarshana.selectedDayData ? kaladarshana.selectedDayData.night_choghadiya : [])
                                 
                                 RowLayout {
                                     Layout.fillWidth: true
@@ -818,7 +845,7 @@ Item {
                     RowLayout {
                         Layout.fillWidth: true
                         Layout.topMargin: Kirigami.Units.largeSpacing
-                        visible: fullRoot.selectedDayData && fullRoot.selectedDayData.date === root.getTodayString()
+                        visible: kaladarshana.selectedDayData && kaladarshana.selectedDayData.date === root.getTodayString()
                         
                         Label {
                             text: (plasmoid.configuration.lang === "devanagari") ? "वर्तमान घडी:विपल काल:" : i18n("Current Ghadi:Vipal time:")

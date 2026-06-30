@@ -2,38 +2,95 @@
 
 Kālayantra is a native KDE Plasma 6 widget and offline Panchanga (Hindu Calendar) that brings precise Hindu astronomical calculations directly to your desktop.
 
-<img width="303" height="43" alt="Screenshot_20260626_093019" src="https://github.com/user-attachments/assets/63e6a0cd-0e1f-483d-8b98-ea5a1e14972e" />
+## Architecture (v2.0 Upgrade)
 
-<img width="1253" height="872" alt="Screenshot_20260626_093050" src="https://github.com/user-attachments/assets/0d7e535f-6ca6-4898-9cdc-75e54f44d65c" />
+Kālayantra is built with a strictly decoupled modular design following separation of concerns:
 
-<img width="1022" height="817" alt="Screenshot_20260626_093122" src="https://github.com/user-attachments/assets/3c2cfeb4-cee1-4b17-9a19-7789cbb45e97" />
+- **Kalayantra**: The desktop app and panel widget wrapper for KDE Plasma 6.
+- **Kalachakra**: The core Panchanga and astronomical calculation engine.
+- **Kalotsavachakra**: The traditional Dharmaśāstra festival & ritual calculation engine.
+- **Kalasetu**: The backend bridge / local API service daemon.
+- **Kaladarshana**: The native user interface (UI) built using QML, Kirigami, and QtQuick.
+- **Kalakosha**: The static knowledge repository (metadata, coordinates, translations).
 
 ## Features
 
-- **Precise Lunisolar Astronomical Engine:** Powered by the local **Kālachakra** backend calculations engine using the Swiss Ephemeris (`pyswisseph`).
-- **Modern Kirigami Interface:** Fully native Plasma 6 integration with beautiful, responsive layouts.
-- **Swipe Transitions:** Smooth monthly calendar navigation with slide/swipe animations.
-- **Detailed Panchanga Elements:**
-  - Tithi, Vaara, Nakshatra, Yoga, Karana (along with their exact transit end times)
-  - Ritu (6 seasons) and Ayana (Uttarayana/Dakshinayana)
-  - Year counts for Shalivahana Shaka, Vikram Samvat and Kali Yuga
-  - Samvatsara (60-year Jovian cycle name, dynamically calculated for the chosen era)
-- **High-Precision Ghadi/Vipal Clock:** Microsecond UTC calculations for accurate Ghadi and Vipal tracking.
+- **Precise Lunisolar Astronomical Engine:** Powered by the local **Kalachakra** engine using the Swiss Ephemeris (`pyswisseph`).
+- **Native KDE Plasma 6 Experience:** Built using QtQuick, Kirigami and QML for seamless Plasma integration.
+- **Traditional & Astronomical Display Modes:**
+  - **Traditional Mode:** Panchanga elements are determined using the sunrise rule. If an element survives until the next sunrise, only that element is displayed; otherwise both the current and next elements are shown.
+  - **Astronomical Mode:** Displays the currently active Panchanga element along with upcoming transitions.
+- **Dynamic Hindu Month Navigation:** Hindu lunar months (e.g. *Jyeshtha Masa*) are treated as the primary calendar, with Gregorian dates shown as secondary references.
+- **Detailed Panchanga Information:**
+  - Tithi
+  - Vaara
+  - Nakshatra
+  - Yoga
+  - Karana
+  - Masa
+  - Paksha
+  - Ritu
+  - Ayana
+  - Samvatsara
+  - Shaka, Vikrama and Kali Year
+- **Live Ghadi–Vipal Clock:** Real-time traditional Hindu time calculation based on local sunrise.
+- **Daily Solar & Lunar Events:**
+  - Sunrise
+  - Sunset
+  - Moonrise
+  - Moonset
 - **Auspicious & Inauspicious Times:**
-  - Rahu Kala, Yamaghanta, Gulika and Abhijit Muhurta
-  - **Brahma Muhurta** calculation and display
-  - **Choghadiya Muhurtas** (both Daytime and Nighttime segments color-coded: 🟢 Auspicious, 🟡 Neutral, 🔴 Inauspicious)
-- **Vedic Transition Formatting:** Times falling after local midnight but before the next day's sunrise are formatted using the 24+h style (e.g., 27:07) to avoid Gregorian date confusion.
-- **Daily Sun/Moon Events:** Accurate calculations for Sunrise, Sunset, Moonrise and Moonset based on coordinates.
-- **Festivals & Sankrantis:** Dynamic calculation of all 12 Rashi Sankrantis, monthly Sankashti Chaturthi and major lunisolar festivals with localized multi-language translations.
-- **Customized Calendar Views:**
-  - Select between Shalivahana Shaka, Vikram Samvat (Chaitradi) and Vikram Kartak (Kartikadi) calendar systems.
-  - Choose Amavasyanta (default) or Purnimanta month systems.
-  - Select Smarta or Vaishnava festival rules (affecting Ekadashi determination).
-  - Clear visual distinction between Shukla Paksha (golden theme, waxing moon) and Krishna Paksha (slate theme, waning moon).
-- **Multi-language Support:** Choose display language from English, IAST (Sanskrit transliteration) and Devanagari.
-- **Reactive Settings Synchronization:** Fully functional configuration panel with bidirectional bindings that propagate settings to the backend instantly.
-- **Offline & Privacy-Respecting:** Spawns no cloud connections; all calculations run 100% locally.
+  - Brahma Muhurta
+  - Rahu Kala
+  - Yamaganda
+  - Gulika Kala
+  - Abhijit Muhurta
+  - Day & Night Choghadiya
+- **Authentic Festival Engine:** Powered by **KalotsavaChakra**, implementing traditional Dharmaśāstra-based festival calculations rather than a generic sunrise rule.
+- **Supported Festivals:**
+  - Major Hindu festivals
+  - All Ekadashis (with traditional names)
+  - Sankashti Chaturthi
+  - All Sankrantis
+  - Smarta & Vaishnava calculation modes
+- **Offline City Search:** Built-in searchable database of cities with support for locally cached custom locations.
+- **Custom Lunar Observances:** Create, edit, delete, import and export recurring tithi-based personal observances such as birthdays, anniversaries and vratas.
+- **Dynamic Calendar Indicators:**
+  - 🔵 Ekadashi
+  - 🟠 Sankranti
+  - 🟣 Sankashti Chaturthi
+  - 🟢 Major Festivals
+  - 🟡 Custom Observances
+- **Traditional Panchanga Time Formatting:** Events occurring after midnight are displayed using the traditional 24+ hour notation (e.g. `27:15`, `31:42`) until the next sunrise.
+- **Panel Tooltip:** Hovering over the widget displays Sunrise, Sunset, Moonrise, Moonset, Ghadi–Vipal, Nakshatra, Yoga, Karana and the current festival.
+- **Multiple Calendar Systems:**
+  - Shalivahana Shaka (Default)
+  - Vikram Samvat (Chaitradi)
+  - Vikram Kartak (Kartikadi)
+- **Month Systems:**
+  - Amavasyanta (Default)
+  - Purnimanta
+- **Localization:**
+  - English
+  - IAST Sanskrit
+  - Devanagari
+- **Offline & Privacy Respecting:** No cloud APIs, no Internet dependency, and all astronomical calculations are performed locally.
+
+## Screenshots
+
+### Panel Widget
+
+![Panel Widget](screenshots/widget.png)
+
+### Calendar Popup
+
+![Calendar Popup](screenshots/popup.png)
+
+### Settings
+
+![Settings](screenshots/settings.png)
+
+![Custom Observances](screenshots/custom.png)
 
 ## Installation
 
@@ -63,7 +120,7 @@ chmod +x install.sh
 
 This will:
 1. Register and install the Plasmoid package using `kpackagetool6`.
-2. Configure a systemd user service (`kalachakra.service`) to run the Python **Kālachakra** calculations engine on port `8642`.
+2. Configure a systemd user service (`kalachakra.service`) to run the Python **Kalasetu** API bridge on port `8642`.
 3. Enable and start the background service.
 
 ## License

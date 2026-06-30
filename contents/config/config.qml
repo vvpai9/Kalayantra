@@ -7,4 +7,9 @@ ConfigModel {
          icon: "configure"
          source: "configGeneral.qml"
     }
+    ConfigCategory {
+         name: i18n("Custom Observances")
+         icon: "appointment-new"
+         source: "configObservances.qml"
+    }
 }

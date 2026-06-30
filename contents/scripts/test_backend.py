@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+"""
+Test suite for Kālayantra v2.0 Backend calculations
+Verifies astronomical output from Kalachakra and festival logic from Kalotsavachakra.
+"""
 import unittest
 import sys
 import os
@@ -6,11 +10,12 @@ import os
 # Include current directory in import path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import Kalachakra as ps
+import Kalotsavachakra as otsav
 
 class TestPanchangaCalculations(unittest.TestCase):
     def test_samvatsara_jovian_cycle(self):
         # Verify Samvatsara for year 2026 (Shaka 1948)
-        # 1948 + 12 = 1960 % 60 = 40 (Parabhava)
+        # 1948 + 11 = 1959 % 60 = 39 (Parabhava)
         res_en = ps.calculate_panchanga(2026, 6, 23, 5.5, 23.1765, 75.7885, 0.0, lang="en")
         res_de = ps.calculate_panchanga(2026, 6, 23, 5.5, 23.1765, 75.7885, 0.0, lang="devanagari")
         res_ia = ps.calculate_panchanga(2026, 6, 23, 5.5, 23.1765, 75.7885, 0.0, lang="iast")
@@ -33,7 +38,9 @@ class TestPanchangaCalculations(unittest.TestCase):
         found = False
         for day in [14, 15]:
             res = ps.calculate_panchanga(2026, 1, day, 5.5, 23.1765, 75.7885, 0.0)
-            if "Makar Sankranti" in res["festivals"]:
+            festivals = otsav.calculate_festivals(res, 5.5)
+            fest_names = [f["name"] for f in festivals]
+            if "Makar Sankranti" in fest_names:
                 found = True
                 print(f"Makar Sankranti 2026 detected on Jan {day}")
                 break

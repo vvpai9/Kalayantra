@@ -32,7 +32,7 @@
       <default>vaishnava</default>
     </entry>
     <entry name="tithiMode" type="String">
-      <default>sunrise</default>
+      <default>traditional</default>
     </entry>
   </group>
 </kcfg>

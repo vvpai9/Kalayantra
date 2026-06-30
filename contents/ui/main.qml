@@ -31,13 +31,13 @@ PlasmoidItem {
 
     toolTipMainText: currentPanchanga ? `${currentPanchanga.masa} • ${currentPanchanga.paksha} ${configLang === "devanagari" ? "पक्ष" : "Paksha"} • ${currentPanchanga.tithi}` : i18n("Kālayantra")
     toolTipSubText: currentPanchanga ? (
-        `Sunrise: ${currentPanchanga.sunrise}\n` +
-        `Sunset: ${currentPanchanga.sunset}\n\n` +
-        `Current Ghadi: ${liveGhadiTime.split(':')[0]}\n` +
-        `Current Vipal: ${liveGhadiTime.split(':')[1] || "00"}\n\n` +
+        `Sunrise: ${currentPanchanga.sunrise}  •  Sunset: ${currentPanchanga.sunset}\n` +
+        `Moonrise: ${currentPanchanga.moonrise}  •  Moonset: ${currentPanchanga.moonset}\n\n` +
+        `Ghadi: ${liveGhadiTime.split(':')[0]}  •  Vipal: ${liveGhadiTime.split(':')[1] || "00"}\n\n` +
         `Nakshatra: ${currentPanchanga.nakshatra}\n` +
         `Yoga: ${currentPanchanga.yoga}\n` +
-        `Karana: ${currentPanchanga.karana}`
+        `Karana: ${currentPanchanga.karana}\n\n` +
+        `Festival: ${currentPanchanga.festivals && currentPanchanga.festivals.length > 0 ? currentPanchanga.festivals[0].name : "None"}`
     ) : ""
 
     // Calendar state properties
@@ -50,7 +50,7 @@ PlasmoidItem {
 
     // Component configurations
     compactRepresentation: CompactRepresentation {}
-    fullRepresentation: FullRepresentation {}
+    fullRepresentation: Kaladarshana {}
 
     // Format helper to get YYYY-MM-DD
     function getTodayString() {

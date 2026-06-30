@@ -12,7 +12,7 @@ echo -e "${BLUE}=== Starting Kālayantra Installation ===${NC}"
 
 # 1. Make python service executable
 echo -e "${BLUE}[1/4] Making backend script executable...${NC}"
-chmod +x contents/scripts/Kalachakra.py
+chmod +x contents/scripts/Kalasetu.py
 
 # 2. Setup systemd user service
 echo -e "${BLUE}[2/4] Registering systemd user service...${NC}"
@@ -31,7 +31,7 @@ After=default.target
 
 [Service]
 Type=simple
-ExecStart=$(which python3) $(pwd)/contents/scripts/Kalachakra.py
+ExecStart=$(which python3) $(pwd)/contents/scripts/Kalasetu.py
 Restart=on-failure
 RestartSec=5
 
