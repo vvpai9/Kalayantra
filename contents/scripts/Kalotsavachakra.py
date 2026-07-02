@@ -310,23 +310,29 @@ def calculate_festivals(astro_data, tz, custom_observances=None, festival_rule="
 
     # --- 3. Custom Lunar Observances Solver ---
     if custom_observances:
-        # Resolve names of current day for comparison
-        masa_en = Kalakosha.MASAS["en"][masa_idx]
+        # Resolve both month names for comparison
+        masa_en_ama = Kalakosha.MASAS["en"][masa_idx]
+        masa_idx_purn = get_masa_at_jd(jd_calc, "purnimanta")
+        masa_en_purn = Kalakosha.MASAS["en"][masa_idx_purn]
+        
         paksha_en = Kalakosha.PAKSHAS["en"][1 if is_krishna else 0]
-        # Tithi name at sunrise or active
         tithi_en = Kalakosha.TITHIS["en"][t_sunrise]
         
         for obs in custom_observances:
             obs_masa = obs.get("month", "")
             obs_paksha = obs.get("paksha", "")
             obs_tithi = obs.get("tithi", "")
-            if obs_masa == masa_en and obs_paksha == paksha_en and obs_tithi == tithi_en:
+            obs_system = obs.get("system", "amavasyanta")
+            
+            target_masa = masa_en_purn if obs_system == "purnimanta" else masa_en_ama
+            
+            if obs_masa == target_masa and obs_paksha == paksha_en and obs_tithi == tithi_en:
                 festivals.append({
-                    "name": obs.get("name", "Custom Observance"),
-                    "type": "Custom",
-                    "color": "#f1c40f",
+                    "name": obs.get("name", "My Tithi"),
+                    "type": "My Tithi",
+                    "color": "#e91e63",
                     "priority": 6,
-                    "description": "User-defined recurring lunar observance.",
+                    "description": f"My Tithi: User-saved recurring traditional lunar event ({obs_system.capitalize()} system).",
                     "rule": "Custom Lunar Match",
                     "notify": "normal"
                 })

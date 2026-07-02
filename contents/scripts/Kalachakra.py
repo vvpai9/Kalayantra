@@ -260,7 +260,7 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="traditi
     else:
         vikram_year = year + 57 if is_after_chaitra_prat else year + 56
         
-    kali_year = shaka_year + 3179
+    kali_year = shaka_year + 3180
     
     if calendar_system in ["vikram", "kartak"]:
         samvatsara_idx = (vikram_year + 10) % 60

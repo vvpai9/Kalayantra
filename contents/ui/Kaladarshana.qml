@@ -493,10 +493,10 @@ Item {
                             Rectangle {
                                 anchors.top: parent.top
                                 anchors.right: parent.right
-                                anchors.margins: 4
-                                width: 5
-                                height: 5
-                                radius: 2.5
+                                anchors.margins: 6
+                                width: 8
+                                height: 8
+                                radius: 4
                                 color: (modelData && modelData.festivals && modelData.festivals.length > 0) ? modelData.festivals[0].color : "#2ecc71"
                                 visible: modelData && modelData.festivals ? modelData.festivals.length > 0 : false
                             }
@@ -585,7 +585,7 @@ Item {
                             Repeater {
                                 model: kaladarshana.selectedDayData ? kaladarshana.selectedDayData.festivals : []
                                 Label {
-                                    text: `🎉 ${modelData.name}`
+                                    text: `${modelData.name}`
                                     font.bold: true
                                     font.pixelSize: Kirigami.Units.gridUnit * 0.95
                                     color: modelData.color || "#2ecc71"

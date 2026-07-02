@@ -103,16 +103,13 @@ class KalasetuRequestHandler(BaseHTTPRequestHandler):
             self.handle_export_observances(query)
         elif url.path == '/import_custom_observances':
             self.handle_import_observances(query)
+        elif url.path == '/clear_custom_observances':
+            self.handle_clear_observances()
         else:
             self.send_response(404)
             self.end_headers()
 
     def handle_day(self, query):
-        cache_key = ("day", json.dumps(query, sort_keys=True))
-        if cache_key in CACHE:
-            self.send_json_response(200, CACHE[cache_key])
-            return
-            
         try:
             lat = float(query.get('lat', [23.1765])[0])
             lon = float(query.get('lon', [75.7885])[0])
@@ -124,13 +121,25 @@ class KalasetuRequestHandler(BaseHTTPRequestHandler):
                 dt = datetime.datetime.strptime(date_str, "%Y-%m-%d")
             else:
                 dt = datetime.datetime.now()
+                date_str = dt.strftime("%Y-%m-%d")
                 
             tithi_mode = query.get('tithi_mode', ['traditional'])[0]
             calendar_system = query.get('calendar_system', ['shaka'])[0]
             month_system = query.get('month_system', ['amavasyanta'])[0]
             festival_rule = query.get('festival_rule', ['vaishnava'])[0]
             lang = query.get('lang', ['en'])[0]
-            
+
+            # Cache key check (Only cache if it is NOT today!)
+            today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+            is_today = (date_str == today_str)
+
+            clean_query = {k: v for k, v in query.items() if k not in ('_t', '_')}
+            cache_key = ("day", json.dumps(clean_query, sort_keys=True))
+
+            if not is_today and cache_key in CACHE:
+                self.send_json_response(200, CACHE[cache_key])
+                return
+
             # Compute astronomical data from Kalachakra
             astro_data = Kalachakra.calculate_panchanga(
                 dt.year, dt.month, dt.day, tz, lat, lon, alt,
@@ -148,15 +157,18 @@ class KalasetuRequestHandler(BaseHTTPRequestHandler):
             # Merge festivals list into final JSON payload
             astro_data["festivals"] = festivals
             
-            # Cache results
-            CACHE[cache_key] = astro_data
+            # Cache results if it is NOT today
+            if not is_today:
+                CACHE[cache_key] = astro_data
+
             self.send_json_response(200, astro_data)
             
         except Exception as e:
             self.send_json_response(500, {"error": str(e)})
 
     def handle_month(self, query):
-        cache_key = ("month", json.dumps(query, sort_keys=True))
+        clean_query = {k: v for k, v in query.items() if k not in ('_t', '_')}
+        cache_key = ("month", json.dumps(clean_query, sort_keys=True))
         if cache_key in CACHE:
             self.send_json_response(200, CACHE[cache_key])
             return
@@ -267,12 +279,24 @@ class KalasetuRequestHandler(BaseHTTPRequestHandler):
             month = query.get('month', [''])[0].strip()
             paksha = query.get('paksha', [''])[0].strip()
             tithi = query.get('tithi', [''])[0].strip()
+            system = query.get('system', ['amavasyanta'])[0].strip()
             
             if not name:
                 self.send_json_response(400, {"error": "Name cannot be empty"})
                 return
                 
             obs = load_custom_observances()
+            
+            # Check for duplicate
+            for o in obs:
+                if (o["name"].lower() == name.lower() and 
+                    o["month"] == month and 
+                    o["paksha"] == paksha and 
+                    o["tithi"] == tithi and 
+                    o.get("system", "amavasyanta") == system):
+                    if not obs_id or o["id"] != obs_id:
+                        self.send_json_response(400, {"error": "Duplicate entry exists!"})
+                        return
             if not obs_id:
                 obs_id = str(uuid.uuid4())
                 obs.append({
@@ -280,7 +304,8 @@ class KalasetuRequestHandler(BaseHTTPRequestHandler):
                     "name": name,
                     "month": month,
                     "paksha": paksha,
-                    "tithi": tithi
+                    "tithi": tithi,
+                    "system": system
                 })
             else:
                 updated = False
@@ -290,6 +315,7 @@ class KalasetuRequestHandler(BaseHTTPRequestHandler):
                         o["month"] = month
                         o["paksha"] = paksha
                         o["tithi"] = tithi
+                        o["system"] = system
                         updated = True
                         break
                 if not updated:
@@ -298,7 +324,8 @@ class KalasetuRequestHandler(BaseHTTPRequestHandler):
                         "name": name,
                         "month": month,
                         "paksha": paksha,
-                        "tithi": tithi
+                        "tithi": tithi,
+                        "system": system
                     })
             save_custom_observances(obs)
             # Clear caches to reflect changes immediately
@@ -325,6 +352,8 @@ class KalasetuRequestHandler(BaseHTTPRequestHandler):
                 self.send_json_response(400, {"error": "filepath parameter is required"})
                 return
             
+            filepath = os.path.expanduser(filepath)
+            
             # Read local custom_observances
             obs = load_custom_observances()
             
@@ -342,6 +371,8 @@ class KalasetuRequestHandler(BaseHTTPRequestHandler):
             if not filepath:
                 self.send_json_response(400, {"error": "filepath parameter is required"})
                 return
+            
+            filepath = os.path.expanduser(filepath)
             
             if not os.path.exists(filepath):
                 self.send_json_response(400, {"error": "file does not exist"})
@@ -365,13 +396,15 @@ class KalasetuRequestHandler(BaseHTTPRequestHandler):
                 month = item.get("month", "").strip()
                 paksha = item.get("paksha", "").strip()
                 tithi = item.get("tithi", "").strip()
+                system = item.get("system", "amavasyanta").strip()
                 if name and month and paksha and tithi:
                     validated.append({
                         "id": obs_id,
                         "name": name,
                         "month": month,
                         "paksha": paksha,
-                        "tithi": tithi
+                        "tithi": tithi,
+                        "system": system
                     })
                     
             if not validated:
@@ -380,10 +413,10 @@ class KalasetuRequestHandler(BaseHTTPRequestHandler):
                 
             # Merge with existing ones
             existing = load_custom_observances()
-            existing_by_key = {f"{o['month']}-{o['paksha']}-{o['tithi']}-{o['name']}": o for o in existing}
+            existing_by_key = {f"{o['month']}-{o['paksha']}-{o['tithi']}-{o['name']}-{o.get('system', 'amavasyanta')}": o for o in existing}
             
             for item in validated:
-                key = f"{item['month']}-{item['paksha']}-{item['tithi']}-{item['name']}"
+                key = f"{item['month']}-{item['paksha']}-{item['tithi']}-{item['name']}-{item.get('system', 'amavasyanta')}"
                 existing_by_key[key] = item
                 
             merged_list = list(existing_by_key.values())
@@ -391,6 +424,14 @@ class KalasetuRequestHandler(BaseHTTPRequestHandler):
             CACHE.clear()
             
             self.send_json_response(200, {"success": True, "count": len(validated)})
+        except Exception as e:
+            self.send_json_response(500, {"error": str(e)})
+
+    def handle_clear_observances(self):
+        try:
+            save_custom_observances([])
+            CACHE.clear()
+            self.send_json_response(200, {"success": True})
         except Exception as e:
             self.send_json_response(500, {"error": str(e)})
 

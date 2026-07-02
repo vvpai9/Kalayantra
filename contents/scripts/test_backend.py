@@ -24,6 +24,25 @@ class TestPanchangaCalculations(unittest.TestCase):
         self.assertEqual(res_en["samvatsara"], "Parabhava")
         self.assertEqual(res_de["samvatsara"], "पराभव")
         self.assertEqual(res_ia["samvatsara"], "Parābhava")
+
+    def test_era_years(self):
+        # July 2, 2026:
+        # Shaka = 1948, Vikram (Chaitradi) = 2083, Kali = 5128
+        res_july = ps.calculate_panchanga(2026, 7, 2, 5.5, 23.1765, 75.7885, 0.0, calendar_system="shaka")
+        self.assertEqual(res_july["shaka_year"], 1948)
+        self.assertEqual(res_july["vikram_year"], 2083)
+        self.assertEqual(res_july["kali_year"], 5128)
+
+        # Vikram (Kartikadi) on July 2, 2026 is 2082 (before Gujarati New Year)
+        res_kartak = ps.calculate_panchanga(2026, 7, 2, 5.5, 23.1765, 75.7885, 0.0, calendar_system="kartak")
+        self.assertEqual(res_kartak["vikram_year"], 2082)
+
+        # March 1, 2026 (before Chaitra Shukla Pratipada):
+        # Shaka = 1947, Vikram = 2082, Kali = 5127
+        res_march = ps.calculate_panchanga(2026, 3, 1, 5.5, 23.1765, 75.7885, 0.0, calendar_system="shaka")
+        self.assertEqual(res_march["shaka_year"], 1947)
+        self.assertEqual(res_march["vikram_year"], 2082)
+        self.assertEqual(res_march["kali_year"], 5127)
         
     def test_jyeshtha_shukla_navami(self):
         # Verify June 23, 2026 is Jyeshtha Shukla Navami

@@ -6,75 +6,37 @@ Kālayantra is a native KDE Plasma 6 widget and offline Panchanga (Hindu Calenda
 
 Kālayantra is built with a strictly decoupled modular design following separation of concerns:
 
-- **Kalayantra**: The desktop app and panel widget wrapper for KDE Plasma 6.
+- **Kalayantra**: The panel widget wrapper for KDE Plasma 6.
 - **Kalachakra**: The core Panchanga and astronomical calculation engine.
 - **Kalotsavachakra**: The traditional Dharmaśāstra festival & ritual calculation engine.
-- **Kalasetu**: The backend bridge / local API service daemon.
-- **Kaladarshana**: The native user interface (UI) built using QML, Kirigami, and QtQuick.
-- **Kalakosha**: The static knowledge repository (metadata, coordinates, translations).
+- **Kalasetu**: The backend bridge / local API service daemon. Manages memory-based caching, custom city registrations and My Tithis.
+- **Kaladarshana**: The native user interface (UI) built using QML, Kirigami and QtQuick.
+- **Kalakosha**: The static knowledge base (metadata, coordinates, translations).
 
 ## Features
 
-- **Precise Lunisolar Astronomical Engine:** Powered by the local **Kalachakra** engine using the Swiss Ephemeris (`pyswisseph`).
-- **Native KDE Plasma 6 Experience:** Built using QtQuick, Kirigami and QML for seamless Plasma integration.
-- **Traditional & Astronomical Display Modes:**
-  - **Traditional Mode:** Panchanga elements are determined using the sunrise rule. If an element survives until the next sunrise, only that element is displayed; otherwise both the current and next elements are shown.
-  - **Astronomical Mode:** Displays the currently active Panchanga element along with upcoming transitions.
-- **Dynamic Hindu Month Navigation:** Hindu lunar months (e.g. *Jyeshtha Masa*) are treated as the primary calendar, with Gregorian dates shown as secondary references.
-- **Detailed Panchanga Information:**
-  - Tithi
-  - Vaara
-  - Nakshatra
-  - Yoga
-  - Karana
-  - Masa
-  - Paksha
-  - Ritu
-  - Ayana
-  - Samvatsara
-  - Shaka, Vikrama and Kali Year
-- **Live Ghadi–Vipal Clock:** Real-time traditional Hindu time calculation based on local sunrise.
-- **Daily Solar & Lunar Events:**
-  - Sunrise
-  - Sunset
-  - Moonrise
-  - Moonset
+- **Precise Lunisolar Astronomical Engine:** Powered by the local **Kalachakra** backend using the Swiss Ephemeris.
+- **Traditional & Astronomical Modes:**
+  - *Traditional Mode:* Panchanga elements are computed at sunrise. If an element survives past the next sunrise, only that element is shown. Otherwise, elements are shown side-by-side. (The panel widget display displays the sunrise tithi and the info panel highlights the active one).
+  - *Astronomical Mode:* Displays real-time elements, transitions and active highlighting.
+- **Dynamic Hindu Month Navigation:** Navigation headers track Hindu lunar months (e.g. `Jyeshtha Masa`) and years (e.g. `Shaka 1948`) as primary labels.
+- **Offline City Directory & Search:** Includes a package database of 100+ cities. Allows adding and caching custom cities.
+- **My Tithis:** CRUD support via the settings panel to schedule recurring traditional lunar events (e.g. Janmadin), with built-in **Import and Export** to local JSON files.
+- **Dynamic Color-Coded Calendar:** Calendar grid indicator dots are colored dynamically based on the day's primary festival type:
+  - 🔵 **Ekadashis** (Blue)
+  - 🟠 **Sankrantis** (Orange)
+  - 🟣 **Sankashti Chaturthis** (Purple)
+  - 💗 **My Tithis** (Pink)
+  - 🟢 **Major Festivals/Vratas** (Green)
+- **Vedic Transition Formatting:** Events occurring after midnight are denoted using 24+h style relative to today's start date (e.g. `31:39` or `40:05`), displaying transitions accurately across day boundaries.
+- **Panel Tooltip Enhancements:** Hovering over the tray widget displays Sunrise, Sunset, Moonrise, Moonset, Ghadi:Vipal time, Nakshatra, Yoga, Karana and Current Festival.
 - **Auspicious & Inauspicious Times:**
-  - Brahma Muhurta
-  - Rahu Kala
-  - Yamaganda
-  - Gulika Kala
-  - Abhijit Muhurta
-  - Day & Night Choghadiya
-- **Authentic Festival Engine:** Powered by **KalotsavaChakra**, implementing traditional Dharmaśāstra-based festival calculations rather than a generic sunrise rule.
-- **Supported Festivals:**
-  - Major Hindu festivals
-  - All Ekadashis (with traditional names)
-  - Sankashti Chaturthi
-  - All Sankrantis
-  - Smarta & Vaishnava calculation modes
-- **Offline City Search:** Built-in searchable database of cities with support for locally cached custom locations.
-- **Custom Lunar Observances:** Create, edit, delete, import and export recurring tithi-based personal observances such as birthdays, anniversaries and vratas.
-- **Dynamic Calendar Indicators:**
-  - 🔵 Ekadashi
-  - 🟠 Sankranti
-  - 🟣 Sankashti Chaturthi
-  - 🟢 Major Festivals
-  - 🟡 Custom Observances
-- **Traditional Panchanga Time Formatting:** Events occurring after midnight are displayed using the traditional 24+ hour notation (e.g. `27:15`, `31:42`) until the next sunrise.
-- **Panel Tooltip:** Hovering over the widget displays Sunrise, Sunset, Moonrise, Moonset, Ghadi–Vipal, Nakshatra, Yoga, Karana and the current festival.
-- **Multiple Calendar Systems:**
-  - Shalivahana Shaka (Default)
-  - Vikram Samvat (Chaitradi)
-  - Vikram Kartak (Kartikadi)
-- **Month Systems:**
-  - Amavasyanta (Default)
-  - Purnimanta
-- **Localization:**
-  - English
-  - IAST Sanskrit
-  - Devanagari
-- **Offline & Privacy Respecting:** No cloud APIs, no Internet dependency, and all astronomical calculations are performed locally.
+  - Rahu Kala (🔴 inauspicious), Yamaghanta (🔴 inauspicious), Gulika (🟡 moderate) and Abhijit Muhurta (🟢 auspicious).
+  - Brahma Muhurta calculation and display.
+  - Choghadiya Muhurtas (color-coded daytime and nighttime segments).
+- **Live Ghadi-Vipal Clock:** High-precision real-time display of local Vedic time (Ghadis & Vipals).
+- **Multi-language Support:** Choose display language from English, IAST and Devanagari.
+- **Offline & Privacy-Respecting:** Spawns no cloud connections; all calculations run 100% locally.
 
 ## Screenshots
 

@@ -29,7 +29,7 @@ PlasmoidItem {
     onConfigFestivalRuleChanged: reloadAll()
     onConfigTithiModeChanged: reloadAll()
 
-    toolTipMainText: currentPanchanga ? `${currentPanchanga.masa} • ${currentPanchanga.paksha} ${configLang === "devanagari" ? "पक्ष" : "Paksha"} • ${currentPanchanga.tithi}` : i18n("Kālayantra")
+    toolTipMainText: currentPanchanga ? `${currentPanchanga.masa} • ${currentPanchanga.paksha} ${configLang === "devanagari" ? "पक्ष" : "Paksha"} • ${configTithiMode === "traditional" ? currentPanchanga.tithi_1 : currentPanchanga.tithi}` : i18n("Kālayantra")
     toolTipSubText: currentPanchanga ? (
         `Sunrise: ${currentPanchanga.sunrise}  •  Sunset: ${currentPanchanga.sunset}\n` +
         `Moonrise: ${currentPanchanga.moonrise}  •  Moonset: ${currentPanchanga.moonset}\n\n` +
@@ -83,7 +83,8 @@ PlasmoidItem {
     // Asynchronous network fetch for a single day
     function fetchDay(dateStr) {
         var xhr = new XMLHttpRequest();
-        var query = buildQueryString(`date=${dateStr}`);
+        var buster = "_t=" + Date.now();
+        var query = buildQueryString(`date=${dateStr}&${buster}`);
         xhr.open("GET", `http://127.0.0.1:8642/day?${query}`, true);
         xhr.onreadystatechange = function() {
             if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
@@ -127,7 +128,8 @@ PlasmoidItem {
         
         function fetchSingle(y, m, key) {
             var xhr = new XMLHttpRequest();
-            var query = buildQueryString("year=" + y + "&month=" + m);
+            var buster = "_t=" + Date.now();
+            var query = buildQueryString("year=" + y + "&month=" + m + "&" + buster);
             xhr.open("GET", "http://127.0.0.1:8642/month?" + query, true);
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === XMLHttpRequest.DONE) {

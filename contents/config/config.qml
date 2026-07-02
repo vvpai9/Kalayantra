@@ -8,8 +8,8 @@ ConfigModel {
          source: "configGeneral.qml"
     }
     ConfigCategory {
-         name: i18n("Custom Observances")
+         name: i18n("My Tithis")
          icon: "appointment-new"
-         source: "configObservances.qml"
+         source: "configMyTithis.qml"
     }
 }
