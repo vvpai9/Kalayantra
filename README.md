@@ -17,23 +17,35 @@ Kālayantra is built with a strictly decoupled modular design following separati
 
 - **Precise Lunisolar Astronomical Engine:** Powered by the local **Kalachakra** backend using the Swiss Ephemeris.
 - **Traditional & Astronomical Modes:**
-  - *Traditional Mode:* Panchanga elements are computed at sunrise. If an element survives past the next sunrise, only that element is shown. Otherwise, elements are shown side-by-side. (The panel widget display displays the sunrise tithi and the info panel highlights the active one).
+  - *Traditional Mode:* Panchanga elements are computed at sunrise. If an element survives past the next sunrise, only that element is shown. Otherwise, elements are shown side-by-side. (The panel widget displays the sunrise tithi and the info panel highlights the active one).
   - *Astronomical Mode:* Displays real-time elements, transitions and active highlighting.
+- **Card-Based Kirigami Settings pages:** Restructured all settings interfaces using standard `Kirigami.Card` layout sheets matching native Plasma System Settings guidelines. Features subtitles and Breeze icons:
+  - *General Settings:* Coordinates manual edits and searchable offline registry database.
+  - *Calendar Settings:* System settings grouping (Era, Month system, ritual rules, and tithi mode).
+  - *My Tithis:* Observances creator and dynamic anniversary lists cards.
+  - *Reminders:* Repeating notifications creator and toggles lists cards.
+  - *About Section:* Dynamic about panel fetching logo, license, authors, and system architecture.
+- **Saura Solar Calendar System:** Choose `Solar Calendar (Saura)` under era systems to automatically compute traditional solar months (`Mesha` to `Mina`) based on zodiac entries (`sun_rashi`) and track solar Shaka era years.
+- **Surya/Rain Nakshatra Display:** Computes high-precision Sun Nakshatras. If the Sun transitions during the day, display transitions in the side panel (e.g., `👉 Rohini 14:38 • Mrigashira`), dynamically highlighting the active sign in English, IAST, and Devanagari.
+- **Editable Gregorian Date with 'Today' Shortcut:** Click the Gregorian Date sub-header in the side panel to toggle a text input accepting `DD-MM-YYYY` with real-time `Kirigami.InlineMessage` error validation, support for both alphanumeric & numpad Enter keys, and a "Today" button to return to current local time instantly.
+- **Robust Navigation Lifecycle:** Navigation states are preserved while the popup is open, preventing background refreshes from resetting the view, and automatically discarded upon closing so that the popup starts on today's month next time it is opened.
 - **Dynamic Hindu Month Navigation:** Navigation headers track Hindu lunar months (e.g. `Jyeshtha Masa`) and years (e.g. `Shaka 1948`) as primary labels.
 - **Offline City Directory & Search:** Includes a package database of 100+ cities. Allows adding and caching custom cities.
-- **My Tithis:** CRUD support via the settings panel to schedule recurring traditional lunar events (e.g. Janmadin), with built-in **Import and Export** to local JSON files.
-- **Dynamic Color-Coded Calendar:** Calendar grid indicator dots are colored dynamically based on the day's primary festival type:
+- **My Tithis & Anniversary Support:** CRUD support via the settings panel to schedule recurring traditional lunar events (e.g. Janmadin), with birth/event year option to calculate and display the current anniversary (e.g. `21st Janmadin` or `3rd Anniversary`), with built-in **Import and Export** to local JSON files.
+- **Lunar Recurring Reminders:** Configure desktop notifications via D-Bus for recurring reminders matched against Hindu Panchanga parameters (Tithis, Paksha + Tithi, Masa + Paksha + Tithi, Nakshatras, Varas + Tithis, Sankrantis, and custom Festivals) at dynamic time-targets (Brahma Muhurta, Sunrise, Offset before sunrise, or Exact time). Includes Import/Export and persistent notification caching.
+- **Dynamic Color-Coded Calendar:** Larger indicator dots positioned at the top-right corner of day cells, colored dynamically based on the day's primary festival type and sorted by event hierarchy:
   - 🔵 **Ekadashis** (Blue)
   - 🟠 **Sankrantis** (Orange)
   - 🟣 **Sankashti Chaturthis** (Purple)
   - 💗 **My Tithis** (Pink)
   - 🟢 **Major Festivals/Vratas** (Green)
 - **Vedic Transition Formatting:** Events occurring after midnight are denoted using 24+h style relative to today's start date (e.g. `31:39` or `40:05`), displaying transitions accurately across day boundaries.
-- **Panel Tooltip Enhancements:** Hovering over the tray widget displays Sunrise, Sunset, Moonrise, Moonset, Ghadi:Vipal time, Nakshatra, Yoga, Karana and Current Festival.
+- **Panel Tooltip Enhancements:** Hovering over the tray widget displays Sunrise, Sunset, Moonrise, Moonset, Ghadi:Vipal time, Nakshatra, Yoga, Karana and Current Festival, formatted in clean sections.
 - **Auspicious & Inauspicious Times:**
   - Rahu Kala (🔴 inauspicious), Yamaghanta (🔴 inauspicious), Gulika (🟡 moderate) and Abhijit Muhurta (🟢 auspicious).
   - Brahma Muhurta calculation and display.
   - Choghadiya Muhurtas (color-coded daytime and nighttime segments).
+- **Details Panel Live Highlights:** The details panel (Tithi, Nakshatra, Yoga, Karana) always shows transitions and highlights the currently active element with a `👉` indicator and greyed-out past elements under both traditional and astronomical modes.
 - **Live Ghadi-Vipal Clock:** High-precision real-time display of local Vedic time (Ghadis & Vipals).
 - **Multi-language Support:** Choose display language from English, IAST and Devanagari.
 - **Offline & Privacy-Respecting:** Spawns no cloud connections; all calculations run 100% locally.

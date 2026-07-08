@@ -31,18 +31,23 @@ PlasmoidItem {
 
     toolTipMainText: currentPanchanga ? `${currentPanchanga.masa} • ${currentPanchanga.paksha} ${configLang === "devanagari" ? "पक्ष" : "Paksha"} • ${configTithiMode === "traditional" ? currentPanchanga.tithi_1 : currentPanchanga.tithi}` : i18n("Kālayantra")
     toolTipSubText: currentPanchanga ? (
-        `Sunrise: ${currentPanchanga.sunrise}  •  Sunset: ${currentPanchanga.sunset}\n` +
-        `Moonrise: ${currentPanchanga.moonrise}  •  Moonset: ${currentPanchanga.moonset}\n\n` +
-        `Ghadi: ${liveGhadiTime.split(':')[0]}  •  Vipal: ${liveGhadiTime.split(':')[1] || "00"}\n\n` +
-        `Nakshatra: ${currentPanchanga.nakshatra}\n` +
-        `Yoga: ${currentPanchanga.yoga}\n` +
-        `Karana: ${currentPanchanga.karana}\n\n` +
-        `Festival: ${currentPanchanga.festivals && currentPanchanga.festivals.length > 0 ? currentPanchanga.festivals[0].name : "None"}`
+        `${currentPanchanga.vaara}, ${currentPanchanga.date} (${currentPanchanga.era_name} ${currentPanchanga.era_year})\n\n` +
+        (configLang === "devanagari" ? "सूर्योदय: " : "Sunrise: ") + `${currentPanchanga.sunrise}  •  ` + (configLang === "devanagari" ? "सूर्यास्त: " : "Sunset: ") + `${currentPanchanga.sunset}\n` +
+        (configLang === "devanagari" ? "चंद्रोदय: " : "Moonrise: ") + `${currentPanchanga.moonrise}  •  ` + (configLang === "devanagari" ? "चंद्रास्त: " : "Moonset: ") + `${currentPanchanga.moonset}\n\n` +
+        (configLang === "devanagari" ? "तिथि: " : "Tithi: ") + `${configTithiMode === "traditional" ? currentPanchanga.tithi_1 : currentPanchanga.tithi}\n` +
+        (configLang === "devanagari" ? "नक्षत्र: " : "Nakshatra: ") + `${currentPanchanga.nakshatra}\n` +
+        (configLang === "devanagari" ? "योग: " : "Yoga: ") + `${currentPanchanga.yoga}\n` +
+        (configLang === "devanagari" ? "करण: " : "Karana: ") + `${currentPanchanga.karana}\n` +
+        (configLang === "devanagari" ? "वैदिक समय: " : "Vedic Time: ") + `${liveGhadiTime.split(':')[0]} Ghadi, ${liveGhadiTime.split(':')[1] || "00"} Vipal\n\n` +
+        (configLang === "devanagari" ? "पर्व/उत्सव: " : "Festival: ") + `${currentPanchanga.festivals && currentPanchanga.festivals.length > 0 ? (currentPanchanga.festivals[0].name + (currentPanchanga.festivals[0].anniversary_display ? " (" + currentPanchanga.festivals[0].anniversary_display + ")" : "")) : (configLang === "devanagari" ? "कोई नहीं" : "None")}`
     ) : ""
 
     // Calendar state properties
     property int currentYear: new Date().getFullYear()
     property int currentMonth: new Date().getMonth() + 1 // 1-indexed
+
+    property string todayDateString: getTodayString()
+    property string currentlyViewedDateString: getTodayString()
 
     property var threeMonthsData: []
     property var currentPanchanga: null
@@ -50,7 +55,9 @@ PlasmoidItem {
 
     // Component configurations
     compactRepresentation: CompactRepresentation {}
-    fullRepresentation: Kaladarshana {}
+    fullRepresentation: Kaladarshana {
+        id: kaladarshanaView
+    }
 
     // Format helper to get YYYY-MM-DD
     function getTodayString() {
@@ -80,7 +87,6 @@ PlasmoidItem {
         return params.join('&');
     }
 
-    // Asynchronous network fetch for a single day
     function fetchDay(dateStr) {
         var xhr = new XMLHttpRequest();
         var buster = "_t=" + Date.now();
@@ -93,6 +99,25 @@ PlasmoidItem {
                     if (dateStr === getTodayString()) {
                         currentPanchanga = data;
                         liveGhadiTime = data.ghadi;
+
+                        if (threeMonthsData) {
+                            var tmp = threeMonthsData.slice();
+                            var changed = false;
+                            for (var i = 0; i < tmp.length; i++) {
+                                if (tmp[i] && tmp[i].date === dateStr) {
+                                    tmp[i] = data;
+                                    changed = true;
+                                    break;
+                                }
+                            }
+                            if (changed) {
+                                threeMonthsData = tmp;
+                            }
+                        }
+
+                        if (typeof kaladarshanaView !== 'undefined' && kaladarshanaView && kaladarshanaView.selectedDayData && kaladarshanaView.selectedDayData.date === dateStr) {
+                            kaladarshanaView.selectedDayData = data;
+                        }
                     }
                 } catch(e) {
                     console.error("Failed to parse day response: ", e);
@@ -168,6 +193,7 @@ PlasmoidItem {
         running: true
         repeat: true
         onTriggered: {
+            todayDateString = getTodayString();
             fetchDay(getTodayString());
         }
     }

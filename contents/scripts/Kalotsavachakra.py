@@ -327,6 +327,32 @@ def calculate_festivals(astro_data, tz, custom_observances=None, festival_rule="
             target_masa = masa_en_purn if obs_system == "purnimanta" else masa_en_ama
             
             if obs_masa == target_masa and obs_paksha == paksha_en and obs_tithi == tithi_en:
+                g_year = obs.get("gregorian_year", None)
+                anniversary_display = ""
+                if g_year is not None and str(g_year).strip() != "":
+                    try:
+                        calc_year = int(astro_data["date"].split("-")[0])
+                        anniversary = calc_year - int(g_year)
+                        if anniversary > 0:
+                            if lang == "devanagari":
+                                ordinal = f"{anniversary}वीं"
+                            else:
+                                if 11 <= (anniversary % 100) <= 13:
+                                    suffix = "th"
+                                else:
+                                    suffix = {1: "st", 2: "nd", 3: "rd"}.get(anniversary % 10, "th")
+                                ordinal = f"{anniversary}{suffix}"
+                            
+                            name_lower = obs.get("name", "").lower()
+                            has_special = any(x in name_lower for x in ["birthday", "janmadin", "jayanti"])
+                            if has_special:
+                                anniversary_display = f"{ordinal} {obs.get('name', '')}"
+                            else:
+                                ann_word = "वर्षगांठ" if lang == "devanagari" else ("Varṣagāṇṭha" if lang == "iast" else "Anniversary")
+                                anniversary_display = f"{ordinal} {ann_word}"
+                    except Exception as e:
+                        print("Error calculating anniversary:", e)
+
                 festivals.append({
                     "name": obs.get("name", "My Tithi"),
                     "type": "My Tithi",
@@ -334,12 +360,94 @@ def calculate_festivals(astro_data, tz, custom_observances=None, festival_rule="
                     "priority": 6,
                     "description": f"My Tithi: User-saved recurring traditional lunar event ({obs_system.capitalize()} system).",
                     "rule": "Custom Lunar Match",
-                    "notify": "normal"
+                    "notify": "normal",
+                    "anniversary_display": anniversary_display
                 })
 
     # Sort festivals by priority descending
     festivals.sort(key=lambda x: x["priority"], reverse=True)
     return festivals
+
+
+def evaluate_reminders(astro_data, festivals, reminders, lang="en"):
+    matched = []
+    if not reminders:
+        return matched
+
+    tithi_1 = astro_data.get("tithi_1", "")
+    tithi_2 = astro_data.get("tithi_2", "")
+    tithi_active = astro_data.get("tithi", "")
+    
+    paksha = astro_data.get("paksha", "")
+    masa = astro_data.get("masa", "")
+    
+    nakshatra_1 = astro_data.get("nakshatra_1", "")
+    nakshatra_2 = astro_data.get("nakshatra_2", "")
+    nakshatra_active = astro_data.get("nakshatra", "")
+    
+    vaara = astro_data.get("vaara", "")
+    
+    today_tithis = {t for t in [tithi_1, tithi_2, tithi_active] if t and t != "--"}
+    today_nakshatras = {n for n in [nakshatra_1, nakshatra_2, nakshatra_active] if n and n != "--"}
+    
+    has_sankranti = False
+    for f in festivals:
+        if f.get("type") == "Sankranti" or "sankranti" in f.get("name", "").lower():
+            has_sankranti = True
+            break
+            
+    for r in reminders:
+        if not r.get("enabled", True):
+            continue
+            
+        r_type = r.get("type", "")
+        params = r.get("params", {})
+        is_match = False
+        
+        if r_type == "tithi":
+            r_tithi = params.get("tithi", "")
+            if r_tithi in today_tithis:
+                is_match = True
+                
+        elif r_type == "paksha_tithi":
+            r_paksha = params.get("paksha", "")
+            r_tithi = params.get("tithi", "")
+            if r_paksha == paksha and r_tithi in today_tithis:
+                is_match = True
+                
+        elif r_type == "masa_paksha_tithi":
+            r_masa = params.get("masa", "")
+            r_paksha = params.get("paksha", "")
+            r_tithi = params.get("tithi", "")
+            if r_masa == masa and r_paksha == paksha and r_tithi in today_tithis:
+                is_match = True
+                
+        elif r_type == "nakshatra":
+            r_nakshatra = params.get("nakshatra", "")
+            if r_nakshatra in today_nakshatras:
+                is_match = True
+                
+        elif r_type == "vara_tithi":
+            r_vara = params.get("vara", "")
+            r_tithi = params.get("tithi", "")
+            if r_vara == vaara and r_tithi in today_tithis:
+                is_match = True
+                
+        elif r_type == "sankranti":
+            if has_sankranti:
+                is_match = True
+                
+        elif r_type == "festival":
+            r_fest = params.get("festival_name", "").lower().strip()
+            for f in festivals:
+                if r_fest == f.get("name", "").lower().strip():
+                    is_match = True
+                    break
+                    
+        if is_match:
+            matched.append(r)
+            
+    return matched
 
 
 def datetime_to_vaara_idx(date_str):

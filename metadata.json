@@ -3,7 +3,7 @@
 "Id": "org.kde.plasma.kalayantra",
 "Name": "Kālayantra (कालयन्त्र)",
 "Description": "Offline Hindu Calendar & Astronomical Panchanga powered by Swiss Ephemeris",
-"Version": "1.0",
+"Version": "2.0",
 "License": "GPL-3.0",
 "Icon": "office-calendar",
 "Website": "https://github.com/vvpai9/Kalayantra",

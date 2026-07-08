@@ -219,7 +219,11 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="traditi
         elif lang == "devanagari":
             prefix = "अधिक "
             
-    masa_name = prefix + Kalakosha.MASAS[lang][t_idx]
+    if calendar_system == "saura":
+        sun_rashi = int(sun_l / 30.0) % 12
+        masa_name = Kalakosha.SAURA_MASAS[lang][sun_rashi]
+    else:
+        masa_name = prefix + Kalakosha.MASAS[lang][t_idx]
     paksha_name = Kalakosha.PAKSHAS[lang][1 if is_krishna else 0]
     
     # 2. Nakshatra
@@ -252,13 +256,21 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="traditi
     chaitra_prat_jd = get_chaitra_pratipada_jd(year)
     is_after_chaitra_prat = (jd_calc >= chaitra_prat_jd)
     
-    shaka_year = year - 78 if is_after_chaitra_prat else year - 79
-    if calendar_system == "kartak":
-        kartika_prat_jd = get_kartika_pratipada_jd(year)
-        is_after_kartika_prat = (jd_calc >= kartika_prat_jd)
-        vikram_year = year + 57 if is_after_kartika_prat else year + 56
+    if calendar_system == "saura":
+        shaka_year = year - 78 if (sun_rashi < 9) else year - 79
+        vikram_year = year + 57 if (sun_rashi < 9) else year + 56
+        era_year = shaka_year
+        era_name = "Solar Shaka" if lang == "en" else ("Śaka (Saura)" if lang == "iast" else "शक (सौर)")
     else:
-        vikram_year = year + 57 if is_after_chaitra_prat else year + 56
+        shaka_year = year - 78 if is_after_chaitra_prat else year - 79
+        if calendar_system == "kartak":
+            kartika_prat_jd = get_kartika_pratipada_jd(year)
+            is_after_kartika_prat = (jd_calc >= kartika_prat_jd)
+            vikram_year = year + 57 if is_after_kartika_prat else year + 56
+        else:
+            vikram_year = year + 57 if is_after_chaitra_prat else year + 56
+        era_year = vikram_year if calendar_system in ["vikram", "kartak"] else shaka_year
+        era_name = "Vikram" if calendar_system in ["vikram", "kartak"] else ("शक" if lang == "devanagari" else ("Śaka" if lang == "iast" else "Shaka"))
         
     kali_year = shaka_year + 3180
     
@@ -267,9 +279,6 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="traditi
     else:
         samvatsara_idx = (shaka_year + 11) % 60
     samvatsara_name = Kalakosha.SAMVATSARAS[lang][samvatsara_idx]
-    
-    era_year = vikram_year if calendar_system in ["vikram", "kartak"] else shaka_year
-    era_name = "Vikram" if calendar_system in ["vikram", "kartak"] else ("शक" if lang == "devanagari" else ("Śaka" if lang == "iast" else "Shaka"))
     
     # 8. Auspicious / Inauspicious times
     day_duration = sunset_jd - sunrise_jd
@@ -386,6 +395,27 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="traditi
         karana_2_end_jd = find_transition(karana_end_jd + 0.02, get_karana_idx)
         karana_2_end = jd_to_time_str(karana_2_end_jd)
         
+    # Rain/Surya Nakshatra (Sun's Nakshatra)
+    def get_surya_nakshatra_idx(jd):
+        s_l, _ = get_sidereal_longitudes(jd)
+        return int(s_l / (360.0 / 27.0)) % 27
+
+    surya_nakshatra_idx = get_surya_nakshatra_idx(sunrise_jd)
+    surya_nakshatra_tomorrow_idx = get_surya_nakshatra_idx(tomorrow_sunrise_jd)
+    surya_nakshatra_survives = (surya_nakshatra_idx == surya_nakshatra_tomorrow_idx)
+    
+    surya_nakshatra_name = Kalakosha.NAKSHATRAS[lang][surya_nakshatra_idx]
+    surya_nakshatra_end = "--"
+    surya_nakshatra_end_jd = None
+    surya_nakshatra_2_name = "--"
+    surya_nakshatra_2_end = "--"
+    
+    if not surya_nakshatra_survives:
+        surya_nakshatra_end_jd = find_transition(jd_calc, get_surya_nakshatra_idx)
+        surya_nakshatra_end = jd_to_time_str(surya_nakshatra_end_jd)
+        surya_nakshatra_2_idx = surya_nakshatra_tomorrow_idx
+        surya_nakshatra_2_name = Kalakosha.NAKSHATRAS[lang][surya_nakshatra_2_idx]
+        
     # Ghadi & Vipal High-precision calculations
     dt_utc = datetime.datetime.now(datetime.timezone.utc)
     jd_now_ut = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day,
@@ -399,13 +429,17 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="traditi
     nakshatra_active_idx = 0
     yoga_active_idx = 0
     karana_active_idx = 0
+    surya_nakshatra_active_idx = 0
     
     if is_today:
         tithi_active_idx = 2 if (tithi_end_jd is not None and jd_now_ut > tithi_end_jd) else 1
         nakshatra_active_idx = 2 if (nakshatra_end_jd is not None and jd_now_ut > nakshatra_end_jd) else 1
         yoga_active_idx = 2 if (yoga_end_jd is not None and jd_now_ut > yoga_end_jd) else 1
         karana_active_idx = 2 if (karana_end_jd is not None and jd_now_ut > karana_end_jd) else 1
-
+        surya_nakshatra_active_idx = 2 if (surya_nakshatra_end_jd is not None and jd_now_ut > surya_nakshatra_end_jd) else 1
+    else:
+        surya_nakshatra_active_idx = 1
+ 
     tithi_active_name = tithi_name
     if is_today and tithi_end_jd is not None and jd_now_ut > tithi_end_jd:
         tithi_active_name = tithi_2_name
@@ -421,6 +455,10 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="traditi
     karana_active_name = karana_name
     if is_today and karana_end_jd is not None and jd_now_ut > karana_end_jd:
         karana_active_name = karana_2_name
+
+    surya_nakshatra_active_name = surya_nakshatra_name
+    if is_today and surya_nakshatra_end_jd is not None and jd_now_ut > surya_nakshatra_end_jd:
+        surya_nakshatra_active_name = surya_nakshatra_2_name
         
     # Start of day selection
     if jd_now_ut < sunrise_jd:
@@ -495,6 +533,15 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="traditi
         "nakshatra_2_end": nakshatra_2_end,
         "nakshatra_active_idx": nakshatra_active_idx,
         "nakshatra_survives": nakshatra_survives,
+        
+        "surya_nakshatra": surya_nakshatra_active_name,
+        "surya_nakshatra_end": surya_nakshatra_end,
+        "surya_nakshatra_1": surya_nakshatra_name,
+        "surya_nakshatra_1_end": surya_nakshatra_end,
+        "surya_nakshatra_2": surya_nakshatra_2_name,
+        "surya_nakshatra_2_end": surya_nakshatra_2_end,
+        "surya_nakshatra_active_idx": surya_nakshatra_active_idx,
+        "surya_nakshatra_survives": surya_nakshatra_survives,
         
         "yoga": yoga_active_name,
         "yoga_end": yoga_end,

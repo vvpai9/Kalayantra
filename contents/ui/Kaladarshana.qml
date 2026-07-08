@@ -15,16 +15,24 @@ Item {
     
     property var selectedDayData: null
     property bool userSelectedDate: false
+    property bool editingDate: false
+    
+    function navigateToDate(y, m, d) {
+        var dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        root.currentYear = y;
+        root.currentMonth = m;
+        userSelectedDate = true;
+        pendingSelectDate = dateStr;
+        root.currentlyViewedDateString = dateStr;
+        root.fetchThreeMonths(y, m);
+    }
     
     // Helper to format astronomical element with active highlights
     function formatAstroElement(el1, el1_end, el2, el2_end, activeIdx, isKrishna, survives, mode) {
         if (!el1) return "--";
         var color = isKrishna ? "#3daee9" : "#ffb300";
         
-        if ((mode === "traditional" || mode === "sunrise") && survives) {
-            var single = (el1_end && el1_end !== "--") ? `${el1} <font color='${color}'>${el1_end}</font>` : el1;
-            return `<b>${single}</b>`;
-        }
+
         
         var part1 = (el1_end && el1_end !== "--") ? `${el1} <font color='${color}'>${el1_end}</font>` : el1;
         var part2 = "";
@@ -50,6 +58,28 @@ Item {
         var year = parts[0];
         return `${day} ${getGregorianMonthName(monthIdx)} ${year}`;
     }
+
+    function getSortedFestivalDots(festivals) {
+        if (!festivals || festivals.length === 0) return [];
+        
+        var getPriority = function(color) {
+            if (color === "#2ecc71") return 1; // Major Festival (Green)
+            if (color === "#3daee9") return 2; // Ekadashi (Blue)
+            if (color === "#e67e22" || color === "#ff6b00") return 3; // Sankranti (Orange)
+            if (color === "#9b59b6") return 4; // Sankashti Chaturthi (Purple)
+            if (color === "#e91e63" || color === "#ff4081") return 5; // Custom Observance / My Tithi (Pink)
+            return 6; // Other
+        };
+        
+        var list = [];
+        for (var i = 0; i < festivals.length; i++) {
+            list.push(festivals[i]);
+        }
+        list.sort(function(a, b) {
+            return getPriority(a.color) - getPriority(b.color);
+        });
+        return list.slice(0, 3);
+    }
     property var gridItems: []
 
     // Hindu month navigation state
@@ -60,6 +90,13 @@ Item {
 
     onSelectedMasaNameChanged: updateGrid()
     onSelectedShakaYearChanged: updateGrid()
+
+    Connections {
+        target: root
+        function onThreeMonthsDataChanged() {
+            updateGrid();
+        }
+    }
 
     // Helper to format Gregorian Month name
     function getGregorianMonthName(m) {
@@ -136,9 +173,7 @@ Item {
                 }
             }
             if (foundTargetInMonth) {
-                if (!userSelectedDate) {
-                    selectedDayData = foundTargetInMonth;
-                }
+                selectedDayData = foundTargetInMonth;
             } else if (selectedMonthDays.length > 0) {
                 if (!userSelectedDate) {
                     selectedDayData = selectedMonthDays[0];
@@ -212,6 +247,7 @@ Item {
         
         userSelectedDate = false;
         pendingSelectDate = `${targetY}-${String(targetM).padStart(2, '0')}-${String(targetD).padStart(2, '0')}`;
+        root.currentlyViewedDateString = pendingSelectDate;
         root.fetchThreeMonths(targetY, targetM);
     }
 
@@ -233,6 +269,7 @@ Item {
         
         userSelectedDate = false;
         pendingSelectDate = `${targetY}-${String(targetM).padStart(2, '0')}-${String(targetD).padStart(2, '0')}`;
+        root.currentlyViewedDateString = pendingSelectDate;
         root.fetchThreeMonths(targetY, targetM);
     }
 
@@ -243,7 +280,7 @@ Item {
                 if (userSelectedDate && selectedDayData) {
                     targetDate = selectedDayData.date;
                 } else {
-                    targetDate = root.getTodayString();
+                    targetDate = root.currentlyViewedDateString || root.todayDateString;
                 }
             }
             
@@ -290,20 +327,25 @@ Item {
         function onExpandedChanged() {
             if (root.expanded) {
                 userSelectedDate = false;
-                pendingSelectDate = "";
+                selectedDayData = null;
+                root.currentlyViewedDateString = root.todayDateString;
+                pendingSelectDate = root.todayDateString;
                 root.currentYear = new Date().getFullYear();
                 root.currentMonth = new Date().getMonth() + 1;
                 root.fetchThreeMonths(root.currentYear, root.currentMonth);
                 initializeData();
             } else {
                 userSelectedDate = false;
+                selectedDayData = null;
                 pendingSelectDate = "";
+                root.currentlyViewedDateString = "";
                 initializeData();
             }
         }
     }
 
     GridLayout {
+        id: mainGridLayout
         anchors.fill: parent
         anchors.margins: Kirigami.Units.largeSpacing
         columns: width > Kirigami.Units.gridUnit * 28 ? 2 : 1
@@ -390,6 +432,18 @@ Item {
                 }
 
                 Button {
+                    icon.name: "go-jump-today"
+                    flat: true
+                    display: AbstractButton.IconOnly
+                    ToolTip.text: i18n("Go to Today")
+                    ToolTip.visible: hovered
+                    onClicked: {
+                        var today = new Date();
+                        kaladarshana.navigateToDate(today.getFullYear(), today.getMonth() + 1, today.getDate());
+                    }
+                }
+
+                Button {
                     icon.name: "go-next"
                     flat: true
                     onClicked: nextHinduMonth()
@@ -443,19 +497,36 @@ Item {
                         Rectangle {
                             anchors.fill: parent
                             radius: 4
-                            border.width: 1
                             visible: modelData && modelData.type === "day"
                             
-                            // Visual theme logic based on Shukla/Krishna Pakshas
+                            // Visual theme logic based on Shukla/Krishna Pakshas and Today's highlight
                             color: {
                                 if (!modelData || modelData.type !== "day") return "transparent";
+                                var isToday = (modelData.date === root.getTodayString());
                                 if (modelData.is_krishna_paksha) {
-                                    return cellMouse.containsMouse ? "#1c252c" : "#121b22";
+                                    if (cellMouse.containsMouse) return "#1c252c";
+                                    return isToday ? "#162836" : "#121b22";
                                 } else {
-                                    return cellMouse.containsMouse ? "#2f270a" : "#201a05";
+                                    if (cellMouse.containsMouse) return "#2f270a";
+                                    return isToday ? "#332c11" : "#201a05";
                                 }
                             }
+
+                            Behavior on color {
+                                ColorAnimation { duration: 150 }
+                            }
                             
+                            border.width: {
+                                if (!modelData || modelData.type !== "day") return 0;
+                                if (kaladarshana.selectedDayData && kaladarshana.selectedDayData.date === modelData.date) {
+                                    return 2.5;
+                                }
+                                if (modelData.date === root.getTodayString()) {
+                                    return 2.5;
+                                }
+                                return 1;
+                            }
+
                             border.color: {
                                 if (!modelData || modelData.type !== "day") return "transparent";
                                 if (kaladarshana.selectedDayData && kaladarshana.selectedDayData.date === modelData.date) {
@@ -489,27 +560,37 @@ Item {
                                 }
                             }
 
-                            // Indicator dot for festival presence
-                            Rectangle {
+                            // Horizontal row of up to 3 priority-sorted indicators at top right
+                            RowLayout {
+                                id: indicatorDots
                                 anchors.top: parent.top
                                 anchors.right: parent.right
-                                anchors.margins: 6
-                                width: 8
-                                height: 8
-                                radius: 4
-                                color: (modelData && modelData.festivals && modelData.festivals.length > 0) ? modelData.festivals[0].color : "#2ecc71"
-                                visible: modelData && modelData.festivals ? modelData.festivals.length > 0 : false
+                                anchors.topMargin: 4
+                                anchors.rightMargin: 4
+                                spacing: 2
+                                visible: !!(modelData && modelData.festivals && modelData.festivals.length > 0)
+                                
+                                Repeater {
+                                    model: kaladarshana.getSortedFestivalDots(modelData ? modelData.festivals : [])
+                                    Rectangle {
+                                        width: 7
+                                        height: 7
+                                        radius: 3.5
+                                        color: modelData.color || "#2ecc71"
+                                    }
+                                }
                             }
                         }
 
                         MouseArea {
                             id: cellMouse
                             anchors.fill: parent
-                            hoverEnabled: modelData && modelData.type === "day"
-                            enabled: modelData && modelData.type === "day"
+                            hoverEnabled: modelData ? modelData.type === "day" : false
+                            enabled: modelData ? modelData.type === "day" : false
                             onClicked: {
                                 kaladarshana.selectedDayData = modelData;
                                 kaladarshana.userSelectedDate = true;
+                                root.currentlyViewedDateString = modelData.date;
                             }
                         }
                     }
@@ -521,10 +602,10 @@ Item {
         // Right/Bottom Panel: Panchanga Details Card
         Kirigami.Card {
             id: detailsCard
-            Layout.fillWidth: false
+            Layout.fillWidth: mainGridLayout.columns === 1
             Layout.fillHeight: true
-            Layout.minimumWidth: 400
-            Layout.preferredWidth: 440
+            Layout.minimumWidth: mainGridLayout.columns === 1 ? 250 : 400
+            Layout.preferredWidth: mainGridLayout.columns === 1 ? -1 : 440
             
             // Slate/Warm tinted card background depending on Paksha
             background: Rectangle {
@@ -554,18 +635,129 @@ Item {
                     // Detail Card Header
                     ColumnLayout {
                         Layout.fillWidth: true
-                                           Label {
-                            text: kaladarshana.selectedDayData ? kaladarshana.formatGregorianDateStr(kaladarshana.selectedDayData.date) : ""
-                            font.pixelSize: Kirigami.Units.gridUnit * 0.75
-                            opacity: 0.8
+                        // Editable Gregorian Date Row
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 2
+                            
+                            // Normal state: clickable label
+                            MouseArea {
+                                id: gregDateClickArea
+                                Layout.fillWidth: true
+                                implicitHeight: labelGregDate.implicitHeight
+                                cursorShape: Qt.PointingHandCursor
+                                visible: !kaladarshana.editingDate
+                                hoverEnabled: true
+                                
+                                Label {
+                                    id: labelGregDate
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    text: kaladarshana.selectedDayData ? kaladarshana.formatGregorianDateStr(kaladarshana.selectedDayData.date) : ""
+                                    font.pixelSize: Kirigami.Units.gridUnit * 0.75
+                                    opacity: 0.8
+                                    font.underline: gregDateClickArea.containsMouse
+                                }
+                                
+                                onClicked: {
+                                    if (kaladarshana.selectedDayData) {
+                                        var parts = kaladarshana.selectedDayData.date.split('-');
+                                        editDateInput.text = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                                        kaladarshana.editingDate = true;
+                                        editDateInput.forceActiveFocus();
+                                    }
+                                }
+                            }
+
+                            // Editing state: editable text input
+                            TextField {
+                                id: editDateInput
+                                Layout.fillWidth: true
+                                placeholderText: "DD-MM-YYYY"
+                                visible: kaladarshana.editingDate
+                                
+                                function commitEdit() {
+                                    var txt = text.trim();
+                                    var regex = /^(\d{2})-(\d{2})-(\d{4})$/;
+                                    var match = txt.match(regex);
+                                    if (!match) {
+                                        showError("Invalid format. Use DD-MM-YYYY.");
+                                        return;
+                                    }
+                                    var d = parseInt(match[1]);
+                                    var m = parseInt(match[2]);
+                                    var y = parseInt(match[3]);
+                                    
+                                    if (m < 1 || m > 12) {
+                                        showError("Invalid month (1-12).");
+                                        return;
+                                    }
+                                    if (d < 1 || d > 31) {
+                                        showError("Invalid day (1-31).");
+                                        return;
+                                    }
+                                    
+                                    var parsedDate = new Date(y, m - 1, d);
+                                    if (parsedDate.getFullYear() !== y || parsedDate.getMonth() !== (m - 1) || parsedDate.getDate() !== d) {
+                                        showError("Invalid calendar date.");
+                                        return;
+                                    }
+                                    
+                                    inlineErrorMsg.visible = false;
+                                    kaladarshana.navigateToDate(y, m, d);
+                                    kaladarshana.editingDate = false;
+                                }
+                                
+                                function cancelEdit() {
+                                    inlineErrorMsg.visible = false;
+                                    kaladarshana.editingDate = false;
+                                }
+                                
+                                function showError(msg) {
+                                    inlineErrorMsg.text = msg;
+                                    inlineErrorMsg.visible = true;
+                                }
+
+                                Keys.onReturnPressed: commitEdit()
+                                Keys.onEnterPressed: commitEdit()
+                                Keys.onEscapePressed: cancelEdit()
+                                
+                                onActiveFocusChanged: {
+                                    if (!activeFocus && kaladarshana.editingDate) {
+                                        var txt = text.trim();
+                                        var regex = /^(\d{2})-(\d{2})-(\d{4})$/;
+                                        var match = txt.match(regex);
+                                        if (match) {
+                                            var d = parseInt(match[1]);
+                                            var m = parseInt(match[2]);
+                                            var y = parseInt(match[3]);
+                                            var parsedDate = new Date(y, m - 1, d);
+                                            if (m >= 1 && m <= 12 && d >= 1 && d <= 31 && parsedDate.getFullYear() === y && parsedDate.getMonth() === (m - 1) && parsedDate.getDate() === d) {
+                                                commitEdit();
+                                                return;
+                                            }
+                                        }
+                                        cancelEdit();
+                                    }
+                                }
+                            }
+
+                            Kirigami.InlineMessage {
+                                id: inlineErrorMsg
+                                Layout.fillWidth: true
+                                type: Kirigami.MessageType.Error
+                                showCloseButton: true
+                                visible: false
+                            }
                         }
 
-                        Kirigami.Heading {
-                            level: 2
-                            text: kaladarshana.selectedDayData ? kaladarshana.selectedDayData.tithi : i18n("Select a day")
-                            color: kaladarshana.selectedDayData && kaladarshana.selectedDayData.is_krishna_paksha ? "#7094b3" : "#ffcc00"
-                            font.bold: true
-                        }
+
+                         Kirigami.Heading {
+                             level: 2
+                             text: kaladarshana.selectedDayData ? (root.configTithiMode === "astronomical" ? kaladarshana.selectedDayData.tithi : kaladarshana.selectedDayData.tithi_1) : i18n("Select a day")
+                             color: kaladarshana.selectedDayData && kaladarshana.selectedDayData.is_krishna_paksha ? "#7094b3" : "#ffcc00"
+                             font.bold: true
+                         }
 
                         Label {
                             text: kaladarshana.selectedDayData ? `${kaladarshana.selectedDayData.paksha} Paksha • ${kaladarshana.selectedDayData.vaara}` : ""
@@ -585,7 +777,8 @@ Item {
                             Repeater {
                                 model: kaladarshana.selectedDayData ? kaladarshana.selectedDayData.festivals : []
                                 Label {
-                                    text: `${modelData.name}`
+                                    text: modelData.anniversary_display ? `${modelData.name}<br/><font size="-1" color="#888888">${modelData.anniversary_display}</font>` : modelData.name
+                                    textFormat: Text.RichText
                                     font.bold: true
                                     font.pixelSize: Kirigami.Units.gridUnit * 0.95
                                     color: modelData.color || "#2ecc71"
@@ -639,7 +832,7 @@ Item {
                         }
 
                         // Row: Nakshatra
-                        Label { text: i18n("Nakshatra:"); font.bold: true; opacity: 0.8 }
+                        Label { text: i18n("Chandra Nakshatra:"); font.bold: true; opacity: 0.8 }
                         Label {
                             text: {
                                 if (!kaladarshana.selectedDayData) return "--";
@@ -651,6 +844,37 @@ Item {
                                     kaladarshana.selectedDayData.nakshatra_active_idx,
                                     kaladarshana.selectedDayData.is_krishna_paksha,
                                     kaladarshana.selectedDayData.nakshatra_survives,
+                                    root.configTithiMode
+                                );
+                            }
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                        }
+
+                        // Row: Sūrya Nakṣatra
+                        Label {
+                            text: {
+                                if (root.configLang === "devanagari") return "सूर्य नक्षत्र:";
+                                if (root.configLang === "iast") return "Sūrya Nakṣatra:";
+                                return "Surya Nakshatra:";
+                            }
+                            font.bold: true
+                            opacity: 0.8
+                        }
+                        Label {
+                            text: {
+                                if (!kaladarshana.selectedDayData) return "--";
+                                if (kaladarshana.selectedDayData.surya_nakshatra_survives) {
+                                    return kaladarshana.selectedDayData.surya_nakshatra_1;
+                                }
+                                return kaladarshana.formatAstroElement(
+                                    kaladarshana.selectedDayData.surya_nakshatra_1,
+                                    kaladarshana.selectedDayData.surya_nakshatra_1_end,
+                                    kaladarshana.selectedDayData.surya_nakshatra_2,
+                                    kaladarshana.selectedDayData.surya_nakshatra_2_end,
+                                    kaladarshana.selectedDayData.surya_nakshatra_active_idx,
+                                    false,
+                                    false,
                                     root.configTithiMode
                                 );
                             }

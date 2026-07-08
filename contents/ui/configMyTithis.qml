@@ -1,14 +1,15 @@
 import QtQuick
-import QtQuick.Controls as Controls
-import QtQuick.Layouts as Layouts
+import QtQuick.Controls
+import QtQuick.Layouts
 import QtQuick.Dialogs
 import org.kde.kirigami as Kirigami
 
 Item {
-    id: configMyTithisRoot
-    implicitHeight: mainLayout.implicitHeight
-    width: parent ? parent.width : 600
+    id: page
+    implicitWidth: 600
+    implicitHeight: 450
     property bool confirmDeleteAll: false
+    property bool isWorking: false
 
     ListModel {
         id: observancesModel
@@ -20,7 +21,7 @@ Item {
         running: false
         repeat: false
         onTriggered: {
-            configMyTithisRoot.loadObservances();
+            page.loadObservances();
         }
     }
 
@@ -30,6 +31,8 @@ Item {
         nameFilters: ["JSON files (*.json)"]
         fileMode: FileDialog.OpenFile
         onAccepted: {
+            page.isWorking = true;
+            importMessage.text = "";
             var path = selectedFile.toString();
             if (path.startsWith("file://")) {
                 path = path.substring(7);
@@ -41,10 +44,19 @@ Item {
             xhr.open("GET", "http://127.0.0.1:8642/import_custom_observances?filepath=" + encodeURIComponent(path) + "&" + buster, true);
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === XMLHttpRequest.DONE) {
+                    page.isWorking = false;
                     if (xhr.status === 200) {
+                        importMessage.type = Kirigami.MessageType.Information;
+                        importMessage.text = i18n("Tithis imported successfully!");
                         reloadTimer.start();
                     } else {
-                        console.error("Failed to import:", xhr.responseText);
+                        importMessage.type = Kirigami.MessageType.Error;
+                        try {
+                            var res = JSON.parse(xhr.responseText);
+                            importMessage.text = res.message || i18n("Failed to import tithis.");
+                        } catch(e) {
+                            importMessage.text = i18n("Failed to import tithis.");
+                        }
                     }
                 }
             };
@@ -58,6 +70,8 @@ Item {
         fileMode: FileDialog.SaveFile
         nameFilters: ["JSON files (*.json)"]
         onAccepted: {
+            page.isWorking = true;
+            importMessage.text = "";
             var path = selectedFile.toString();
             if (path.startsWith("file://")) {
                 path = path.substring(7);
@@ -72,10 +86,13 @@ Item {
             xhr.open("GET", "http://127.0.0.1:8642/export_custom_observances?filepath=" + encodeURIComponent(path) + "&" + buster, true);
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === XMLHttpRequest.DONE) {
+                    page.isWorking = false;
                     if (xhr.status === 200) {
-                        // Success
+                        importMessage.type = Kirigami.MessageType.Information;
+                        importMessage.text = i18n("Tithis exported successfully!");
                     } else {
-                        console.error("Failed to export:", xhr.responseText);
+                        importMessage.type = Kirigami.MessageType.Error;
+                        importMessage.text = i18n("Failed to export tithis.");
                     }
                 }
             };
@@ -91,7 +108,7 @@ Item {
             if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
                 try {
                     var data = JSON.parse(xhr.responseText);
-                    configMyTithisRoot.syncModel(data);
+                    page.syncModel(data);
                 } catch(e) {
                     console.error("Failed to parse tithis:", e);
                 }
@@ -101,7 +118,6 @@ Item {
     }
 
     function syncModel(data) {
-        // 1. Remove items from local model that are not present in backend
         var backendIds = {};
         for (var i = 0; i < data.length; i++) {
             backendIds[data[i].id] = data[i];
@@ -114,7 +130,6 @@ Item {
             }
         }
         
-        // 2. Add or update items from backend
         for (var k = 0; k < data.length; k++) {
             var bItem = data[k];
             var existingIndex = -1;
@@ -126,6 +141,7 @@ Item {
             }
             
             var sysB = bItem.system || "amavasyanta";
+            var gregB = (bItem.gregorian_year !== undefined && bItem.gregorian_year !== null) ? bItem.gregorian_year : "";
             if (existingIndex === -1) {
                 observancesModel.append({
                     "id": bItem.id,
@@ -133,30 +149,34 @@ Item {
                     "month": bItem.month,
                     "paksha": bItem.paksha,
                     "tithi": bItem.tithi,
-                    "system": sysB
+                    "system": sysB,
+                    "gregorian_year": gregB
                 });
             } else {
                 var local = observancesModel.get(existingIndex);
                 var sysL = local.system || "amavasyanta";
+                var gregL = local.gregorian_year || "";
                 if (local.name !== bItem.name || 
                     local.month !== bItem.month || 
                     local.paksha !== bItem.paksha || 
                     local.tithi !== bItem.tithi || 
-                    sysL !== sysB) {
+                    sysL !== sysB ||
+                    gregL !== gregB) {
                     observancesModel.set(existingIndex, {
                         "id": bItem.id,
                         "name": bItem.name,
                         "month": bItem.month,
                         "paksha": bItem.paksha,
                         "tithi": bItem.tithi,
-                        "system": sysB
+                        "system": sysB,
+                        "gregorian_year": gregB
                     });
                 }
             }
         }
     }
 
-    function addObservance(name, month, paksha, tithi, system) {
+    function addObservance(name, month, paksha, tithi, system, gregorian_year) {
         var xhr = new XMLHttpRequest();
         var buster = "_t=" + Date.now();
         var query = "name=" + encodeURIComponent(name) +
@@ -164,18 +184,18 @@ Item {
                     "&paksha=" + encodeURIComponent(paksha) +
                     "&tithi=" + encodeURIComponent(tithi) +
                     "&system=" + encodeURIComponent(system) +
+                    "&gregorian_year=" + encodeURIComponent(gregorian_year) +
                     "&" + buster;
         xhr.open("GET", "http://127.0.0.1:8642/save_custom_observance?" + query, true);
         xhr.onreadystatechange = function() {
             if (xhr.readyState === XMLHttpRequest.DONE) {
                 if (xhr.status === 200) {
                     reloadTimer.start();
-                    nameInput.text = "";
-                    errorAlert.visible = false;
+                    page.resetForm();
                 } else {
                     try {
                         var errData = JSON.parse(xhr.responseText);
-                        errorAlert.text = errData.error || i18n("Tithi already exists!");
+                        errorAlert.text = errData.message || errData.error || i18n("Tithi already exists!");
                     } catch(e) {
                         errorAlert.text = i18n("Tithi already exists!");
                     }
@@ -188,7 +208,6 @@ Item {
     }
 
     function deleteObservance(id) {
-        // Remove locally first for instant feedback and clean delegate lifecycle destruction
         for (var i = 0; i < observancesModel.count; i++) {
             if (observancesModel.get(i).id === id) {
                 observancesModel.remove(i);
@@ -221,32 +240,66 @@ Item {
         xhr.send();
     }
 
-    Component.onCompleted: {
-        loadObservances();
+    function validateInputs() {
+        if (nameInput.text.trim() === "") {
+            validationMsg.text = "";
+            return;
+        }
+        if (gregorianYearInput.text !== "" && !gregorianYearInput.acceptableInput) {
+            validationMsg.text = i18n("Gregorian Year must be a valid number between 1 and 3000.");
+            return;
+        }
+        validationMsg.text = "";
     }
 
-    Layouts.ColumnLayout {
-        id: mainLayout
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        spacing: Kirigami.Units.largeSpacing
+    function resetForm() {
+        nameInput.text = "";
+        monthInput.currentIndex = 0;
+        pakshaInput.currentIndex = 0;
+        tithiInput.currentIndex = 0;
+        systemInput.currentIndex = 0;
+        gregorianYearInput.text = "";
+        errorAlert.visible = false;
+        validationMsg.text = "";
+    }
 
-        Kirigami.FormLayout {
-            id: formLayout
-            Layouts.Layout.fillWidth: true
+    function getAnniversaryDisplay(gregYear, name) {
+        if (!gregYear) return "";
+        var yr = parseInt(gregYear);
+        if (isNaN(yr) || yr <= 0) return "";
+        var currentYear = new Date().getFullYear();
+        var diff = currentYear - yr;
+        if (diff <= 0) return "";
+        
+        var ordinal = function(n) {
+            var s = ["th", "st", "nd", "rd"];
+            var v = n % 100;
+            return n + (s[(v - 20) % 10] || s[v] || s[0]);
+        };
+        
+        var isBirthday = name.toLowerCase().indexOf("birthday") !== -1 || name.toLowerCase().indexOf("janmadin") !== -1;
+        var typeStr = isBirthday ? i18n("Birthday") : i18n("Anniversary");
+        return ordinal(diff) + " " + typeStr;
+    }
 
-            Kirigami.Separator {
-                Kirigami.FormData.isSection: true
-                Kirigami.FormData.label: i18n("Add My Tithi")
-            }
+    ScrollView {
+        anchors.fill: parent
+        clip: true
+        ScrollBar.horizontal.policy: ScrollBar.AsNeeded
+        ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
+        ColumnLayout {
+            width: parent.width - Kirigami.Units.gridUnit
+            spacing: Kirigami.Units.largeSpacing
+            anchors.margins: Kirigami.Units.largeSpacing
+
+            // Top Error alert
             Kirigami.InlineMessage {
                 id: errorAlert
                 type: Kirigami.MessageType.Error
                 text: i18n("Tithi already exists!")
                 visible: false
-                Layouts.Layout.fillWidth: true
+                Layout.fillWidth: true
                 showCloseButton: true
             }
 
@@ -258,213 +311,318 @@ Item {
                 onTriggered: errorAlert.visible = false
             }
 
-            Controls.TextField {
-                id: nameInput
-                Kirigami.FormData.label: i18n("Tithi Name:")
-                placeholderText: i18n("e.g. Janmadin")
-                onTextChanged: errorAlert.visible = false
-            }
-
-            Controls.ComboBox {
-                id: monthInput
-                Kirigami.FormData.label: i18n("Hindu Month:")
-                model: ["Chaitra", "Vaishakha", "Jyeshtha", "Ashadha", "Shravana", "Bhadrapada", "Ashvina", "Kartika", "Margashirsha", "Pausha", "Magha", "Phalguna"]
-            }
-
-            Controls.ComboBox {
-                id: pakshaInput
-                Kirigami.FormData.label: i18n("Paksha:")
-                model: ["Shukla", "Krishna"]
-            }
-
-            Controls.ComboBox {
-                id: tithiInput
-                Kirigami.FormData.label: i18n("Tithi:")
-                model: [
-                    "Pratipada", "Dwitiya", "Tritiya", "Chaturthi", "Panchami", "Shashti", "Saptami", "Ashtami",
-                    "Navami", "Dashami", "Ekadashi", "Dwadashi", "Trayodashi", "Chaturdashi", "Purnima", "Amavasya"
-                ]
-            }
-
-            Controls.ComboBox {
-                id: systemInput
-                Kirigami.FormData.label: i18n("Month System:")
-                model: ["Amavasyanta", "Purnimanta"]
-            }
-
-            Controls.Button {
-                text: i18n("Add Tithi")
-                onClicked: {
-                    if (nameInput.text.trim() !== "") {
-                        configMyTithisRoot.addObservance(nameInput.text.trim(), monthInput.currentText, pakshaInput.currentText, tithiInput.currentText, systemInput.currentText.toLowerCase());
-                    }
-                }
-            }
-
-            Kirigami.Separator {
-                Kirigami.FormData.isSection: true
-                Kirigami.FormData.label: i18n("Import & Export My Tithis")
-            }
-
-            Layouts.RowLayout {
-                spacing: Kirigami.Units.largeSpacing
-                
-                Controls.Button {
-                    text: i18n("Import from File...")
-                    icon.name: "document-import"
-                    onClicked: importFileDialog.open()
-                }
-
-                Controls.Button {
-                    text: i18n("Export to File...")
-                    icon.name: "document-export"
-                    onClicked: exportFileDialog.open()
-                }
-            }
-
-            Kirigami.Separator {
-                Kirigami.FormData.isSection: true
-                Kirigami.FormData.label: i18n("My Tithis")
-            }
-        }
-
-        Layouts.RowLayout {
-            Layouts.Layout.fillWidth: true
-            Layouts.Layout.leftMargin: Kirigami.Units.largeSpacing
-            Layouts.Layout.rightMargin: Kirigami.Units.largeSpacing
-            
-            Controls.Label {
-                text: i18n("List of Saved Tithis:")
-                font.bold: true
-                Layouts.Layout.fillWidth: true
-            }
-            Controls.Button {
-                text: i18n("Delete All")
-                icon.name: "edit-clear-all"
-                visible: observancesModel.count > 0 && !configMyTithisRoot.confirmDeleteAll
-                onClicked: {
-                    configMyTithisRoot.confirmDeleteAll = true;
-                }
-            }
-            Controls.Button {
-                text: i18n("Confirm Delete All?")
-                visible: configMyTithisRoot.confirmDeleteAll
-                contentItem: Controls.Label {
-                    text: parent.text
-                    color: Kirigami.Theme.negativeTextColor
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-                onClicked: {
-                    configMyTithisRoot.confirmDeleteAll = false;
-                    configMyTithisRoot.clearAllObservances();
-                }
-            }
-            Controls.Button {
-                text: i18n("Cancel")
-                visible: configMyTithisRoot.confirmDeleteAll
-                onClicked: {
-                    configMyTithisRoot.confirmDeleteAll = false;
-                }
-            }
-        }
-
-        ListView {
-            id: listView
-            Layouts.Layout.fillWidth: true
-            interactive: false
-            height: contentHeight
-            model: observancesModel
-            
-            delegate: Item {
-                id: delegateItem
-                width: listView.width
-                height: rowLayout.implicitHeight + Kirigami.Units.smallSpacing * 2
-                property bool confirmDelete: false
-
-                Layouts.RowLayout {
-                    id: rowLayout
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.leftMargin: Kirigami.Units.largeSpacing
-                    anchors.rightMargin: Kirigami.Units.largeSpacing
+            // Card 1: Basic Information
+            Kirigami.Card {
+                Layout.fillWidth: true
+                header: RowLayout {
+                    Layout.margins: Kirigami.Units.largeSpacing
                     spacing: Kirigami.Units.largeSpacing
-
-                    Controls.Label {
-                        text: {
-                            var n = (typeof name !== 'undefined' && name) ? name : "";
-                            var m = (typeof month !== 'undefined' && month) ? month : "";
-                            var p = (typeof paksha !== 'undefined' && paksha) ? paksha : "";
-                            var t = (typeof tithi !== 'undefined' && tithi) ? tithi : "";
-                            var s = (typeof system !== 'undefined' && system) ? system.toUpperCase() : "AMAVASYANTA";
-                            return n + " (" + m + " " + p + " " + t + " - " + s + ")";
-                        }
-                        Layouts.Layout.fillWidth: true
-                        elide: Text.ElideRight
+                    Kirigami.Icon { source: "appointment-new"; implicitWidth: Kirigami.Units.gridUnit * 1.5; implicitHeight: Kirigami.Units.gridUnit * 1.5 }
+                    ColumnLayout {
+                        spacing: 2
+                        Kirigami.Heading { text: i18n("Basic Information"); level: 3 }
+                        Label { text: i18n("Define the name and year references for this observance."); font.pixelSize: Kirigami.Units.gridUnit * 0.75; opacity: 0.6 }
                     }
+                }
+                contentItem: Kirigami.FormLayout {
+                    Layout.fillWidth: true
+                    TextField {
+                        id: nameInput
+                        Kirigami.FormData.label: i18n("Tithi Name:")
+                        placeholderText: i18n("e.g. Birthday, Shradha")
+                        Layout.fillWidth: true
+                        onTextChanged: {
+                            errorAlert.visible = false;
+                            validateInputs();
+                        }
+                        Accessible.name: i18n("Tithi Name")
+                        Accessible.description: i18n("Enter a custom name for the traditional observance")
+                    }
+                    TextField {
+                        id: gregorianYearInput
+                        Kirigami.FormData.label: i18n("Gregorian Year (Optional):")
+                        placeholderText: i18n("e.g. 2005 (for anniversary calculations)")
+                        Layout.fillWidth: true
+                        validator: IntValidator { bottom: 1; top: 3000 }
+                        onTextChanged: {
+                            errorAlert.visible = false;
+                            validateInputs();
+                        }
+                        Accessible.name: i18n("Event Year")
+                        Accessible.description: i18n("Enter original Gregorian event year to calculate anniversaries dynamically")
+                    }
+                    Kirigami.InlineMessage {
+                        id: validationMsg
+                        type: Kirigami.MessageType.Warning
+                        text: ""
+                        visible: text !== ""
+                        Layout.fillWidth: true
+                    }
+                }
+            }
 
-                    Controls.Button {
-                        text: i18n("Edit")
-                        visible: !delegateItem.confirmDelete
+            // Card 2: Lunar Date
+            Kirigami.Card {
+                Layout.fillWidth: true
+                header: RowLayout {
+                    Layout.margins: Kirigami.Units.largeSpacing
+                    spacing: Kirigami.Units.largeSpacing
+                    Kirigami.Icon { source: "office-calendar"; implicitWidth: Kirigami.Units.gridUnit * 1.5; implicitHeight: Kirigami.Units.gridUnit * 1.5 }
+                    ColumnLayout {
+                        spacing: 2
+                        Kirigami.Heading { text: i18n("Lunar Date"); level: 3 }
+                        Label { text: i18n("Configure the exact Hindu calendar parameters."); font.pixelSize: Kirigami.Units.gridUnit * 0.75; opacity: 0.6 }
+                    }
+                }
+                contentItem: Kirigami.FormLayout {
+                    Layout.fillWidth: true
+                    ComboBox {
+                        id: monthInput
+                        Kirigami.FormData.label: i18n("Masa (Month):")
+                        Layout.fillWidth: true
+                        model: ["Chaitra", "Vaishakha", "Jyeshtha", "Ashadha", "Shravana", "Bhadrapada", "Ashvina", "Kartika", "Margashirsha", "Pausha", "Magha", "Phalguna"]
+                        Accessible.name: i18n("Hindu Month Selection")
+                    }
+                    ComboBox {
+                        id: pakshaInput
+                        Kirigami.FormData.label: i18n("Paksha:")
+                        Layout.fillWidth: true
+                        model: ["Shukla", "Krishna"]
+                        Accessible.name: i18n("Paksha Selection")
+                    }
+                    ComboBox {
+                        id: tithiInput
+                        Kirigami.FormData.label: i18n("Tithi:")
+                        Layout.fillWidth: true
+                        model: [
+                            "Pratipada", "Dwitiya", "Tritiya", "Chaturthi", "Panchami", "Shashti", "Saptami", "Ashtami",
+                            "Navami", "Dashami", "Ekadashi", "Dwadashi", "Trayodashi", "Chaturdashi", "Purnima", "Amavasya"
+                        ]
+                        Accessible.name: i18n("Tithi Selection")
+                    }
+                    ComboBox {
+                        id: systemInput
+                        Kirigami.FormData.label: i18n("Month System:")
+                        Layout.fillWidth: true
+                        model: ["Amavasyanta", "Purnimanta"]
+                        Accessible.name: i18n("Month System Selection")
+                    }
+                }
+            }
+
+            // Card 3: Actions
+            Kirigami.Card {
+                Layout.fillWidth: true
+                contentItem: RowLayout {
+                    Layout.margins: Kirigami.Units.largeSpacing
+                    spacing: Kirigami.Units.largeSpacing
+                    Button {
+                        text: i18n("Add Tithi")
+                        icon.name: "list-add"
+                        enabled: (nameInput.text.trim() !== "" && validationMsg.text === "")
+                        Layout.fillWidth: true
                         onClicked: {
-                            var tName = (typeof name !== 'undefined') ? name : "";
-                            var tMonth = (typeof month !== 'undefined') ? month : "";
-                            var tPaksha = (typeof paksha !== 'undefined') ? paksha : "";
-                            var tTithi = (typeof tithi !== 'undefined') ? tithi : "";
-                            var tSystem = (typeof system !== 'undefined') ? system : "amavasyanta";
-                            var tId = (typeof id !== 'undefined') ? id : "";
-                            
-                            nameInput.text = tName;
-                            monthInput.currentIndex = ["Chaitra", "Vaishakha", "Jyeshtha", "Ashadha", "Shravana", "Bhadrapada", "Ashvina", "Kartika", "Margashirsha", "Pausha", "Magha", "Phalguna"].indexOf(tMonth);
-                            pakshaInput.currentIndex = ["Shukla", "Krishna"].indexOf(tPaksha);
-                            tithiInput.currentIndex = [
-                                "Pratipada", "Dwitiya", "Tritiya", "Chaturthi", "Panchami", "Shashti", "Saptami", "Ashtami",
-                                "Navami", "Dashami", "Ekadashi", "Dwadashi", "Trayodashi", "Chaturdashi", "Purnima", "Amavasya"
-                            ].indexOf(tTithi);
-                            systemInput.currentIndex = ["amavasyanta", "purnimanta"].indexOf(tSystem);
-                            configMyTithisRoot.deleteObservance(tId);
+                            page.addObservance(
+                                nameInput.text.trim(),
+                                monthInput.currentText,
+                                pakshaInput.currentText,
+                                tithiInput.currentText,
+                                systemInput.currentText.toLowerCase(),
+                                gregorianYearInput.text.trim()
+                            );
                         }
                     }
-
-                    Controls.Button {
-                        text: i18n("Delete")
-                        visible: !delegateItem.confirmDelete
-                        onClicked: {
-                            delegateItem.confirmDelete = true;
-                        }
+                    Button {
+                        text: i18n("Reset Form")
+                        icon.name: "edit-clear"
+                        Layout.fillWidth: true
+                        onClicked: page.resetForm()
                     }
+                }
+            }
 
-                    Controls.Button {
-                        text: i18n("Confirm Delete?")
-                        visible: delegateItem.confirmDelete
-                        contentItem: Controls.Label {
-                            text: parent.text
-                            color: Kirigami.Theme.negativeTextColor
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                        onClicked: {
-                            delegateItem.confirmDelete = false;
-                            configMyTithisRoot.deleteObservance((typeof id !== 'undefined') ? id : "");
-                        }
+            // Card 4: Import / Export Registry
+            Kirigami.Card {
+                Layout.fillWidth: true
+                header: RowLayout {
+                    Layout.margins: Kirigami.Units.largeSpacing
+                    spacing: Kirigami.Units.largeSpacing
+                    Kirigami.Icon { source: "document-share"; implicitWidth: Kirigami.Units.gridUnit * 1.5; implicitHeight: Kirigami.Units.gridUnit * 1.5 }
+                    ColumnLayout {
+                        spacing: 2
+                        Kirigami.Heading { text: i18n("Import & Export Observances"); level: 3 }
+                        Label { text: i18n("Backup or restore your custom tithis database file."); font.pixelSize: Kirigami.Units.gridUnit * 0.75; opacity: 0.6 }
                     }
-
-                    Controls.Button {
-                        text: i18n("Cancel")
-                        visible: delegateItem.confirmDelete
-                        onClicked: {
-                            delegateItem.confirmDelete = false;
+                }
+                contentItem: Kirigami.FormLayout {
+                    Layout.fillWidth: true
+                    
+                    Kirigami.InlineMessage {
+                        id: importMessage
+                        text: ""
+                        visible: text !== ""
+                        Layout.fillWidth: true
+                        showCloseButton: true
+                    }
+                    
+                    RowLayout {
+                        spacing: Kirigami.Units.largeSpacing
+                        Button {
+                            text: i18n("Import from File...")
+                            icon.name: "document-import"
+                            onClicked: importFileDialog.open()
+                        }
+                        Button {
+                            text: i18n("Export to File...")
+                            icon.name: "document-export"
+                            onClicked: exportFileDialog.open()
+                        }
+                        BusyIndicator {
+                            running: page.isWorking
+                            visible: running
                         }
                     }
                 }
+            }
 
-                Kirigami.Separator {
-                    anchors.bottom: parent.bottom
-                    anchors.left: parent.left
-                    anchors.right: parent.right
+            // Section: Saved Observances Header
+            RowLayout {
+                Layout.fillWidth: true
+                Label {
+                    text: i18n("Saved Custom Tithis")
+                    font.bold: true
+                    font.pixelSize: Kirigami.Units.gridUnit * 1.1
+                    Layout.fillWidth: true
+                }
+                Button {
+                    text: i18n("Delete All")
+                    icon.name: "edit-clear-all"
+                    visible: observancesModel.count > 0 && !page.confirmDeleteAll
+                    onClicked: page.confirmDeleteAll = true
+                }
+                Button {
+                    text: i18n("Confirm Delete All?")
+                    icon.name: "edit-delete"
+                    visible: page.confirmDeleteAll
+                    onClicked: {
+                        page.confirmDeleteAll = false;
+                        page.clearAllObservances();
+                    }
+                }
+                Button {
+                    text: i18n("Cancel")
+                    visible: page.confirmDeleteAll
+                    onClicked: page.confirmDeleteAll = false
+                }
+            }
+
+            // Saved Tithis Card List
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Kirigami.Units.largeSpacing
+
+                Repeater {
+                    model: observancesModel
+                    
+                    delegate: Kirigami.Card {
+                        id: savedTithiCard
+                        Layout.fillWidth: true
+                        property bool confirmDelete: false
+
+                        contentItem: ColumnLayout {
+                            Layout.margins: Kirigami.Units.largeSpacing
+                            spacing: Kirigami.Units.smallSpacing
+
+                            // Top title line with emoji & bold name
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    text: {
+                                        var isB = name.toLowerCase().indexOf("birthday") !== -1 || name.toLowerCase().indexOf("janmadin") !== -1;
+                                        return (isB ? "🎂 " : "📅 ") + name;
+                                    }
+                                    font.bold: true
+                                    font.pixelSize: Kirigami.Units.gridUnit * 1.1
+                                    Layout.fillWidth: true
+                                }
+                            }
+
+                            // Lunar date details
+                            Label {
+                                text: `${month} ${paksha} ${tithi} (${(system || "AMAVASYANTA").toUpperCase()})`
+                                opacity: 0.8
+                            }
+
+                            // Optional Anniversary Dynamic calculation line
+                            Label {
+                                text: page.getAnniversaryDisplay(gregorian_year, name)
+                                visible: gregorian_year !== undefined && gregorian_year !== null && gregorian_year !== ""
+                                font.italic: true
+                                color: Kirigami.Theme.activeTextColor
+                            }
+
+                            // Action buttons row
+                            RowLayout {
+                                Layout.topMargin: Kirigami.Units.smallSpacing
+                                spacing: Kirigami.Units.largeSpacing
+
+                                Button {
+                                    text: i18n("Edit")
+                                    icon.name: "edit-rename"
+                                    visible: !confirmDelete
+                                    onClicked: {
+                                        var tName = (typeof name !== 'undefined') ? name : "";
+                                        var tMonth = (typeof month !== 'undefined') ? month : "";
+                                        var tPaksha = (typeof paksha !== 'undefined') ? paksha : "";
+                                        var tTithi = (typeof tithi !== 'undefined') ? tithi : "";
+                                        var tSystem = (typeof system !== 'undefined') ? system : "amavasyanta";
+                                        var tGreg = (typeof gregorian_year !== 'undefined' && gregorian_year) ? gregorian_year : "";
+                                        var tId = (typeof id !== 'undefined') ? id : "";
+                                        
+                                        nameInput.text = tName;
+                                        monthInput.currentIndex = ["Chaitra", "Vaishakha", "Jyeshtha", "Ashadha", "Shravana", "Bhadrapada", "Ashvina", "Kartika", "Margashirsha", "Pausha", "Magha", "Phalguna"].indexOf(tMonth);
+                                        pakshaInput.currentIndex = ["Shukla", "Krishna"].indexOf(tPaksha);
+                                        tithiInput.currentIndex = [
+                                            "Pratipada", "Dwitiya", "Tritiya", "Chaturthi", "Panchami", "Shashti", "Saptami", "Ashtami",
+                                            "Navami", "Dashami", "Ekadashi", "Dwadashi", "Trayodashi", "Chaturdashi", "Purnima", "Amavasya"
+                                        ].indexOf(tTithi);
+                                        systemInput.currentIndex = ["amavasyanta", "purnimanta"].indexOf(tSystem);
+                                        gregorianYearInput.text = String(tGreg);
+                                        page.deleteObservance(tId);
+                                    }
+                                }
+
+                                Button {
+                                    text: i18n("Delete")
+                                    icon.name: "edit-delete"
+                                    visible: !confirmDelete
+                                    onClicked: confirmDelete = true
+                                }
+
+                                Button {
+                                    text: i18n("Confirm Delete?")
+                                    icon.name: "edit-delete"
+                                    visible: confirmDelete
+                                    onClicked: {
+                                        confirmDelete = false;
+                                        page.deleteObservance((typeof id !== 'undefined') ? id : "");
+                                    }
+                                }
+
+                                Button {
+                                    text: i18n("Cancel")
+                                    visible: confirmDelete
+                                    onClicked: confirmDelete = false
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
+    }
+
+    Component.onCompleted: {
+        loadObservances();
     }
 }

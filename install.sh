@@ -10,7 +10,10 @@ NC='\033[0;37m' # No Color
 
 echo -e "${BLUE}=== Starting Kālayantra Installation ===${NC}"
 
-# 1. Make python service executable
+# 1. Create config directory if not exists
+mkdir -p "${HOME}/.config/kalayantra"
+
+# 2. Make python service executable
 echo -e "${BLUE}[1/4] Making backend script executable...${NC}"
 chmod +x contents/scripts/Kalasetu.py
 

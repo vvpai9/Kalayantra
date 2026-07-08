@@ -131,6 +131,21 @@ MASAS = {
     ]
 }
 
+SAURA_MASAS = {
+    "en": [
+        "Mesha", "Vrishabha", "Mithuna", "Karka", "Simha", "Kanya",
+        "Tula", "Vrischika", "Dhanu", "Makara", "Kumbha", "Mina"
+    ],
+    "iast": [
+        "Meṣa", "Vṛṣabha", "Mithuna", "Karka", "Siṃha", "Kanyā",
+        "Tulā", "Vṛścika", "Dhanu", "Makara", "Kumbha", "Mīna"
+    ],
+    "devanagari": [
+        "मेष", "वृषभ", "मिथुन", "कर्क", "सिंह", "कन्या",
+        "तुला", "वृश्चिक", "धनु", "मकर", "कुंभ", "मीन"
+    ]
+}
+
 RITUS = {
     "en": ["Vasanta (Spring)", "Grishma (Summer)", "Varsha (Monsoon)", "Sharad (Autumn)", "Hemanta (Pre-winter)", "Shishira (Winter)"],
     "iast": ["Vasanta", "Grīṣma", "Varṣā", "Śarad", "Hemanta", "Śiśira"],
