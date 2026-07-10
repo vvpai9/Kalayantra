@@ -362,6 +362,7 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="traditi
     tithi_2_name = "--"
     tithi_2_end = "--"
     tithi_2_end_jd = None
+    tithi_2_idx = None
     if tithi_end_jd is not None:
         tithi_2_idx = get_tithi_idx(tithi_end_jd + 0.02)
         tithi_2_name = Kalakosha.TITHIS[lang][tithi_2_idx]
@@ -509,12 +510,26 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="traditi
             "nature": Kalakosha.CHOGHADIYA_NATURES[lang][n_name]
         })
 
+    tithi_display_name = tithi_name
+    tithi_num_val = (t_num_idx % 15) + 1
+    
+    tomorrow_tithi_idx = get_tithi_idx(tomorrow_sunrise_jd)
+    is_tithi_2_kshaya = False
+    if tithi_2_idx is not None and tithi_2_idx != t_num_idx:
+        if tomorrow_tithi_idx != tithi_2_idx:
+            is_tithi_2_kshaya = True
+            
+    if tithi_mode == "traditional" and is_tithi_2_kshaya:
+        tithi_display_name = f"{tithi_name} - {tithi_2_name}"
+        tithi_num_val = f"{(t_num_idx % 15) + 1}-{(tithi_2_idx % 15) + 1}"
+        tithi_active_name = tithi_display_name
+
     return {
         "date": f"{year:04d}-{month:02d}-{day:02d}",
         "vaara": vaara_name,
         "tithi": tithi_active_name,
         "tithi_end": tithi_end,
-        "tithi_1": tithi_name,
+        "tithi_1": tithi_display_name,
         "tithi_1_end": tithi_end,
         "tithi_2": tithi_2_name,
         "tithi_2_end": tithi_2_end,
@@ -582,7 +597,7 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="traditi
         "day_choghadiya": day_choghadiyas,
         "night_choghadiya": night_choghadiyas,
         "is_krishna_paksha": is_krishna,
-        "tithi_num": (t_num_idx % 15) + 1,
+        "tithi_num": tithi_num_val,
         "tithi_idx": t_num_idx,
         
         # Raw transition JDs for other engines

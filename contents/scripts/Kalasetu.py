@@ -45,6 +45,7 @@ class ConfigManager:
         self._reminders_cache = None
         self._notification_cache = None
         self._last_coords_cache = None
+        self._last_mtimes = {}
 
     def ensure_config_exists(self):
         if not os.path.exists(CONFIG_DIR):
@@ -89,7 +90,32 @@ class ConfigManager:
             except Exception as e:
                 logger.error(f"Error saving custom cities: {e}")
 
+    def _check_and_invalidate_caches(self):
+        mtimes_changed = False
+        files_to_check = {
+            "custom_obs": CUSTOM_OBSERVANCES_PATH,
+            "private_obs": os.path.join(CONFIG_DIR, "private", "private_observances.json"),
+            "private_tithis": os.path.join(CONFIG_DIR, "private", "private_tithis.json")
+        }
+        for key, path in files_to_check.items():
+            current_mtime = 0.0
+            if os.path.exists(path):
+                try:
+                    current_mtime = os.path.getmtime(path)
+                except Exception:
+                    pass
+            if self._last_mtimes.get(key) != current_mtime:
+                self._last_mtimes[key] = current_mtime
+                mtimes_changed = True
+        
+        if mtimes_changed:
+            self._custom_observances_cache = None
+            self._all_observances_cache = None
+            global CACHE
+            CACHE.clear()
+
     def load_custom_observances(self):
+        self._check_and_invalidate_caches()
         if self._custom_observances_cache is not None:
             return json.loads(json.dumps(self._custom_observances_cache))
         self.ensure_config_exists()
@@ -110,10 +136,13 @@ class ConfigManager:
                     json.dump(observances, f, indent=2, ensure_ascii=False)
                 self._custom_observances_cache = observances
                 self._all_observances_cache = None
+                global CACHE
+                CACHE.clear()
             except Exception as e:
                 logger.error(f"Error saving custom observances: {e}")
 
     def load_all_observances(self):
+        self._check_and_invalidate_caches()
         if self._all_observances_cache is not None:
             return json.loads(json.dumps(self._all_observances_cache))
         
