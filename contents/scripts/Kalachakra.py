@@ -363,38 +363,51 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="traditi
     tithi_2_end = "--"
     tithi_2_end_jd = None
     tithi_2_idx = None
-    if tithi_end_jd is not None:
+    is_tithi_2_kshaya = False
+    if tithi_end_jd is not None and tithi_end_jd < tomorrow_sunrise_jd:
         tithi_2_idx = get_tithi_idx(tithi_end_jd + 0.02)
-        tithi_2_name = Kalakosha.TITHIS[lang][tithi_2_idx]
-        tithi_2_end_jd = find_transition(tithi_end_jd + 0.02, get_tithi_idx)
-        tithi_2_end = jd_to_time_str(tithi_2_end_jd)
+        tomorrow_tithi_idx = get_tithi_idx(tomorrow_sunrise_jd)
+        if tomorrow_tithi_idx != tithi_2_idx:
+            is_tithi_2_kshaya = True
+            
+        survives_midnight = (tithi_end_jd > jd_ut_start + 1.0)
+        if not survives_midnight:
+            tithi_2_name = Kalakosha.TITHIS[lang][tithi_2_idx]
+            tithi_2_end_jd = find_transition(tithi_end_jd + 0.02, get_tithi_idx)
+            tithi_2_end = jd_to_time_str(tithi_2_end_jd)
         
     nakshatra_2_name = "--"
     nakshatra_2_end = "--"
     nakshatra_2_end_jd = None
-    if nakshatra_end_jd is not None:
+    if nakshatra_end_jd is not None and nakshatra_end_jd < tomorrow_sunrise_jd:
         nakshatra_2_idx = get_nakshatra_idx(nakshatra_end_jd + 0.02)
-        nakshatra_2_name = Kalakosha.NAKSHATRAS[lang][nakshatra_2_idx]
-        nakshatra_2_end_jd = find_transition(nakshatra_end_jd + 0.02, get_nakshatra_idx)
-        nakshatra_2_end = jd_to_time_str(nakshatra_2_end_jd)
+        survives_midnight = (nakshatra_end_jd > jd_ut_start + 1.0)
+        if not survives_midnight:
+            nakshatra_2_name = Kalakosha.NAKSHATRAS[lang][nakshatra_2_idx]
+            nakshatra_2_end_jd = find_transition(nakshatra_end_jd + 0.02, get_nakshatra_idx)
+            nakshatra_2_end = jd_to_time_str(nakshatra_2_end_jd)
         
     yoga_2_name = "--"
     yoga_2_end = "--"
     yoga_2_end_jd = None
-    if yoga_end_jd is not None:
+    if yoga_end_jd is not None and yoga_end_jd < tomorrow_sunrise_jd:
         yoga_2_idx = get_yoga_idx(yoga_end_jd + 0.02)
-        yoga_2_name = Kalakosha.YOGAS[lang][yoga_2_idx]
-        yoga_2_end_jd = find_transition(yoga_end_jd + 0.02, get_yoga_idx)
-        yoga_2_end = jd_to_time_str(yoga_2_end_jd)
+        survives_midnight = (yoga_end_jd > jd_ut_start + 1.0)
+        if not survives_midnight:
+            yoga_2_name = Kalakosha.YOGAS[lang][yoga_2_idx]
+            yoga_2_end_jd = find_transition(yoga_end_jd + 0.02, get_yoga_idx)
+            yoga_2_end = jd_to_time_str(yoga_2_end_jd)
         
     karana_2_name = "--"
     karana_2_end = "--"
     karana_2_end_jd = None
-    if karana_end_jd is not None:
+    if karana_end_jd is not None and karana_end_jd < tomorrow_sunrise_jd:
         karana_2_idx = get_karana_idx(karana_end_jd + 0.02)
-        karana_2_name = get_karana_name_from_idx(karana_2_idx, lang)
-        karana_2_end_jd = find_transition(karana_end_jd + 0.02, get_karana_idx)
-        karana_2_end = jd_to_time_str(karana_2_end_jd)
+        survives_midnight = (karana_end_jd > jd_ut_start + 1.0)
+        if not survives_midnight:
+            karana_2_name = get_karana_name_from_idx(karana_2_idx, lang)
+            karana_2_end_jd = find_transition(karana_end_jd + 0.02, get_karana_idx)
+            karana_2_end = jd_to_time_str(karana_2_end_jd)
         
     # Rain/Surya Nakshatra (Sun's Nakshatra)
     def get_surya_nakshatra_idx(jd):
@@ -513,12 +526,6 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="traditi
     tithi_display_name = tithi_name
     tithi_num_val = (t_num_idx % 15) + 1
     
-    tomorrow_tithi_idx = get_tithi_idx(tomorrow_sunrise_jd)
-    is_tithi_2_kshaya = False
-    if tithi_2_idx is not None and tithi_2_idx != t_num_idx:
-        if tomorrow_tithi_idx != tithi_2_idx:
-            is_tithi_2_kshaya = True
-            
     if tithi_mode == "traditional" and is_tithi_2_kshaya:
         tithi_display_name = f"{tithi_name} - {tithi_2_name}"
         tithi_num_val = f"{(t_num_idx % 15) + 1}-{(tithi_2_idx % 15) + 1}"
@@ -529,10 +536,12 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="traditi
         "vaara": vaara_name,
         "tithi": tithi_active_name,
         "tithi_end": tithi_end,
-        "tithi_1": tithi_display_name,
+        "tithi_1": tithi_name,
         "tithi_1_end": tithi_end,
         "tithi_2": tithi_2_name,
         "tithi_2_end": tithi_2_end,
+        "tithi_2_idx": tithi_2_idx,
+        "is_tithi_2_kshaya": is_tithi_2_kshaya,
         "tithi_active_idx": tithi_active_idx,
         "tithi_survives": tithi_survives,
         

@@ -64,8 +64,6 @@ Kālayantra is built with a strictly decoupled modular design following separati
 
 ![Settings](screenshots/settings.png)
 
-![Custom Observances](screenshots/custom.png)
-
 ## Installation
 
 ### Dependencies

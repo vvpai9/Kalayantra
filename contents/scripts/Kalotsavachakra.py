@@ -36,7 +36,7 @@ def resolve_festival_details(key, metadata_key, lang):
     }
 
 
-def calculate_festivals(astro_data, tz, custom_observances=None, festival_rule="vaishnava", lang="en"):
+def _calculate_festivals_internal(astro_data, tz, custom_observances=None, festival_rule="vaishnava", lang="en"):
     festivals = []
     
     # Extract raw parameters from astro_data
@@ -282,31 +282,40 @@ def calculate_festivals(astro_data, tz, custom_observances=None, festival_rule="
     # Dwadashi Day: Check if Vaishnava Ekadashi was pushed to today
     if t_sunrise == 11 or t_sunrise == 26:
         shukla_dwadashi = (t_sunrise == 11)
-        # Find yesterday's sunrise tithi
         jd_yest = sunrise_jd - 1.0
         t_yest = get_tithi_at_jd(jd_yest)
         
-        # If yesterday was Ekadashi (10 or 25)
+        yesterday_had_ekadashi = False
+        yesterday_was_viddha = False
+        
         if t_yest == 10 or t_yest == 25:
-            # Check if yesterday was viddha at Arunodaya
+            yesterday_had_ekadashi = True
             yest_sunrise_jd, _, _, _ = Kalachakra.get_sun_moon_rise_set(jd_ut_start - 1.0, astro_data.get("lat", 23.1765), astro_data.get("lon", 75.7885), astro_data.get("alt", 511.0))
             yest_arunodaya_jd = yest_sunrise_jd - (96.0 / 1440.0)
             t_yest_aru = get_tithi_at_jd(yest_arunodaya_jd)
-            is_viddha = (t_yest_aru == 9 or t_yest_aru == 24)
-            
-            if is_viddha and festival_rule == "vaishnava":
-                ekadashi_key = ("adhika" if astro_data.get("is_adhika", False) else masa_idx, not shukla_dwadashi)
-                ekadashi_meta = Kalakosha.EKADASHI_NAMES.get(ekadashi_key, {"en": "Ekadashi", "iast": "Ekādaśī", "devanagari": "एकादशी"})
-                ekadashi_name = ekadashi_meta[lang]
-                festivals.append({
-                    "name": f"{ekadashi_name} (Vaishnava)",
-                    "type": "Ekadashi",
-                    "color": "#3498db",
-                    "priority": 9,
-                    "description": f"{ekadashi_name} Vaishnava fast observed on Dwadashi due to Dashami-Ekadashi mixture at yesterday's Arunodaya.",
-                    "rule": "Vaishnava Dwadashi (Mahadvadashi)",
-                    "notify": "high"
-                })
+            yesterday_was_viddha = (t_yest_aru == 9 or t_yest_aru == 24)
+        else:
+            yest_sunrise_jd, _, _, _ = Kalachakra.get_sun_moon_rise_set(jd_ut_start - 1.0, astro_data.get("lat", 23.1765), astro_data.get("lon", 75.7885), astro_data.get("alt", 511.0))
+            yest_tithi_end_jd = Kalachakra.find_transition(yest_sunrise_jd, get_tithi_at_jd)
+            if yest_tithi_end_jd is not None:
+                t_yest_2 = get_tithi_at_jd(yest_tithi_end_jd + 0.02)
+                if t_yest_2 == 10 or t_yest_2 == 25:
+                    yesterday_had_ekadashi = True
+                    yesterday_was_viddha = True
+                    
+        if yesterday_had_ekadashi and yesterday_was_viddha and festival_rule == "vaishnava":
+            ekadashi_key = ("adhika" if astro_data.get("is_adhika", False) else masa_idx, not shukla_dwadashi)
+            ekadashi_meta = Kalakosha.EKADASHI_NAMES.get(ekadashi_key, {"en": "Ekadashi", "iast": "Ekādaśī", "devanagari": "एकादशी"})
+            ekadashi_name = ekadashi_meta[lang]
+            festivals.append({
+                "name": f"{ekadashi_name} (Vaishnava)",
+                "type": "Ekadashi",
+                "color": "#3498db",
+                "priority": 9,
+                "description": f"{ekadashi_name} Vaishnava fast observed on Dwadashi due to Dashami-Ekadashi mixture or Kshaya yesterday.",
+                "rule": "Vaishnava Dwadashi (Mahadvadashi)",
+                "notify": "high"
+            })
 
     # --- 3. Custom Lunar Observances Solver ---
     if custom_observances:
@@ -365,6 +374,29 @@ def calculate_festivals(astro_data, tz, custom_observances=None, festival_rule="
                 })
 
     # Sort festivals by priority descending
+    festivals.sort(key=lambda x: x["priority"], reverse=True)
+    return festivals
+
+
+def calculate_festivals(astro_data, tz, custom_observances=None, festival_rule="vaishnava", lang="en"):
+    has_kshaya = astro_data.get("is_tithi_2_kshaya", False)
+    t_kshaya = astro_data.get("tithi_2_idx")
+    
+    astro_data_copy = dict(astro_data)
+    astro_data_copy["is_tithi_2_kshaya"] = False
+    
+    festivals = _calculate_festivals_internal(astro_data_copy, tz, custom_observances, festival_rule, lang)
+    
+    if has_kshaya and t_kshaya is not None:
+        astro_data_kshaya = dict(astro_data_copy)
+        astro_data_kshaya["tithi_idx"] = t_kshaya
+        kshaya_fests = _calculate_festivals_internal(astro_data_kshaya, tz, custom_observances, festival_rule, lang)
+        
+        existing_names = {f["name"] for f in festivals}
+        for f in kshaya_fests:
+            if f["name"] not in existing_names:
+                festivals.append(f)
+                
     festivals.sort(key=lambda x: x["priority"], reverse=True)
     return festivals
 

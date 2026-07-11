@@ -29,12 +29,12 @@ PlasmoidItem {
     onConfigFestivalRuleChanged: reloadAll()
     onConfigTithiModeChanged: reloadAll()
 
-    toolTipMainText: currentPanchanga ? `${currentPanchanga.masa} • ${currentPanchanga.paksha} ${configLang === "devanagari" ? "पक्ष" : "Paksha"} • ${configTithiMode === "traditional" ? currentPanchanga.tithi_1 : currentPanchanga.tithi}` : i18n("Kālayantra")
+    toolTipMainText: currentPanchanga ? `${currentPanchanga.masa} • ${currentPanchanga.paksha} ${configLang === "devanagari" ? "पक्ष" : "Paksha"} • ${currentPanchanga.tithi}` : i18n("Kālayantra")
     toolTipSubText: currentPanchanga ? (
         `${currentPanchanga.vaara}, ${currentPanchanga.date} (${currentPanchanga.era_name} ${currentPanchanga.era_year})\n\n` +
         (configLang === "devanagari" ? "सूर्योदय: " : "Sunrise: ") + `${currentPanchanga.sunrise}  •  ` + (configLang === "devanagari" ? "सूर्यास्त: " : "Sunset: ") + `${currentPanchanga.sunset}\n` +
         (configLang === "devanagari" ? "चंद्रोदय: " : "Moonrise: ") + `${currentPanchanga.moonrise}  •  ` + (configLang === "devanagari" ? "चंद्रास्त: " : "Moonset: ") + `${currentPanchanga.moonset}\n\n` +
-        (configLang === "devanagari" ? "तिथि: " : "Tithi: ") + `${configTithiMode === "traditional" ? currentPanchanga.tithi_1 : currentPanchanga.tithi}\n` +
+        (configLang === "devanagari" ? "तिथि: " : "Tithi: ") + `${currentPanchanga.tithi}\n` +
         (configLang === "devanagari" ? "नक्षत्र: " : "Nakshatra: ") + `${currentPanchanga.nakshatra}\n` +
         (configLang === "devanagari" ? "योग: " : "Yoga: ") + `${currentPanchanga.yoga}\n` +
         (configLang === "devanagari" ? "करण: " : "Karana: ") + `${currentPanchanga.karana}\n` +

@@ -754,7 +754,7 @@ Item {
 
                          Kirigami.Heading {
                              level: 2
-                             text: kaladarshana.selectedDayData ? (root.configTithiMode === "astronomical" ? kaladarshana.selectedDayData.tithi : kaladarshana.selectedDayData.tithi_1) : i18n("Select a day")
+                             text: kaladarshana.selectedDayData ? kaladarshana.selectedDayData.tithi : i18n("Select a day")
                              color: kaladarshana.selectedDayData && kaladarshana.selectedDayData.is_krishna_paksha ? "#7094b3" : "#ffcc00"
                              font.bold: true
                          }

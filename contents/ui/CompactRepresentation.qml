@@ -61,7 +61,7 @@ Item {
                 level: 5
                 text: {
                     if (!root.currentPanchanga) return "Loading...";
-                    var displayTithi = (root.configTithiMode === "traditional") ? root.currentPanchanga.tithi_1 : root.currentPanchanga.tithi;
+                    var displayTithi = root.currentPanchanga.tithi;
                     return `${displayTithi} • ${root.currentPanchanga.vaara} • ${(plasmoid.configuration.lang === "devanagari") ? "घ" : "Gh"}: ${root.liveGhadiTime}`;
                 }
                 font.bold: true
