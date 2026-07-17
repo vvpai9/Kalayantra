@@ -24,8 +24,10 @@ Kālayantra is built with a strictly decoupled modular design following separati
   - *Calendar Settings:* System settings grouping (Era, Month system, ritual rules, and tithi mode).
   - *My Tithis:* Observances creator and dynamic anniversary lists cards.
   - *Reminders:* Repeating notifications creator and toggles lists cards.
-  - *About Section:* Dynamic about panel fetching logo, license, authors, and system architecture.
-- **Saura Solar Calendar System:** Choose `Solar Calendar (Saura)` under era systems to automatically compute traditional solar months (`Mesha` to `Mina`) based on zodiac entries (`sun_rashi`) and track solar Shaka era years.
+  - *About Section:* About section displaying version, author credit, license, Swiss Ephemeris attributions, and local backend system information.
+- **Saura Solar Calendar System:** Choose `Solar Calendar (Saura)` under era systems to automatically compute traditional solar months (`Mesha` to `Mina`) based on zodiac entries (`sun_rashi`) and track solar Shaka era years. In solar mode, Pakshas are hidden, day transitions are disabled, and days are counted sequentially (e.g. `Solar Day 1` to `Day 30/31/32`) relative to the exact moment of Sankranti.
+- **Surves-Midnight Next Element Hiding:** Applies to tithis, nakshatras, yogas, and karanas. If the current active sunrise element ends after midnight today (survives midnight), the next transitioning element is kept hidden. Otherwise, if it transitions before midnight, the next element is displayed, keeping the UI clean of dawn transitions.
+- **Kshaya Tithi Observances & Vaishnava Pushing:** Automatically calculates when a tithi is skipped/lost (*Kshaya*). If in traditional mode, it merges custom/private observances and Vratas on the day the Kshaya tithi occurs, and correctly schedules Vaishnava Ekadashi fasts to **Dwadashi** (the next day) if mixed with Dashami at Arunodaya.
 - **Surya/Rain Nakshatra Display:** Computes high-precision Sun Nakshatras. If the Sun transitions during the day, display transitions in the side panel (e.g., `👉 Rohini 14:38 • Mrigashira`), dynamically highlighting the active sign in English, IAST, and Devanagari.
 - **Editable Gregorian Date with 'Today' Shortcut:** Click the Gregorian Date sub-header in the side panel to toggle a text input accepting `DD-MM-YYYY` with real-time `Kirigami.InlineMessage` error validation, support for both alphanumeric & numpad Enter keys, and a "Today" button to return to current local time instantly.
 - **Robust Navigation Lifecycle:** Navigation states are preserved while the popup is open, preventing background refreshes from resetting the view, and automatically discarded upon closing so that the popup starts on today's month next time it is opened.
@@ -74,11 +76,14 @@ Ensure you have python3 and the Swiss Ephemeris package installed on your system
 - **Fedora:** `sudo dnf install python3-pyswisseph` or `pip3 install pyswisseph`
 - **Ubuntu/KDE Neon/Kubuntu:** `pip3 install pyswisseph`
 
-### Clone the repository
+### Download the latest Release
+
+Download and extract the latest release archive from the [Kālayantra Releases Page](https://github.com/vvpai9/Kalayantra/releases):
 
 ```bash
-git clone https://github.com/vvpai9/Kalayantra.git
-cd Kalayantra
+# Example for extracting a downloaded release archive
+tar -xvf Kalayantra-*.tar.gz
+cd Kalayantra-*/
 ```
 
 ### Install script

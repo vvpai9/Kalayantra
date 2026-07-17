@@ -46,9 +46,16 @@ def _calculate_festivals_internal(astro_data, tz, custom_observances=None, festi
     jd_ut_start = astro_data["jd_ut_start"]
     jd_calc = astro_data["jd_calc"]
     
+    is_saura = (astro_data.get("paksha") == "")
+    if is_saura:
+        _, _, is_krishna_lunar, tithi_idx_lunar, _ = Kalachakra.get_lunar_month_details(jd_calc, "amavasyanta")
+        t_sunrise = tithi_idx_lunar
+        is_krishna = is_krishna_lunar
+    else:
+        t_sunrise = astro_data["tithi_idx"]
+        is_krishna = astro_data["is_krishna_paksha"]
+        
     masa_idx = get_masa_at_jd(jd_calc, "amavasyanta")
-    t_num_idx = astro_data["tithi_idx"]
-    is_krishna = astro_data["is_krishna_paksha"]
     vaara_idx = datetime_to_vaara_idx(astro_data["date"])
     
     # Calculate traditional time points in JDs
@@ -59,9 +66,6 @@ def _calculate_festivals_internal(astro_data, tz, custom_observances=None, festi
     
     moonrise_jd = astro_data["moonrise_jd"]
     jd_moonrise = moonrise_jd if moonrise_jd > 0.0 else sunset_jd
-    
-    # Resolve tithis at critical time points
-    t_sunrise = t_num_idx
     t_noon = get_tithi_at_jd(jd_noon)
     t_pradosha = get_tithi_at_jd(jd_pradosha)
     t_nishitha = get_tithi_at_jd(jd_nishitha)

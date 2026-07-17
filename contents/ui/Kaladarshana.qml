@@ -375,7 +375,7 @@ Item {
                     
                     Kirigami.Heading {
                         level: 3
-                        text: selectedDayData ? `${selectedMasaName} ${selectedDayData.paksha} Paksha` : selectedMasaName
+                        text: selectedDayData ? (selectedDayData.paksha ? `${selectedMasaName} ${selectedDayData.paksha} ${plasmoid.configuration.lang === "devanagari" ? "पक्ष" : "Paksha"}` : selectedMasaName) : selectedMasaName
                         font.bold: true
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
@@ -760,7 +760,7 @@ Item {
                          }
 
                         Label {
-                            text: kaladarshana.selectedDayData ? `${kaladarshana.selectedDayData.paksha} Paksha • ${kaladarshana.selectedDayData.vaara}` : ""
+                            text: kaladarshana.selectedDayData ? (kaladarshana.selectedDayData.paksha ? `${kaladarshana.selectedDayData.paksha} Paksha • ${kaladarshana.selectedDayData.vaara}` : kaladarshana.selectedDayData.vaara) : ""
                             font.bold: true
                             font.pixelSize: Kirigami.Units.gridUnit * 0.85
                             Layout.fillWidth: true
@@ -808,7 +808,7 @@ Item {
                         Layout.fillWidth: true
 
                         // Row: Masa
-                        Label { text: i18n("Masa (Month):"); font.bold: true; opacity: 0.8 }
+                        Label { text: i18n("Masa:"); font.bold: true; opacity: 0.8 }
                         Label { text: kaladarshana.selectedDayData ? kaladarshana.selectedDayData.masa : "--"; Layout.fillWidth: true; wrapMode: Text.WordWrap }
 
                         // Row: Tithi
@@ -883,8 +883,9 @@ Item {
                         }
 
                         // Row: Yoga
-                        Label { text: i18n("Yoga:"); font.bold: true; opacity: 0.8 }
+                        Label { text: i18n("Yoga:"); font.bold: true; opacity: 0.8; visible: root.configCalendarSystem !== "saura" }
                         Label {
+                            visible: root.configCalendarSystem !== "saura"
                             text: {
                                 if (!kaladarshana.selectedDayData) return "--";
                                 return kaladarshana.formatAstroElement(
@@ -903,8 +904,9 @@ Item {
                         }
 
                         // Row: Karana
-                        Label { text: i18n("Karana:"); font.bold: true; opacity: 0.8 }
+                        Label { text: i18n("Karana:"); font.bold: true; opacity: 0.8; visible: root.configCalendarSystem !== "saura" }
                         Label {
+                            visible: root.configCalendarSystem !== "saura"
                             text: {
                                 if (!kaladarshana.selectedDayData) return "--";
                                 return kaladarshana.formatAstroElement(

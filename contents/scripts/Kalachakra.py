@@ -154,6 +154,48 @@ def get_kartika_pratipada_jd(year):
     return jd_start
 
 
+def get_prev_sankranti_jd(jd_calc):
+    sun_l, _ = get_sidereal_longitudes(jd_calc)
+    current_rashi = int(sun_l / 30.0)
+    
+    jd_search = jd_calc
+    while True:
+        jd_search -= 1.0
+        sl, _ = get_sidereal_longitudes(jd_search)
+        rashi_search = int(sl / 30.0)
+        if rashi_search != current_rashi:
+            break
+            
+    low = jd_search
+    high = jd_search + 1.0
+    for _ in range(20):
+        mid = (low + high) / 2.0
+        sl_mid, _ = get_sidereal_longitudes(mid)
+        rashi_mid = int(sl_mid / 30.0)
+        if rashi_mid == current_rashi:
+            high = mid
+        else:
+            low = mid
+    return (low + high) / 2.0
+
+
+def get_solar_day_of_month(jd_calc, lat, lon, alt, tz, jd_ut_start):
+    transit_jd = get_prev_sankranti_jd(jd_calc)
+    
+    t_year, t_month, t_day, t_hour = swe.revjul(transit_jd + tz / 24.0)
+    
+    jd_transit_day_start = swe.julday(t_year, t_month, t_day, 0.0 - tz)
+    t_sunrise_jd, t_sunset_jd, _, _ = get_sun_moon_rise_set(jd_transit_day_start, lat, lon, alt)
+    
+    if transit_jd > t_sunset_jd:
+        day_1_jd_midnight = jd_transit_day_start + 1.0
+    else:
+        day_1_jd_midnight = jd_transit_day_start
+        
+    days_elapsed = int(round(jd_ut_start - day_1_jd_midnight))
+    return max(1, days_elapsed + 1)
+
+
 def get_sun_moon_rise_set(jd_ut_day_start, lat, lon, alt):
     geopos = (lon, lat, alt)
     _, res_rise = swe.rise_trans_true_hor(jd_ut_day_start, swe.SUN, swe.CALC_RISE, geopos, 1013.25, 15.0, 0.0, swe.FLG_SWIEPH)
@@ -208,7 +250,18 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="traditi
     
     # 1. Tithi & Paksha
     t_idx, is_adhika, is_krishna, t_num_idx, t_val = get_lunar_month_details(jd_calc, month_system)
-    tithi_name = Kalakosha.TITHIS[lang][t_num_idx]
+    if calendar_system == "saura":
+        solar_day = get_solar_day_of_month(jd_calc, lat, lon, alt, tz, jd_ut_start)
+        if lang == "en":
+            tithi_name = f"Saura {solar_day}"
+        elif lang == "iast":
+            tithi_name = f"Saura {solar_day}"
+        elif lang == "devanagari":
+            tithi_name = f"सौर {solar_day}"
+        t_num_idx = solar_day - 1
+        is_krishna = False
+    else:
+        tithi_name = Kalakosha.TITHIS[lang][t_num_idx]
     
     prefix = ""
     if is_adhika:
@@ -222,9 +275,10 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="traditi
     if calendar_system == "saura":
         sun_rashi = int(sun_l / 30.0) % 12
         masa_name = Kalakosha.SAURA_MASAS[lang][sun_rashi]
+        paksha_name = ""
     else:
         masa_name = prefix + Kalakosha.MASAS[lang][t_idx]
-    paksha_name = Kalakosha.PAKSHAS[lang][1 if is_krishna else 0]
+        paksha_name = Kalakosha.PAKSHAS[lang][1 if is_krishna else 0]
     
     # 2. Nakshatra
     nak_idx = int(moon_l / 13.333333) % 27
@@ -245,11 +299,14 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="traditi
     vaara_name = Kalakosha.VAARAS[lang][vaara_idx]
     
     # 6. Ritu and Ayana
-    ritu_idx = (t_idx // 2) % 6
+    sun_rashi_idx = int(sun_l / 30.0) % 12
+    if calendar_system == "saura":
+        ritu_idx = (sun_rashi_idx // 2) % 6
+    else:
+        ritu_idx = (t_idx // 2) % 6
     ritu_name = Kalakosha.RITUS[lang][ritu_idx]
     
-    sun_rashi = int(sun_l / 30.0)
-    ayana_idx = 1 if (3 <= sun_rashi <= 8) else 0
+    ayana_idx = 1 if (3 <= sun_rashi_idx <= 8) else 0
     ayana_name = Kalakosha.AYANAS[lang][ayana_idx]
     
     # 7. Era calculations
@@ -342,18 +399,18 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="traditi
         return int(((m_l - s_l) % 360) / 6.0)
 
     # Transitions JDs
-    tithi_end_jd = find_transition(jd_calc, get_tithi_idx)
+    tithi_end_jd = find_transition(jd_calc, get_tithi_idx) if calendar_system != "saura" else None
     nakshatra_end_jd = find_transition(jd_calc, get_nakshatra_idx)
     yoga_end_jd = find_transition(jd_calc, get_yoga_idx)
     karana_end_jd = find_transition(jd_calc, get_karana_idx)
     
     # Survival checks (same at tomorrow sunrise)
-    tithi_survives = (get_tithi_idx(sunrise_jd) == get_tithi_idx(tomorrow_sunrise_jd))
+    tithi_survives = (get_tithi_idx(sunrise_jd) == get_tithi_idx(tomorrow_sunrise_jd)) if calendar_system != "saura" else True
     nakshatra_survives = (get_nakshatra_idx(sunrise_jd) == get_nakshatra_idx(tomorrow_sunrise_jd))
     yoga_survives = (get_yoga_idx(sunrise_jd) == get_yoga_idx(tomorrow_sunrise_jd))
     karana_survives = (get_karana_idx(sunrise_jd) == get_karana_idx(tomorrow_sunrise_jd))
     
-    tithi_end = jd_to_time_str(tithi_end_jd)
+    tithi_end = jd_to_time_str(tithi_end_jd) if calendar_system != "saura" else "--"
     nakshatra_end = jd_to_time_str(nakshatra_end_jd)
     yoga_end = jd_to_time_str(yoga_end_jd)
     karana_end = jd_to_time_str(karana_end_jd)
@@ -455,24 +512,29 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="traditi
         surya_nakshatra_active_idx = 1
  
     tithi_active_name = tithi_name
-    if is_today and tithi_end_jd is not None and jd_now_ut > tithi_end_jd:
-        tithi_active_name = tithi_2_name
+    if tithi_mode != "traditional":
+        if is_today and tithi_end_jd is not None and jd_now_ut > tithi_end_jd:
+            tithi_active_name = tithi_2_name
         
     nakshatra_active_name = nakshatra_name
-    if is_today and nakshatra_end_jd is not None and jd_now_ut > nakshatra_end_jd:
-        nakshatra_active_name = nakshatra_2_name
+    if tithi_mode != "traditional":
+        if is_today and nakshatra_end_jd is not None and jd_now_ut > nakshatra_end_jd:
+            nakshatra_active_name = nakshatra_2_name
         
     yoga_active_name = yoga_name
-    if is_today and yoga_end_jd is not None and jd_now_ut > yoga_end_jd:
-        yoga_active_name = yoga_2_name
+    if tithi_mode != "traditional":
+        if is_today and yoga_end_jd is not None and jd_now_ut > yoga_end_jd:
+            yoga_active_name = yoga_2_name
         
     karana_active_name = karana_name
-    if is_today and karana_end_jd is not None and jd_now_ut > karana_end_jd:
-        karana_active_name = karana_2_name
+    if tithi_mode != "traditional":
+        if is_today and karana_end_jd is not None and jd_now_ut > karana_end_jd:
+            karana_active_name = karana_2_name
 
     surya_nakshatra_active_name = surya_nakshatra_name
-    if is_today and surya_nakshatra_end_jd is not None and jd_now_ut > surya_nakshatra_end_jd:
-        surya_nakshatra_active_name = surya_nakshatra_2_name
+    if tithi_mode != "traditional":
+        if is_today and surya_nakshatra_end_jd is not None and jd_now_ut > surya_nakshatra_end_jd:
+            surya_nakshatra_active_name = surya_nakshatra_2_name
         
     # Start of day selection
     if jd_now_ut < sunrise_jd:
@@ -523,8 +585,23 @@ def calculate_panchanga(year, month, day, tz, lat, lon, alt, tithi_mode="traditi
             "nature": Kalakosha.CHOGHADIYA_NATURES[lang][n_name]
         })
 
+    if calendar_system == "saura":
+        yoga_name = "--"
+        yoga_end = "--"
+        yoga_2_name = "--"
+        yoga_2_end = "--"
+        yoga_active_name = "--"
+        yoga_survives = True
+        
+        karana_name = "--"
+        karana_end = "--"
+        karana_2_name = "--"
+        karana_2_end = "--"
+        karana_active_name = "--"
+        karana_survives = True
+
     tithi_display_name = tithi_name
-    tithi_num_val = (t_num_idx % 15) + 1
+    tithi_num_val = (t_num_idx + 1) if calendar_system == "saura" else (t_num_idx % 15) + 1
     
     if tithi_mode == "traditional" and is_tithi_2_kshaya:
         tithi_display_name = f"{tithi_name} - {tithi_2_name}"

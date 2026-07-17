@@ -29,12 +29,12 @@ PlasmoidItem {
     onConfigFestivalRuleChanged: reloadAll()
     onConfigTithiModeChanged: reloadAll()
 
-    toolTipMainText: currentPanchanga ? `${currentPanchanga.masa} • ${currentPanchanga.paksha} ${configLang === "devanagari" ? "पक्ष" : "Paksha"} • ${currentPanchanga.tithi}` : i18n("Kālayantra")
+    toolTipMainText: currentPanchanga ? (currentPanchanga.paksha ? `${currentPanchanga.masa} • ${currentPanchanga.paksha} ${configLang === "devanagari" ? "पक्ष" : "Paksha"} • ${currentPanchanga.tithi}` : `${currentPanchanga.masa} • ${currentPanchanga.tithi}`) : i18n("Kālayantra")
     toolTipSubText: currentPanchanga ? (
-        `${currentPanchanga.vaara}, ${currentPanchanga.date} (${currentPanchanga.era_name} ${currentPanchanga.era_year})\n\n` +
+        `${currentPanchanga.vaara}, ${formatGregorianDateStr(currentPanchanga.date)} (${currentPanchanga.era_name} ${currentPanchanga.era_year})\n\n` +
         (configLang === "devanagari" ? "सूर्योदय: " : "Sunrise: ") + `${currentPanchanga.sunrise}  •  ` + (configLang === "devanagari" ? "सूर्यास्त: " : "Sunset: ") + `${currentPanchanga.sunset}\n` +
         (configLang === "devanagari" ? "चंद्रोदय: " : "Moonrise: ") + `${currentPanchanga.moonrise}  •  ` + (configLang === "devanagari" ? "चंद्रास्त: " : "Moonset: ") + `${currentPanchanga.moonset}\n\n` +
-        (configLang === "devanagari" ? "तिथि: " : "Tithi: ") + `${currentPanchanga.tithi}\n` +
+        (configLang === "devanagari" ? (currentPanchanga.paksha ? "तिथि: " : "") : (currentPanchanga.paksha ? "Tithi: " : "")) + `${currentPanchanga.tithi}\n` +
         (configLang === "devanagari" ? "नक्षत्र: " : "Nakshatra: ") + `${currentPanchanga.nakshatra}\n` +
         (configLang === "devanagari" ? "योग: " : "Yoga: ") + `${currentPanchanga.yoga}\n` +
         (configLang === "devanagari" ? "करण: " : "Karana: ") + `${currentPanchanga.karana}\n` +
@@ -183,6 +183,25 @@ PlasmoidItem {
     function reloadAll() {
         fetchDay(getTodayString());
         fetchThreeMonths(currentYear, currentMonth);
+    }
+
+    function getGregorianMonthName(m) {
+        var names = [
+            i18n("January"), i18n("February"), i18n("March"), i18n("April"), 
+            i18n("May"), i18n("June"), i18n("July"), i18n("August"), 
+            i18n("September"), i18n("October"), i18n("November"), i18n("December")
+        ];
+        return names[m - 1];
+    }
+
+    function formatGregorianDateStr(dateStr) {
+        if (!dateStr) return "";
+        var parts = dateStr.split('-');
+        if (parts.length < 3) return dateStr;
+        var day = parseInt(parts[2]);
+        var monthIdx = parseInt(parts[1]);
+        var year = parts[0];
+        return `${day} ${getGregorianMonthName(monthIdx)} ${year}`;
     }
 
 

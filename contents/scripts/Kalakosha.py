@@ -133,16 +133,16 @@ MASAS = {
 
 SAURA_MASAS = {
     "en": [
-        "Mesha", "Vrishabha", "Mithuna", "Karka", "Simha", "Kanya",
-        "Tula", "Vrischika", "Dhanu", "Makara", "Kumbha", "Mina"
+        "Madhu (Mesha)", "Madhava (Vrishabha)", "Shukra (Mithuna)", "Suchi (Karka)", "Nabhas (Simha)", "Nabhasya (Kanya)",
+        "Issa (Tula)", "Urja (Vrischika)", "Sahas (Dhanu)", "Sahasya (Makara)", "Tapas (Kumbha)", "Tapasya (Mina)"
     ],
     "iast": [
-        "Meṣa", "Vṛṣabha", "Mithuna", "Karka", "Siṃha", "Kanyā",
-        "Tulā", "Vṛścika", "Dhanu", "Makara", "Kumbha", "Mīna"
+        "Madhu (Meṣa)", "Mādhava (Vṛṣabha)", "Śukra (Mithuna)", "Śuci (Karka)", "Nabhas (Siṃha)", "Nabhasya (Kanyā)",
+        "Iṣa (Tulā)", "Ūrja (Vṛścika)", "Sahas (Dhanu)", "Sahasya (Makara)", "Tapas (Kumbha)", "Tapasya (Mīna)"
     ],
     "devanagari": [
-        "मेष", "वृषभ", "मिथुन", "कर्क", "सिंह", "कन्या",
-        "तुला", "वृश्चिक", "धनु", "मकर", "कुंभ", "मीन"
+        "मधु (मेष)", "माधव (वृषभ)", "शुक्र (मिथुन)", "शुचि (कर्क)", "नभस् (सिंह)", "नभस्य (कन्या)",
+        "इष (तुला)", "ऊर्ज (वृश्चिक)", "सहस (धनु)", "सहस्य (मकर)", "तपस् (कुंभ)", "तपस्य (मीन)"
     ]
 }
 
