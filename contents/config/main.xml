@@ -34,5 +34,8 @@
     <entry name="tithiMode" type="String">
       <default>traditional</default>
     </entry>
+    <entry name="ayanamsa" type="String">
+      <default>lahiri</default>
+    </entry>
   </group>
 </kcfg>

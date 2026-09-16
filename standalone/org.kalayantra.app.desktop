@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Kālayantra
+GenericName=Panchanga Calendar
+Comment=Hindu Calendar & Astronomical Panchanga
+Icon=office-calendar
+Terminal=false
+Categories=Utility;Office;
+StartupNotify=true

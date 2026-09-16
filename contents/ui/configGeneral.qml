@@ -16,6 +16,7 @@ Item {
     property alias cfg_timezone: tzField.text
 
     property string cfg_lang
+    property string cfg_ayanamsa
 
     property bool inputsValid: (validationMessage.text === "" && 
                                 locationNameField.text.trim() !== "" && 
@@ -340,6 +341,183 @@ Item {
                         }
                         Accessible.name: i18n("Display Language")
                         Accessible.description: i18n("Choose default display language for calendar entries")
+                    }
+                }
+            }
+
+                // Card 3: Ayanamsa & Chart Reference
+            Kirigami.Card {
+                Layout.fillWidth: true
+
+                header: RowLayout {
+                    Layout.margins: Kirigami.Units.largeSpacing
+                    spacing: Kirigami.Units.largeSpacing
+
+                    Kirigami.Icon {
+                        source: "kunknown"
+                        implicitWidth: Kirigami.Units.gridUnit * 1.5
+                        implicitHeight: Kirigami.Units.gridUnit * 1.5
+                    }
+
+                    ColumnLayout {
+                        spacing: 2
+                        Kirigami.Heading {
+                            text: i18n("Ayanamsa / Chart Reference")
+                            level: 3
+                        }
+                        Label {
+                            text: i18n("Choose the zodiac reference for sidereal charts and the Detailed Panchang report.")
+                            font.pixelSize: Kirigami.Units.gridUnit * 0.75
+                            opacity: 0.6
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+                    }
+                }
+
+                contentItem: Kirigami.FormLayout {
+                    Layout.fillWidth: true
+
+                    ComboBox {
+                        id: ayanamsaCombo
+                        Kirigami.FormData.label: i18n("Ayanamsa:")
+                        textRole: "text"
+                        valueRole: "value"
+                        Layout.fillWidth: true
+                        model: [
+                            {"text": "Sayana (Tropical)", "value": "sayana"},
+                            {"text": "Lahiri (Chitrapaksha)", "value": "lahiri"},
+                            {"text": "Raman", "value": "raman"},
+                            {"text": "Krishnamurti (KP)", "value": "krishnamurti"},
+                            {"text": "True Chitra", "value": "true_citra"},
+                            {"text": "Fagan/Bradley", "value": "fagan_bradley"},
+                            {"text": "DeLuce", "value": "deluce"}
+                        ]
+                        onActivated: {
+                            page.cfg_ayanamsa = currentValue;
+                        }
+                        Component.onCompleted: {
+                            currentIndex = indexOfValue(page.cfg_ayanamsa);
+                        }
+                        Connections {
+                            target: page
+                            function onCfg_ayanamsaChanged() {
+                                ayanamsaCombo.currentIndex = ayanamsaCombo.indexOfValue(page.cfg_ayanamsa);
+                            }
+                        }
+                        Accessible.name: i18n("Ayanamsa")
+                        Accessible.description: i18n("Choose sidereal or tropical reference for chart calculations")
+                    }
+
+                    Label {
+                        text: i18n("Sayana (tropical) uses the ecliptic directly; sidereal modes subtract the precession offset of the chosen system. Lahiri is the common Chitrapaksha standard.")
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                        opacity: 0.6
+                        wrapMode: Text.WordWrap
+                        Layout.fillWidth: true
+                    }
+                }
+            }
+
+            // Card 4: About
+            Kirigami.Card {
+                Layout.fillWidth: true
+
+                header: RowLayout {
+                    Layout.margins: Kirigami.Units.largeSpacing
+                    spacing: Kirigami.Units.largeSpacing
+
+                    Kirigami.Icon {
+                        source: "help-about"
+                        implicitWidth: Kirigami.Units.gridUnit * 1.5
+                        implicitHeight: Kirigami.Units.gridUnit * 1.5
+                    }
+
+                    ColumnLayout {
+                        spacing: 2
+                        Kirigami.Heading {
+                            text: i18n("About Kālayantra")
+                            level: 3
+                        }
+                        Label {
+                            text: i18n("Version, authorship, licensing and local backend runtime information.")
+                            font.pixelSize: Kirigami.Units.gridUnit * 0.75
+                            opacity: 0.6
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+                    }
+                }
+
+                contentItem: Kirigami.FormLayout {
+                    Layout.fillWidth: true
+
+                    Label {
+                        text: i18n("Kālayantra (कालयन्त्र)")
+                        Kirigami.FormData.label: i18n("Application:")
+                        Layout.fillWidth: true
+                    }
+                    Label {
+                        text: "2.0"
+                        Kirigami.FormData.label: i18n("Version:")
+                        Layout.fillWidth: true
+                    }
+                    Label {
+                        text: i18n("Varun Vivek Pai")
+                        Kirigami.FormData.label: i18n("Author:")
+                        Layout.fillWidth: true
+                    }
+                    Label {
+                        text: i18n("GPL-3.0 License")
+                        Kirigami.FormData.label: i18n("License:")
+                        Layout.fillWidth: true
+                    }
+                    Label {
+                        text: i18n("Astronomical calculations are powered by the Swiss Ephemeris (© Astrodienst AG). Hindu eclipse data is based on publically available panchanga data and nautical almanacs.")
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                        opacity: 0.7
+                        wrapMode: Text.WordWrap
+                        Layout.fillWidth: true
+                        Kirigami.FormData.label: i18n("Attribution:")
+                    }
+
+                    Kirigami.Separator { Layout.fillWidth: true; Layout.topMargin: Kirigami.Units.smallSpacing }
+
+                    Label {
+                        id: backendArchLabel
+                        text: i18n("Local backend offline. Checking backend...")
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.75
+                        opacity: 0.7
+                        wrapMode: Text.WordWrap
+                        Layout.fillWidth: true
+                        Kirigami.FormData.label: i18n("Backend:")
+                    }
+
+                    Timer {
+                        id: aboutInfoTimer
+                        interval: 300
+                        running: true
+                        repeat: false
+                        onTriggered: {
+                            var xhr = new XMLHttpRequest();
+                            xhr.open("GET", "http://127.0.0.1:8642/system_info?_t=" + Date.now(), true);
+                            xhr.onreadystatechange = function() {
+                                if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+                                    try {
+                                        var info = JSON.parse(xhr.responseText);
+                                        backendArchLabel.text = i18n("System: %1 · Processor: %2 · Architecture: %3")
+                                            .arg(info.system || "")
+                                            .arg(info.processor || "")
+                                            .arg(info.architecture || "");
+                                    } catch(e) {
+                                        console.error("Failed to parse system info:", e);
+                                    }
+                                } else if (xhr.readyState === XMLHttpRequest.DONE) {
+                                    backendArchLabel.text = i18n("Local backend not running. Start it with: kalayantra-cli serve");
+                                }
+                            };
+                            xhr.send();
+                        }
                     }
                 }
             }

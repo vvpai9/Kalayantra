@@ -1,14 +1,38 @@
 import QtQuick
-import org.kde.plasma.plasmoid
+import QtQuick.Window
 import org.kde.kirigami as Kirigami
+import "../contents/ui"
 
-PlasmoidItem {
+Window {
     id: root
+    title: (plasmoid.configuration.lang === "devanagari") ? "कालयन्त्र" : "Kālayantra"
+    width: 1200
+    height: 760
+    minimumWidth: 960
+    minimumHeight: 620
+    visible: true
+    color: Kirigami.Theme.backgroundColor
 
-    width: Kirigami.Units.gridUnit * 42
-    height: Kirigami.Units.gridUnit * 28
+    property QtObject plasmoid: QtObject {
+        property QtObject configuration: QtObject {
+            property string lang: "en"
+            property double latitude: 23.1765
+            property double longitude: 75.7885
+            property double altitude: 511.0
+            property double timezone: 5.5
+            property string calendarSystem: "shaka"
+            property string monthSystem: "amavasyanta"
+            property string festivalRule: "vaishnava"
+            property string tithiMode: "traditional"
+            property string ayanamsa: "lahiri"
+        }
+    }
 
-    // Bind to configuration to ensure reactivity
+    function i18n(text) { return text; }
+    function i18nc(context, text) { return text; }
+    function i18nd(context, text) { return text; }
+    function i18nct(context, comment, text) { return text; }
+
     readonly property string configLang: plasmoid.configuration.lang
     readonly property double configLatitude: plasmoid.configuration.latitude
     readonly property double configLongitude: plasmoid.configuration.longitude
@@ -31,22 +55,10 @@ PlasmoidItem {
     onConfigTithiModeChanged: reloadAll()
     onConfigAyanamsaChanged: reloadAll()
 
-    toolTipMainText: currentPanchanga ? (currentPanchanga.paksha ? `${currentPanchanga.masa} • ${currentPanchanga.paksha} ${configLang === "devanagari" ? "पक्ष" : "Paksha"} • ${currentPanchanga.tithi}` : `${currentPanchanga.masa} • ${currentPanchanga.tithi}`) : i18n("Kālayantra")
-    toolTipSubText: currentPanchanga ? (
-        `${currentPanchanga.vaara}, ${formatGregorianDateStr(currentPanchanga.date)} (${currentPanchanga.era_name} ${currentPanchanga.era_year})\n\n` +
-        (configLang === "devanagari" ? "सूर्योदय: " : "Sunrise: ") + `${currentPanchanga.sunrise}  •  ` + (configLang === "devanagari" ? "सूर्यास्त: " : "Sunset: ") + `${currentPanchanga.sunset}\n` +
-        (configLang === "devanagari" ? "चंद्रोदय: " : "Moonrise: ") + `${currentPanchanga.moonrise}  •  ` + (configLang === "devanagari" ? "चंद्रास्त: " : "Moonset: ") + `${currentPanchanga.moonset}\n\n` +
-        (configLang === "devanagari" ? (currentPanchanga.paksha ? "तिथि: " : "") : (currentPanchanga.paksha ? "Tithi: " : "")) + `${currentPanchanga.tithi}\n` +
-        (configLang === "devanagari" ? "नक्षत्र: " : "Nakshatra: ") + `${currentPanchanga.nakshatra}\n` +
-        (configLang === "devanagari" ? "योग: " : "Yoga: ") + `${currentPanchanga.yoga}\n` +
-        (configLang === "devanagari" ? "करण: " : "Karana: ") + `${currentPanchanga.karana}\n` +
-        (configLang === "devanagari" ? "वैदिक समय: " : "Vedic Time: ") + `${liveGhadiTime.split(':')[0]} Ghadi, ${liveGhadiTime.split(':')[1] || "00"} Vipal\n\n` +
-        (configLang === "devanagari" ? "पर्व/उत्सव: " : "Festival: ") + `${currentPanchanga.festivals && currentPanchanga.festivals.length > 0 ? (currentPanchanga.festivals[0].name + (currentPanchanga.festivals[0].anniversary_display ? " (" + currentPanchanga.festivals[0].anniversary_display + ")" : "")) : (configLang === "devanagari" ? "कोई नहीं" : "None")}`
-    ) : ""
+    property bool expanded: true
 
-    // Calendar state properties
     property int currentYear: new Date().getFullYear()
-    property int currentMonth: new Date().getMonth() + 1 // 1-indexed
+    property int currentMonth: new Date().getMonth() + 1
 
     property string todayDateString: getTodayString()
     property string currentlyViewedDateString: getTodayString()
@@ -55,14 +67,6 @@ PlasmoidItem {
     property var currentPanchanga: null
     property string liveGhadiTime: "00:00"
 
-    // Component configurations
-    compactRepresentation: CompactRepresentation {}
-    fullRepresentation: Kaladarshana {
-        id: kaladarshanaView
-        showTools: false
-    }
-
-    // Format helper to get DD-MM-YYYY
     function getTodayString() {
         var d = new Date();
         var y = d.getFullYear();
@@ -71,7 +75,6 @@ PlasmoidItem {
         return `${day}-${m}-${y}`;
     }
 
-    // Build query parameters string from plasmoid settings
     function buildQueryString(extraParams) {
         var params = [
             `lat=${configLatitude}`,
@@ -118,10 +121,6 @@ PlasmoidItem {
                                 threeMonthsData = tmp;
                             }
                         }
-
-                        if (typeof kaladarshanaView !== 'undefined' && kaladarshanaView && kaladarshanaView.selectedDayData && kaladarshanaView.selectedDayData.date === dateStr) {
-                            kaladarshanaView.selectedDayData = data;
-                        }
                     }
                 } catch(e) {
                     console.error("Failed to parse day response: ", e);
@@ -131,19 +130,18 @@ PlasmoidItem {
         xhr.send();
     }
 
-    // Asynchronous network fetch for 3 consecutive months to cover full Hindu lunar month range
     function fetchThreeMonths(year, month) {
         var prevY = year;
         var prevM = month - 1;
         if (prevM === 0) { prevM = 12; prevY -= 1; }
-        
+
         var nextY = year;
         var nextM = month + 1;
         if (nextM === 13) { nextM = 1; nextY += 1; }
-        
+
         var results = { "prev": [], "curr": [], "next": [] };
         var completed = 0;
-        
+
         function handleCompleted() {
             completed++;
             if (completed === 3) {
@@ -154,7 +152,7 @@ PlasmoidItem {
                 threeMonthsData = combined;
             }
         }
-        
+
         function fetchSingle(y, m, key) {
             var xhr = new XMLHttpRequest();
             var buster = "_t=" + Date.now();
@@ -177,13 +175,50 @@ PlasmoidItem {
             };
             xhr.send();
         }
-        
+
         fetchSingle(prevY, prevM, "prev");
         fetchSingle(year, month, "curr");
         fetchSingle(nextY, nextM, "next");
     }
 
-    // Reload all data on configuration changes
+    function applyConfig(data) {
+        if (!data) return;
+        plasmoid.configuration.lang = data.lang || plasmoid.configuration.lang;
+        plasmoid.configuration.latitude = (data.lat !== undefined) ? data.lat : plasmoid.configuration.latitude;
+        plasmoid.configuration.longitude = (data.lon !== undefined) ? data.lon : plasmoid.configuration.longitude;
+        plasmoid.configuration.altitude = (data.alt !== undefined) ? data.alt : plasmoid.configuration.altitude;
+        plasmoid.configuration.timezone = (data.tz !== undefined) ? data.tz : plasmoid.configuration.timezone;
+        plasmoid.configuration.calendarSystem = data.calendar_system || plasmoid.configuration.calendarSystem;
+        plasmoid.configuration.monthSystem = data.month_system || plasmoid.configuration.monthSystem;
+        plasmoid.configuration.festivalRule = data.festival_rule || plasmoid.configuration.festivalRule;
+        plasmoid.configuration.tithiMode = data.tithi_mode || plasmoid.configuration.tithiMode;
+        plasmoid.configuration.ayanamsa = data.ayanamsa || plasmoid.configuration.ayanamsa;
+        if (data.city) {
+            root.title = (plasmoid.configuration.lang === "devanagari") ? "कालयन्त्र – " + data.city : "Kālayantra – " + data.city;
+        }
+        reloadAll();
+    }
+
+    function fetchConfig() {
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "http://127.0.0.1:8642/config", true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) {
+                    try {
+                        applyConfig(JSON.parse(xhr.responseText));
+                    } catch(e) {
+                        console.error("Failed to parse config response: ", e);
+                        reloadAll();
+                    }
+                } else {
+                    reloadAll();
+                }
+            }
+        };
+        xhr.send();
+    }
+
     function reloadAll() {
         fetchDay(getTodayString());
         fetchThreeMonths(currentYear, currentMonth);
@@ -191,8 +226,8 @@ PlasmoidItem {
 
     function getGregorianMonthName(m) {
         var names = [
-            i18n("January"), i18n("February"), i18n("March"), i18n("April"), 
-            i18n("May"), i18n("June"), i18n("July"), i18n("August"), 
+            i18n("January"), i18n("February"), i18n("March"), i18n("April"),
+            i18n("May"), i18n("June"), i18n("July"), i18n("August"),
             i18n("September"), i18n("October"), i18n("November"), i18n("December")
         ];
         return names[m - 1];
@@ -208,9 +243,6 @@ PlasmoidItem {
         return `${day} ${getGregorianMonthName(monthIdx)} ${year}`;
     }
 
-
-
-    // Periodic timer to sync current day data and update Ghadi-Pal time
     Timer {
         interval: 5000
         running: true
@@ -221,8 +253,12 @@ PlasmoidItem {
         }
     }
 
-    // Initial load
     Component.onCompleted: {
-        reloadAll();
+        fetchConfig();
+    }
+
+    Kaladarshana {
+        anchors.fill: parent
+        showTools: true
     }
 }

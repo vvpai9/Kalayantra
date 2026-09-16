@@ -16,9 +16,11 @@ Item {
     property var selectedDayData: null
     property bool userSelectedDate: false
     property bool editingDate: false
+    // Widget-mode renders Panchanga only; the standalone app enables all tools.
+    property bool showTools: false
     
     function navigateToDate(y, m, d) {
-        var dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        var dateStr = `${String(d).padStart(2, '0')}-${String(m).padStart(2, '0')}-${y}`;
         root.currentYear = y;
         root.currentMonth = m;
         userSelectedDate = true;
@@ -53,9 +55,9 @@ Item {
         if (!dateStr) return "";
         var parts = dateStr.split('-');
         if (parts.length < 3) return dateStr;
-        var day = parseInt(parts[2]);
+        var day = parseInt(parts[0]);
         var monthIdx = parseInt(parts[1]);
-        var year = parts[0];
+        var year = parts[2];
         return `${day} ${getGregorianMonthName(monthIdx)} ${year}`;
     }
 
@@ -130,7 +132,7 @@ Item {
         
         // Find the weekday of the first day
         var parts = days[0].date.split('-');
-        var firstDayDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        var firstDayDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
         var firstWeekday = firstDayDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
         
         // Front padding
@@ -235,7 +237,7 @@ Item {
         if (days.length === 0) return;
         
         var parts = days[0].date.split('-');
-        var date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        var date = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
         date.setDate(date.getDate() - 15);
         
         var targetY = date.getFullYear();
@@ -246,7 +248,7 @@ Item {
         root.currentMonth = targetM;
         
         userSelectedDate = false;
-        pendingSelectDate = `${targetY}-${String(targetM).padStart(2, '0')}-${String(targetD).padStart(2, '0')}`;
+        pendingSelectDate = `${String(targetD).padStart(2, '0')}-${String(targetM).padStart(2, '0')}-${targetY}`;
         root.currentlyViewedDateString = pendingSelectDate;
         root.fetchThreeMonths(targetY, targetM);
     }
@@ -257,7 +259,7 @@ Item {
         if (days.length === 0) return;
         
         var parts = days[days.length - 1].date.split('-');
-        var date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        var date = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
         date.setDate(date.getDate() + 15);
         
         var targetY = date.getFullYear();
@@ -268,7 +270,7 @@ Item {
         root.currentMonth = targetM;
         
         userSelectedDate = false;
-        pendingSelectDate = `${targetY}-${String(targetM).padStart(2, '0')}-${String(targetD).padStart(2, '0')}`;
+        pendingSelectDate = `${String(targetD).padStart(2, '0')}-${String(targetM).padStart(2, '0')}-${targetY}`;
         root.currentlyViewedDateString = pendingSelectDate;
         root.fetchThreeMonths(targetY, targetM);
     }
@@ -348,7 +350,11 @@ Item {
         id: mainGridLayout
         anchors.fill: parent
         anchors.margins: Kirigami.Units.largeSpacing
-        columns: width > Kirigami.Units.gridUnit * 28 ? 2 : 1
+        // Tools other than Panchanga own the whole panel; the calendar grid is
+        // only kept beside the details card on the Panchanga tab.
+        columns: kaladarshana.showTools && detailTabBar.currentIndex !== 0
+                 ? 1
+                 : (width > Kirigami.Units.gridUnit * 28 ? 2 : 1)
         rows: width > Kirigami.Units.gridUnit * 28 ? 1 : 2
         columnSpacing: Kirigami.Units.largeSpacing
         rowSpacing: Kirigami.Units.largeSpacing
@@ -358,6 +364,7 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: Kirigami.Units.largeSpacing
+            visible: !kaladarshana.showTools || detailTabBar.currentIndex === 0
 
             // Month Navigation Header
             RowLayout {
@@ -412,11 +419,11 @@ Item {
                             var startMonth = getShortMonthName(parseInt(startParts[1]));
                             var endMonth = getShortMonthName(parseInt(endParts[1]));
                             
-                            var startD = parseInt(startParts[2]);
-                            var endD = parseInt(endParts[2]);
+                            var startD = parseInt(startParts[0]);
+                            var endD = parseInt(endParts[0]);
                             
-                            var startY = startParts[0];
-                            var endY = endParts[0];
+                            var startY = startParts[2];
+                            var endY = endParts[2];
                             
                             if (startY === endY) {
                                 return `${startD} ${startMonth} – ${endD} ${endMonth} ${startY}`;
@@ -447,6 +454,19 @@ Item {
                     icon.name: "go-next"
                     flat: true
                     onClicked: nextHinduMonth()
+                }
+
+                Button {
+                    text: plasmoid.configuration.lang === "devanagari" ? "ऐप खोलें" : "Open App"
+                    icon.name: "window-new"
+                    visible: !kaladarshana.showTools
+                    ToolTip.text: plasmoid.configuration.lang === "devanagari" ? "पूर्ण ऐप खोलें" : "Open the full application"
+                    ToolTip.visible: hovered
+                    onClicked: {
+                        var req = new XMLHttpRequest();
+                        req.open("GET", "http://127.0.0.1:8642/launch_app", true);
+                        req.send();
+                    }
                 }
             }
 
@@ -552,7 +572,7 @@ Item {
                                 }
 
                                 Label {
-                                    text: modelData && modelData.type === "day" ? `(${parseInt(modelData.date.split('-')[2])})` : ""
+                                    text: modelData && modelData.type === "day" ? `(${parseInt(modelData.date.split('-')[0])})` : ""
                                     font.pixelSize: Kirigami.Units.gridUnit * 0.55
                                     opacity: 0.7
                                     color: modelData && modelData.is_krishna_paksha ? "#9eb1c2" : "#ffe473"
@@ -604,8 +624,8 @@ Item {
             id: detailsCard
             Layout.fillWidth: mainGridLayout.columns === 1
             Layout.fillHeight: true
-            Layout.minimumWidth: mainGridLayout.columns === 1 ? 250 : 400
-            Layout.preferredWidth: mainGridLayout.columns === 1 ? -1 : 440
+            Layout.minimumWidth: mainGridLayout.columns === 1 ? 250 : 340
+            Layout.preferredWidth: mainGridLayout.columns === 1 ? -1 : 380
             
             // Slate/Warm tinted card background depending on Paksha
             background: Rectangle {
@@ -618,9 +638,31 @@ Item {
                 border.width: 1.5
             }
 
-            contentItem: Flickable {
-                clip: true
-                contentHeight: detailsLayout.implicitHeight
+            contentItem: ColumnLayout {
+                spacing: 4
+
+                TabBar {
+                    id: detailTabBar
+                    Layout.fillWidth: true
+                    visible: kaladarshana.showTools
+
+                    TabButton { text: i18n("Panchanga") }
+                    TabButton { text: i18n("Kundali") }
+                    TabButton { text: i18n("Hora / Muhurta") }
+                    TabButton { text: i18n("Ashtakoota") }
+                    TabButton { text: i18n("Gochara") }
+                }
+
+                StackLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    currentIndex: kaladarshana.showTools ? detailTabBar.currentIndex : 0
+
+                    Flickable {
+                        clip: true
+                        contentHeight: detailsLayout.implicitHeight
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
                 
                 ColumnLayout {
                     id: detailsLayout
@@ -662,7 +704,7 @@ Item {
                                 onClicked: {
                                     if (kaladarshana.selectedDayData) {
                                         var parts = kaladarshana.selectedDayData.date.split('-');
-                                        editDateInput.text = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                                        editDateInput.text = `${parts[0]}-${parts[1]}-${parts[2]}`;
                                         kaladarshana.editingDate = true;
                                         editDateInput.forceActiveFocus();
                                     }
@@ -944,6 +986,62 @@ Item {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                         }
+
+                        // Row: Lagna (at sunrise) & its adhipati
+                        Label {
+                            text: root.configLang === "devanagari" ? "लग्न:" : (root.configLang === "iast" ? "Lagna:" : "Lagna:")
+                            font.bold: true
+                            opacity: 0.8
+                        }
+                        Label {
+                            text: kaladarshana.selectedDayData
+                                  ? `${kaladarshana.selectedDayData.lagna} (${kaladarshana.selectedDayData.lagna_adhipati})`
+                                  : "--"
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                        }
+
+                        // Row: Moon rashi & its adhipati
+                        Label {
+                            text: root.configLang === "devanagari" ? "चन्द्र राशि:" : (root.configLang === "iast" ? "Candra Rāśi:" : "Moon Sign:")
+                            font.bold: true
+                            opacity: 0.8
+                        }
+                        Label {
+                            text: kaladarshana.selectedDayData
+                                  ? `${kaladarshana.selectedDayData.moon_rashi} (${kaladarshana.selectedDayData.moon_rashi_adhipati})`
+                                  : "--"
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                        }
+
+                        // Row: Nakshatra adhipati & pada / naming initial
+                        Label {
+                            text: root.configLang === "devanagari" ? "नक्षत्र स्वामी:" : (root.configLang === "iast" ? "Nakṣatra Svāmī:" : "Nakshatra Lord:")
+                            font.bold: true
+                            opacity: 0.8
+                        }
+                        Label {
+                            text: kaladarshana.selectedDayData
+                                  ? `${kaladarshana.selectedDayData.nakshatra_adhipati} • Pada ${kaladarshana.selectedDayData.nakshatra_pada}`
+                                  : "--"
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                        }
+
+                        // Row: Name initial suggestion from nakshatra pada
+                        Label {
+                            text: root.configLang === "devanagari" ? "नाम प्रारंभ:" : (root.configLang === "iast" ? "Nāma Prāraṁbha:" : "Name Initial:")
+                            font.bold: true
+                            opacity: 0.8
+                        }
+                        Label {
+                            text: kaladarshana.selectedDayData ? kaladarshana.selectedDayData.nakshatra_initial : "--"
+                            font.bold: true
+                            color: "#2ecc71"
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                        }
                     }
 
                     Kirigami.Separator { Layout.fillWidth: true }
@@ -1086,7 +1184,29 @@ Item {
                         }
                     }
                 }
+                }
+
+                        KundaliView {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                        }
+
+                        HoraMuhurtaView {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                        }
+
+                        AshtakootaView {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                        }
+
+                        GocharaView {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                        }
+                    }
+                }
             }
         }
-    }
 }

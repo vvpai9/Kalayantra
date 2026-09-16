@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DAEMON_PORT=8642
+DAEMON_URL="http://127.0.0.1:${DAEMON_PORT}/config"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0;37m'
+
+find_path() {
+    for cand in "$@"; do
+        if [ -f "${cand}" ]; then
+            echo "${cand}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+APP_QML="$(find_path "${SCRIPT_DIR}/KalaYantraApp.qml" "${HOME}/.local/share/kalayantra/KalaYantraApp.qml")"
+DAEMON_PY="$(find_path \
+    "${SCRIPT_DIR}/contents/scripts/KalaSetu.py" \
+    "${SCRIPT_DIR}/../contents/scripts/KalaSetu.py" \
+    "${HOME}/.local/share/kalayantra/contents/scripts/KalaSetu.py" \
+    "${HOME}/.local/share/plasma/plasmoids/org.kde.plasma.kalayantra/contents/scripts/KalaSetu.py")"
+
+if [ -z "${APP_QML}" ]; then
+    echo -e "${RED}standalone app not found (${SCRIPT_DIR}/KalaYantraApp.qml).${NC}" >&2
+    exit 1
+fi
+if [ -z "${DAEMON_PY}" ]; then
+    echo -e "${RED}Kālachakra engine script (KalaSetu.py) not found.${NC}" >&2
+    exit 1
+fi
+
+mkdir -p "${HOME}/.config/kalayantra"
+mkdir -p "${HOME}/.cache/kalayantra"
+
+ensure_daemon() {
+    if systemctl --user is-active kalachakra.service >/dev/null 2>&1; then
+        return 0
+    fi
+    systemctl --user start kalachakra.service >/dev/null 2>&1 || true
+
+    for _ in $(seq 1 10); do
+        if curl -s -o /dev/null --max-time 1 "${DAEMON_URL}"; then
+            return 0
+        fi
+        sleep 0.3
+    done
+
+    echo -e "${YELLOW}Kālachakra engine service not available; starting it directly...${NC}"
+    nohup python3 "${DAEMON_PY}" >> "${HOME}/.cache/kalayantra/daemon.log" 2>&1 &
+    disown
+
+    for _ in $(seq 1 10); do
+        if curl -s -o /dev/null --max-time 1 "${DAEMON_URL}"; then
+            return 0
+        fi
+        sleep 0.3
+    done
+
+    echo -e "${RED}Failed to start the Kālachakra engine on port ${DAEMON_PORT}.${NC}" >&2
+    exit 1
+}
+
+ensure_daemon
+
+QML_BIN=""
+for cand in qml6 qmlscene qml; do
+    if command -v "${cand}" >/dev/null 2>&1; then
+        QML_BIN="${cand}"
+        break
+    fi
+done
+
+if [ -z "${QML_BIN}" ]; then
+    echo -e "${RED}No QML runtime found (qml6 / qmlscene / qml).${NC}" >&2
+    echo -e "${YELLOW}Install qt6-qml-tools (or use a Plasma session via plasmoidviewer).${NC}" >&2
+    exit 1
+fi
+
+IMPORT_PATH=""
+for d in /usr/lib/x86_64-linux-gnu/qt6/qml /usr/lib/qt6/qml /usr/lib64/qt6/qml; do
+    if [ -d "${d}" ] && [[ ":${IMPORT_PATH}:" != *":${d}:"* ]]; then
+        IMPORT_PATH="${IMPORT_PATH}:${d}"
+    fi
+done
+
+export QML2_IMPORT_PATH="${IMPORT_PATH}${QML2_IMPORT_PATH:+:${QML2_IMPORT_PATH}}"
+
+echo -e "${GREEN}Launching Kālayantra via ${QML_BIN}...${NC}"
+exec "${QML_BIN}" "${APP_QML}" "$@"
