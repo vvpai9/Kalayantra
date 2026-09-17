@@ -276,7 +276,7 @@ def test_http_and_cli():
         env = dict(os.environ)
         env["HOME"] = _TMP_HOME
         p = subprocess.run([sys.executable, os.path.join(SCRIPTS, "kalayantra-cli.py"),
-                            "medha", "--direct",
+                            "medha", "--direct", "--format", "json",
                             "--date", "15-06-1990", "--hour", "10", "--minute", "30",
                             "--lat", "13.0827", "--lon", "80.2707", "--tz", "5.5",
                             "--question", "Why is Shani strong?"],

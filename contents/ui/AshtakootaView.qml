@@ -172,6 +172,7 @@ Item {
                         value: 10
                         editable: true
                         textFromValue: function(v) { return v + i18n("h"); }
+                        valueFromText: function(t) { return Math.max(0, Math.min(23, parseInt(t) || 0)); }
                         Layout.fillWidth: true
                     }
                     SpinBox {
@@ -180,6 +181,7 @@ Item {
                         value: 30
                         editable: true
                         textFromValue: function(v) { return v + i18n("m"); }
+                        valueFromText: function(t) { return Math.max(0, Math.min(59, parseInt(t) || 0)); }
                         Layout.fillWidth: true
                     }
                     TextField {
@@ -225,6 +227,7 @@ Item {
                         value: 16
                         editable: true
                         textFromValue: function(v) { return v + i18n("h"); }
+                        valueFromText: function(t) { return Math.max(0, Math.min(23, parseInt(t) || 0)); }
                         Layout.fillWidth: true
                     }
                     SpinBox {
@@ -233,6 +236,7 @@ Item {
                         value: 45
                         editable: true
                         textFromValue: function(v) { return v + i18n("m"); }
+                        valueFromText: function(t) { return Math.max(0, Math.min(59, parseInt(t) || 0)); }
                         Layout.fillWidth: true
                     }
                     TextField {

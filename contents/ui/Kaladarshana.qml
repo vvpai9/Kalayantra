@@ -34,17 +34,19 @@ Item {
         if (!el1) return "--";
         var color = isKrishna ? "#3daee9" : "#ffb300";
         
-
-        
         var part1 = (el1_end && el1_end !== "--") ? `${el1} <font color='${color}'>${el1_end}</font>` : el1;
         var part2 = "";
         if (el2 && el2 !== "--") {
             part2 = (el2_end && el2_end !== "--") ? `${el2} <font color='${color}'>${el2_end}</font>` : el2;
         }
-        
-        if (activeIdx === 1) {
+
+        // In Traditional (sunrise) mode the day takes its element at sunrise,
+        // so always keep the first element primary no matter how long it lasts.
+        var primary = (mode === "traditional") ? 1 : activeIdx;
+
+        if (primary === 1) {
             return `<b>👉 ${part1}</b>` + (part2 ? ` &nbsp;&nbsp;•&nbsp;&nbsp; <font color='#888888'>${part2}</font>` : "");
-        } else if (activeIdx === 2) {
+        } else if (primary === 2) {
             return `<font color='#888888'>${part1}</font>` + (part2 ? ` &nbsp;&nbsp;•&nbsp;&nbsp; <b>👉 ${part2}</b>` : "");
         } else {
             return part1 + (part2 ? ` &nbsp;&nbsp;•&nbsp;&nbsp; ${part2}` : "");
@@ -564,7 +566,9 @@ Item {
                                 spacing: 2
                                 
                                 Label {
-                                    text: modelData && modelData.type === "day" ? modelData.tithi_num : ""
+                                    text: modelData && modelData.type === "day"
+                                          ? (modelData.tithi_kshaya_num ? `${modelData.tithi_num}-${modelData.tithi_kshaya_num}` : modelData.tithi_num)
+                                          : ""
                                     font.bold: true
                                     font.pixelSize: Kirigami.Units.gridUnit * 0.85
                                     color: modelData && modelData.is_krishna_paksha ? "#9eb1c2" : "#ffe473"
@@ -651,6 +655,8 @@ Item {
                     TabButton { text: i18n("Hora / Muhurta") }
                     TabButton { text: i18n("Ashtakoota") }
                     TabButton { text: i18n("Gochara") }
+                    TabButton { text: i18n("KalaVidya") }
+                    TabButton { text: i18n("Settings") }
                 }
 
                 StackLayout {
@@ -796,7 +802,14 @@ Item {
 
                          Kirigami.Heading {
                              level: 2
-                             text: kaladarshana.selectedDayData ? kaladarshana.selectedDayData.tithi : i18n("Select a day")
+                             text: {
+                                 if (!kaladarshana.selectedDayData) return i18n("Select a day");
+                                 var d = kaladarshana.selectedDayData;
+                                 if (root.configTithiMode === "traditional" && d.tithi_kshaya) {
+                                     return `${d.tithi}-${d.tithi_kshaya}`;
+                                 }
+                                 return d.tithi;
+                             }
                              color: kaladarshana.selectedDayData && kaladarshana.selectedDayData.is_krishna_paksha ? "#7094b3" : "#ffcc00"
                              font.bold: true
                          }
@@ -858,14 +871,18 @@ Item {
                         Label {
                             text: {
                                 if (!kaladarshana.selectedDayData) return "--";
+                                var d = kaladarshana.selectedDayData;
+                                if (root.configTithiMode === "traditional" && d.tithi_kshaya) {
+                                    return `${d.tithi_1}-${d.tithi_kshaya}`;
+                                }
                                 return kaladarshana.formatAstroElement(
-                                    kaladarshana.selectedDayData.tithi_1,
-                                    kaladarshana.selectedDayData.tithi_1_end,
-                                    kaladarshana.selectedDayData.tithi_2,
-                                    kaladarshana.selectedDayData.tithi_2_end,
-                                    kaladarshana.selectedDayData.tithi_active_idx,
-                                    kaladarshana.selectedDayData.is_krishna_paksha,
-                                    kaladarshana.selectedDayData.tithi_survives,
+                                    d.tithi_1,
+                                    d.tithi_1_end,
+                                    d.tithi_2,
+                                    d.tithi_2_end,
+                                    d.tithi_active_idx,
+                                    d.is_krishna_paksha,
+                                    d.tithi_survives,
                                     root.configTithiMode
                                 );
                             }
@@ -997,48 +1014,6 @@ Item {
                             text: kaladarshana.selectedDayData
                                   ? `${kaladarshana.selectedDayData.lagna} (${kaladarshana.selectedDayData.lagna_adhipati})`
                                   : "--"
-                            Layout.fillWidth: true
-                            wrapMode: Text.WordWrap
-                        }
-
-                        // Row: Moon rashi & its adhipati
-                        Label {
-                            text: root.configLang === "devanagari" ? "चन्द्र राशि:" : (root.configLang === "iast" ? "Candra Rāśi:" : "Moon Sign:")
-                            font.bold: true
-                            opacity: 0.8
-                        }
-                        Label {
-                            text: kaladarshana.selectedDayData
-                                  ? `${kaladarshana.selectedDayData.moon_rashi} (${kaladarshana.selectedDayData.moon_rashi_adhipati})`
-                                  : "--"
-                            Layout.fillWidth: true
-                            wrapMode: Text.WordWrap
-                        }
-
-                        // Row: Nakshatra adhipati & pada / naming initial
-                        Label {
-                            text: root.configLang === "devanagari" ? "नक्षत्र स्वामी:" : (root.configLang === "iast" ? "Nakṣatra Svāmī:" : "Nakshatra Lord:")
-                            font.bold: true
-                            opacity: 0.8
-                        }
-                        Label {
-                            text: kaladarshana.selectedDayData
-                                  ? `${kaladarshana.selectedDayData.nakshatra_adhipati} • Pada ${kaladarshana.selectedDayData.nakshatra_pada}`
-                                  : "--"
-                            Layout.fillWidth: true
-                            wrapMode: Text.WordWrap
-                        }
-
-                        // Row: Name initial suggestion from nakshatra pada
-                        Label {
-                            text: root.configLang === "devanagari" ? "नाम प्रारंभ:" : (root.configLang === "iast" ? "Nāma Prāraṁbha:" : "Name Initial:")
-                            font.bold: true
-                            opacity: 0.8
-                        }
-                        Label {
-                            text: kaladarshana.selectedDayData ? kaladarshana.selectedDayData.nakshatra_initial : "--"
-                            font.bold: true
-                            color: "#2ecc71"
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                         }
@@ -1202,6 +1177,16 @@ Item {
                         }
 
                         GocharaView {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                        }
+
+                        KalaVidyaView {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                        }
+
+                        SettingsView {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                         }

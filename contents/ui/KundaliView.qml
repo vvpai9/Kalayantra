@@ -17,6 +17,16 @@ Item {
     property int expandedMd: -1
     property int expandedAd: -1
 
+    property var analysisModel: null
+    property string analysisError: ""
+    property bool analysisBusy: false
+
+    Timer {
+        id: analysisTimer
+        interval: 250
+        onTriggered: view.reveal(analysisSection)
+    }
+
     readonly property var vargaKeys: ["D1", "D2", "D3", "D4", "D7", "D8", "D9", "D10", "D11", "D12", "D16", "D20", "D24", "D27", "D30", "D40", "D45", "D60"]
 
     readonly property var rashisEn: ["Mesh", "Vrishabha", "Mithuna", "Karka", "Simha", "Kanya", "Tula", "Vrishchika", "Dhanu", "Makar", "Kumbha", "Meena"]
@@ -36,6 +46,13 @@ Item {
             "lon": "Lon",
             "alt": "Alt (m)",
             "tzh": "TZ (h)",
+            "date": "Date",
+            "month": "Month",
+            "year": "Year",
+            "latLabel": "Lat",
+            "lonLabel": "Lon",
+            "altLabel": "Alt (m)",
+            "tzLabel": "Time zone (h)",
             "lagna": "Lagna:",
             "nineGrahas": "Nine Grahas",
             "vargas": "Vargas (divisional charts)",
@@ -46,6 +63,7 @@ Item {
             "noChart": "No chart computed yet.",
             "invalidDate": "Enter a valid date as DD-MM-YYYY.",
             "computing": "Computing…",
+            "analysing": "Analysing chart…",
             "parseFail": "Failed to parse response.",
             "engineErr": "Engine error (%1). Is the daemon running?",
             "searchErr": "City search failed (%1).",
@@ -70,7 +88,19 @@ Item {
             "pd": "Pratyantardasha",
             "show": "Expand",
             "dashaHeader": "9 Mahadashas · current auto-expanded",
-            "selectVarga": "Division"
+            "selectVarga": "Division",
+            "digLegend": "ᴷ = Kendra (1/4/7/10) · V = Vargottam · red-tinted names = Vakri, ◆ = Asta",
+            "analyze": "Analyse",
+            "analyzing": "Analyzing…",
+            "analysisYogas": "Yogas detected:",
+            "noYogas": "No structured yogas detected.",
+            "formation": "Formation:",
+            "participants": "Planets:",
+            "effect": "Effect:",
+            "source": "Source:",
+            "moonSign": "Moon Sign:",
+            "nakLord": "Nakshatra Lord:",
+            "nameInitial": "Name Initial:"
         },
         "iast": {
             "title": "Kundalī (Janma Kuṇḍalī)",
@@ -84,6 +114,13 @@ Item {
             "lon": "Reṣāṁśa",
             "alt": "Ucchtā (m)",
             "tzh": "Samaya (h)",
+            "date": "Dināṅka",
+            "month": "Māsa",
+            "year": "Varṣa",
+            "latLabel": "Akṣāṁśa",
+            "lonLabel": "Reṣāṁśa",
+            "altLabel": "Ucchtā (m)",
+            "tzLabel": "Samaya-kṣetra (h)",
             "lagna": "Lagna:",
             "nineGrahas": "Nava Graha",
             "vargas": "Varga Kuṇḍalī",
@@ -94,6 +131,7 @@ Item {
             "noChart": "Abhī kuṇḍalī nahīṁ.",
             "invalidDate": "Tithi DD-MM-YYYY deṁ.",
             "computing": "Gaṇanā…",
+            "analysing": "Kundalī-viśleṣaṇam…",
             "parseFail": "Uttara nahīṁ milā.",
             "engineErr": "Yantra-truṭi (%1).",
             "searchErr": "Nagara khoja truṭi (%1).",
@@ -118,7 +156,19 @@ Item {
             "pd": "Pratyantardaśā",
             "show": "Vistāra",
             "dashaHeader": "9 mahādaśā · adya svataḥ",
-            "selectVarga": "Varga"
+            "selectVarga": "Varga",
+            "digLegend": "ᴷ = Kendra (1/4/7/10) · V = Vargottama · ᴿ-coloured names = Vakrī, ◆ = Asta",
+            "analyze": "Viśleṣaṇa",
+            "analyzing": "Viśleṣaṇa…",
+            "analysisYogas": "Upa-labdha yogāḥ:",
+            "noYogas": "Na kaścit yogaḥ upalabdhaḥ.",
+            "formation": "Prakṛti-rītiḥ:",
+            "participants": "Grahāḥ:",
+            "effect": "Phalam:",
+            "source": "Srotaḥ:",
+            "moonSign": "Candra Rāśi:",
+            "nakLord": "Nakṣatra Svāmī:",
+            "nameInitial": "Nāma Prāraṁbha:"
         },
         "devanagari": {
             "title": "कुंडली (जन्म कुंडली)",
@@ -132,6 +182,13 @@ Item {
             "lon": "रेखांश",
             "alt": "ऊँचाई (मी)",
             "tzh": "समय (घं)",
+            "date": "दिनांक",
+            "month": "मास",
+            "year": "वर्ष",
+            "latLabel": "अक्षांश",
+            "lonLabel": "रेखांश",
+            "altLabel": "ऊँचाई (मी)",
+            "tzLabel": "समय क्षेत्र (घं)",
             "lagna": "लग्न:",
             "nineGrahas": "नव ग्रह",
             "vargas": "वर्ग कुंडलियाँ (D चार्ट)",
@@ -142,6 +199,7 @@ Item {
             "noChart": "अभी कोई कुंडली गणना नहीं हुई।",
             "invalidDate": "दिनांक DD-MM-YYYY प्रारूप में दर्ज करें।",
             "computing": "गणना हो रही है…",
+            "analysing": "कुंडली विश्लेषण हो रहा है…",
             "parseFail": "प्रतिक्रिया पार्स नहीं हुई।",
             "engineErr": "इंजन त्रुटि (%1)।",
             "searchErr": "शहर खोज विफल (%1)।",
@@ -166,7 +224,19 @@ Item {
             "pd": "प्रत्यंतर्दशा",
             "show": "विस्तार",
             "dashaHeader": "9 महादशाएँ · वर्तमान स्वतः खुला",
-            "selectVarga": "वर्ग"
+            "selectVarga": "वर्ग",
+            "digLegend": "ᴷ = केंद्र (1/4/7/10) · V = वर्गोत्तम · लाल रंग के नाम = वक्री, ◆ = अस्त",
+            "analyze": "विश्लेषण",
+            "analyzing": "विश्लेषण हो रहा है…",
+            "analysisYogas": "प्राप्त योग:",
+            "noYogas": "कोई संरचित योग प्राप्त नहीं हुआ।",
+            "formation": "गठन:",
+            "participants": "ग्रह:",
+            "effect": "फल:",
+            "source": "स्रोत:",
+            "moonSign": "चन्द्र राशि:",
+            "nakLord": "नक्षत्र स्वामी:",
+            "nameInitial": "नाम प्रारंभ:"
         }
     })
 
@@ -199,6 +269,57 @@ Item {
         var dt = new Date(y, mo - 1, d);
         if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
         return [y, mo, d];
+    }
+
+    function rangeModel(a, b) {
+        var arr = [];
+        for (var i = a; i <= b; i++) arr.push(i);
+        return arr;
+    }
+
+    function monthNames() {
+        switch (langKey()) {
+        case "devanagari":
+            return ["जनवरी", "फ़रवरी", "मार्च", "अप्रैल", "मई", "जून", "जुलाई", "अगस्त", "सितंबर", "अक्टूबर", "नवंबर", "दिसंबर"];
+        default:
+            return ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        }
+    }
+
+    function daysInMonth(m, y) {
+        m = parseInt(m) || 1;
+        y = parseInt(y) || new Date().getFullYear();
+        return new Date(y, (m % 12) + 1, 0).getDate();
+    }
+
+    function commitYear() {
+        if (!yearCombo) return;
+        var y = parseInt(yearCombo.editText) || parseInt(yearCombo.currentValue) || new Date().getFullYear();
+        y = Math.max(1800, Math.min(2100, y));
+        yearCombo.currentIndex = y - 1800;
+        view.clampDay();
+    }
+
+    function clampDay() {
+        if (!dayCombo || dayCombo.model === undefined) return;
+        var maxD = daysInMonth(monthCombo.currentIndex + 1, yearCombo.currentIndex + 1800);
+        if ((parseInt(dayCombo.currentValue) || 1) > maxD) {
+            dayCombo.currentIndex = maxD - 1;
+        }
+    }
+
+    function selectedDate() {
+        view.commitYear();
+        var y = yearCombo.currentIndex + 1800;
+        var m = monthCombo.currentIndex + 1;
+        var d = parseInt(dayCombo.currentValue) || 1;
+        d = Math.min(d, daysInMonth(m, y));
+        return [y, m, d];
+    }
+
+    function selectedDateStr() {
+        var p = selectedDate();
+        return `${String(p[2]).padStart(2, '0')}-${String(p[1]).padStart(2, '0')}-${p[0]}`;
     }
 
     function cfg(key, dflt) {
@@ -249,14 +370,7 @@ Item {
         tzField.text = String(Number(cityChoices[i].tz || 0).toFixed(1));
     }
 
-    function compute() {
-        var parts = parseDateStr(dateField.text);
-        if (!parts) {
-            statusMessage.type = Kirigami.MessageType.Error;
-            statusMessage.text = txt("invalidDate");
-            statusMessage.visible = true;
-            return;
-        }
+    function compute(afterAnalyze) {
         var lat = parseFloat(latField.text);
         var lon = parseFloat(lonField.text);
         var alt = parseFloat(altField.text);
@@ -267,7 +381,7 @@ Item {
             statusMessage.visible = true;
             return;
         }
-        var q = `date=${String(parts[2]).padStart(2, '0')}-${String(parts[1]).padStart(2, '0')}-${parts[0]}` +
+        var q = `date=${view.selectedDateStr()}` +
                 `&hour=${hourSpin.value}&minute=${minuteSpin.value}` +
                 `&lat=${lat}&lon=${lon}&alt=${alt}&tz=${tz}` +
                 `&lang=${encodeURIComponent(langKey())}` +
@@ -284,6 +398,7 @@ Item {
                         view.result = JSON.parse(xhr.responseText);
                         populate();
                         statusMessage.visible = false;
+                        if (afterAnalyze) view.analyze();
                     } catch (e) {
                         statusMessage.type = Kirigami.MessageType.Error;
                         statusMessage.text = txt("parseFail");
@@ -295,6 +410,123 @@ Item {
             }
         };
         xhr.send();
+    }
+
+    // ---------- data helpers ----------
+
+    function grahaNames() {
+        switch (langKey()) {
+        case "devanagari":
+            return ["सूर्य", "चन्द्र", "मङ्गल", "बुध", "गुरु", "शुक्र", "शनि", "राहु", "केतु"];
+        case "iast":
+            return ["Sūrya", "Candra", "Maṅgala", "Budha", "Guru", "Śukra", "Śani", "Rāhu", "Ketu"];
+        default:
+            return ["Surya", "Chandra", "Mangala", "Budha", "Guru", "Shukra", "Shani", "Rahu", "Ketu"];
+        }
+    }
+
+    function birthParams() {
+        return `date=${view.selectedDateStr()}` +
+                `&hour=${hourSpin.value}&minute=${minuteSpin.value}` +
+                `&lat=${parseFloat(latField.text)}&lon=${parseFloat(lonField.text)}` +
+                `&alt=${parseFloat(altField.text)}&tz=${parseFloat(tzField.text)}` +
+                `&lang=${encodeURIComponent(langKey())}&ayanamsa=${ayanamsaCombo.currentValue}`;
+    }
+
+    function fetchAnalysis(path, onOk) {
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "http://127.0.0.1:8642" + path + "?" + view.birthParams(), true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return;
+            if (xhr.status === 200) {
+                try { onOk(JSON.parse(xhr.responseText)); return; } catch (e) {}
+            }
+            view.analysisError = txt("engineErr").arg(xhr.status);
+            view.analysisBusy = false;
+            statusMessage.type = Kirigami.MessageType.Error;
+            statusMessage.text = view.analysisError;
+            statusMessage.visible = true;
+        };
+        xhr.send();
+    }
+
+    function analyze() {
+        if (!view.result) {
+            view.compute(true);
+            return;
+        }
+        view.analysisModel = null;
+        view.analysisError = "";
+        view.analysisBusy = true;
+        view._analysisBodha = null;
+        view._analysisMedha = null;
+        statusMessage.type = Kirigami.MessageType.Information;
+        statusMessage.text = txt("analysing");
+        statusMessage.visible = true;
+        analysisTimer.start();
+        fetchAnalysis("/bodha", function(b) {
+            view._analysisBodha = b;
+            view.reportAnalysis();
+            fetchAnalysis("/medha", function(m) {
+                view._analysisMedha = m;
+                view.reportAnalysis();
+            });
+        });
+    }
+
+    function reveal(obj) {
+        if (!obj) return;
+        var flick = resultsScroller.contentItem;
+        var p = flick.mapFromItem(obj, 0, 0);
+        flick.contentY = Math.max(0, p.y - 8);
+    }
+
+    function strengthText(s) {
+        s = Math.max(0, parseInt(s) || 0);
+        var out = "";
+        for (var i = 0; i < s; i++) out += "●";
+        return out;
+    }
+
+    function reportAnalysis() {
+        var model = { lagna: "", dasha: "", yogas: [] };
+        var b = view._analysisBodha;
+        var m = view._analysisMedha;
+        if (b && b.bodha) {
+            var bo = b.bodha;
+            if (bo.lagna && bo.lagna.rashi_name)
+                model.lagna = bo.lagna.rashi_name + (bo.lagna.lagnesh ? " (" + bo.lagna.lagnesh + ")" : "");
+            var cd = bo.current_dasha || {};
+            if (cd.mahadasha || cd.antardasha || cd.pratyantardasha) {
+                var d = [];
+                if (cd.mahadasha) d.push(cd.mahadasha);
+                if (cd.antardasha) d.push(cd.antardasha);
+                if (cd.pratyantardasha) d.push(cd.pratyantardasha);
+                model.dasha = d.join(" / ");
+            }
+            var names = view.grahaNames();
+            model.yogas = (bo.yogas || []).map(function(y) {
+                return {
+                    name: y.name || "?",
+                    strength: y.strength || 0,
+                    condition: y.condition || "",
+                    participants: (y.participants || []).map(function(ix) {
+                        return names[ix] !== undefined ? names[ix] : String(ix);
+                    }).join(", "),
+                    interpretation: y.interpretation || "",
+                    source: y.source || ""
+                };
+            });
+        }
+        if (m && m.medha) {
+            var narr = m.medha.narrative || {};
+            if (narr.lagna) model.lagna = narr.lagna;
+            if (narr.dasha) model.dasha = narr.dasha;
+        }
+        view.analysisModel = model;
+        view.analysisBusy = false;
+        statusMessage.visible = false;
+        view.reveal(analysisSection);
     }
 
     // ---------- data helpers ----------
@@ -311,14 +543,15 @@ Item {
     }
 
     function dignityColor(code) {
-        switch (code) {
-        case "Exalted": return "#2ecc71";
-        case "Moolatrikona": return "#2cd9a0";
-        case "Own Sign": return "#27ae60";
-        case "Debilitated": return "#e74c3c";
-        case "Friendly Sign": return "#3498db";
-        case "Neutral Sign": return "#95a5a6";
-        case "Enemy Sign": return "#e67e22";
+        if (!code) return "#bdc3c7";
+        switch (String(code).toLowerCase()) {
+        case "exalted": return "#2ecc71";
+        case "moolatrikona": return "#2cd9a0";
+        case "own": case "own sign": return "#27ae60";
+        case "debilitated": return "#e74c3c";
+        case "friend": case "friendly sign": return "#3498db";
+        case "neutral": case "neutral sign": return "#95a5a6";
+        case "enemy": case "enemy sign": return "#e67e22";
         default: return "#bdc3c7";
         }
     }
@@ -421,11 +654,12 @@ Item {
                 sign: p.rashi_name,
                 nak: p.nakshatra_name + " " + p.nakshatra_pada,
                 house: p.house,
-                dignity: p.dignity,
+                dignity: p.dignity || "",
                 digColor: dignityColor(p.dignity_code),
                 retro: p.retrograde,
                 combust: p.combust,
-                vargottam: p.is_vargottam
+                vargottam: p.is_vargottam,
+                kendra: (p.house === 1 || p.house === 4 || p.house === 7 || p.house === 10)
             });
         }
         view.planetRows = rows;
@@ -483,40 +717,110 @@ Item {
             level: 4
         }
 
-        RowLayout {
+        // Birth date: Date / Month / Year dropdowns with invalid-date fallback
+        ColumnLayout {
             Layout.fillWidth: true
-            spacing: Kirigami.Units.smallSpacing
+            spacing: 2
 
-            TextField {
-                id: dateField
-                placeholderText: "DD-MM-YYYY"
-                text: view.todayStr()
+            RowLayout {
                 Layout.fillWidth: true
-                validator: RegularExpressionValidator { regularExpression: /^\d{2}-\d{2}-\d{4}$/ }
+                spacing: Kirigami.Units.smallSpacing
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    Label {
+                        text: view.txt("date")
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                        opacity: 0.7
+                    }
+                    ComboBox {
+                        id: dayCombo
+                        Layout.fillWidth: true
+                        model: view.rangeModel(1, 31)
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    Label {
+                        text: view.txt("month")
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                        opacity: 0.7
+                    }
+                    ComboBox {
+                        id: monthCombo
+                        Layout.fillWidth: true
+                        model: view.monthNames()
+                        onActivated: view.clampDay()
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    Label {
+                        text: view.txt("year")
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                        opacity: 0.7
+                    }
+                    ComboBox {
+                        id: yearCombo
+                        Layout.fillWidth: true
+                        editable: true
+                        model: view.rangeModel(1800, 2100)
+                        onActivated: view.clampDay()
+                        onAccepted: view.commitYear()
+                    }
+                }
             }
 
-            SpinBox {
-                id: hourSpin
-                from: 0
-                to: 23
-                value: 10
-                editable: true
-                textFromValue: function(v) { return v + i18n("h"); }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Kirigami.Units.smallSpacing
+
+                SpinBox {
+                    id: hourSpin
+                    from: 0
+                    to: 23
+                    value: 10
+                    editable: true
+                    textFromValue: function(v) { return v + i18n("h"); }
+                    valueFromText: function(t) { return Math.max(0, Math.min(23, parseInt(t) || 0)); }
+                }
+
+                SpinBox {
+                    id: minuteSpin
+                    from: 0
+                    to: 59
+                    value: 30
+                    editable: true
+                    textFromValue: function(v) { return v + i18n("m"); }
+                    valueFromText: function(t) { return Math.max(0, Math.min(59, parseInt(t) || 0)); }
+                }
+
+                Item { Layout.fillWidth: true }
+
+                Button {
+                    text: view.txt("compute")
+                    icon.name: "view-refresh"
+                    onClicked: view.compute()
+                }
+
+                Button {
+                    text: view.txt("analyze")
+                    icon.name: "tools-wizard"
+                    enabled: view.result !== null
+                    onClicked: view.analyze()
+                }
             }
 
-            SpinBox {
-                id: minuteSpin
-                from: 0
-                to: 59
-                value: 30
-                editable: true
-                textFromValue: function(v) { return v + i18n("m"); }
-            }
-
-            Button {
-                text: view.txt("compute")
-                icon.name: "view-refresh"
-                onClicked: view.compute()
+            Component.onCompleted: {
+                var t = new Date();
+                dayCombo.currentIndex = Math.max(0, Math.min(30, t.getDate() - 1));
+                monthCombo.currentIndex = Math.max(0, Math.min(11, t.getMonth()));
+                yearCombo.currentIndex = t.getFullYear() - 1800;
             }
         }
 
@@ -547,33 +851,72 @@ Item {
             Layout.fillWidth: true
             spacing: Kirigami.Units.smallSpacing
 
-            TextField {
-                id: latField
-                placeholderText: view.txt("lat")
-                text: String(Number(view.cfg("latitude", 23.1765)).toFixed(4))
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 4
-                validator: DoubleValidator { bottom: -90; top: 90; decimals: 4 }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 2
+                Label {
+                    text: view.txt("latLabel")
+                    font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                    opacity: 0.7
+                }
+                TextField {
+                    id: latField
+                    placeholderText: view.txt("lat")
+                    text: String(Number(view.cfg("latitude", 23.1765)).toFixed(4))
+                    Layout.fillWidth: true
+                    validator: DoubleValidator { bottom: -90; top: 90; decimals: 4 }
+                }
             }
-            TextField {
-                id: lonField
-                placeholderText: view.txt("lon")
-                text: String(Number(view.cfg("longitude", 75.7885)).toFixed(4))
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 4
-                validator: DoubleValidator { bottom: -180; top: 180; decimals: 4 }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 2
+                Label {
+                    text: view.txt("lonLabel")
+                    font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                    opacity: 0.7
+                }
+                TextField {
+                    id: lonField
+                    placeholderText: view.txt("lon")
+                    text: String(Number(view.cfg("longitude", 75.7885)).toFixed(4))
+                    Layout.fillWidth: true
+                    validator: DoubleValidator { bottom: -180; top: 180; decimals: 4 }
+                }
             }
-            TextField {
-                id: altField
-                placeholderText: view.txt("alt")
-                text: String(Number(view.cfg("altitude", 0)).toFixed(1))
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 3
-                validator: DoubleValidator { bottom: -500; top: 9000; decimals: 1 }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 2
+                Label {
+                    text: view.txt("altLabel")
+                    font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                    opacity: 0.7
+                }
+                TextField {
+                    id: altField
+                    placeholderText: view.txt("alt")
+                    text: String(Number(view.cfg("altitude", 0)).toFixed(1))
+                    Layout.fillWidth: true
+                    validator: DoubleValidator { bottom: -500; top: 9000; decimals: 1 }
+                }
             }
-            TextField {
-                id: tzField
-                placeholderText: view.txt("tzh")
-                text: String(Number(view.cfg("timezone", 5.5)).toFixed(1))
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 3
-                validator: DoubleValidator { bottom: -12; top: 14; decimals: 2 }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 2
+                Label {
+                    text: view.txt("tzLabel")
+                    font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                    opacity: 0.7
+                }
+                TextField {
+                    id: tzField
+                    placeholderText: view.txt("tzh")
+                    text: String(Number(view.cfg("timezone", 5.5)).toFixed(1))
+                    Layout.fillWidth: true
+                    validator: DoubleValidator { bottom: -12; top: 14; decimals: 2 }
+                }
             }
         }
 
@@ -627,6 +970,7 @@ Item {
         }
 
         ScrollView {
+            id: resultsScroller
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
@@ -652,6 +996,17 @@ Item {
                     font.pixelSize: Kirigami.Units.gridUnit * 0.85
                 }
 
+                Label {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 2
+                    visible: view.result && view.result.moon
+                    text: (view.result && view.result.moon)
+                          ? `${view.txt("moonSign")} <b>${view.result.moon.rashi_name}</b> (${view.result.moon.rashi_adhipati}) · ${view.txt("nakLord")} ${view.result.moon.nakshatra_name} ${view.result.moon.nakshatra_pada} (${view.result.moon.nakshatra_adhipati}) · ${view.txt("nameInitial")} <b>${view.result.moon.nakshatra_initial}</b>`
+                          : ""
+                    textFormat: Text.RichText
+                    font.pixelSize: Kirigami.Units.gridUnit * 0.85
+                }
+
                 // Pictorial chart
                 Rectangle {
                     Layout.fillWidth: true
@@ -666,12 +1021,120 @@ Item {
                     KundaliChart {
                         id: mainChart
                         anchors.centerIn: parent
-                        width: Math.min(340, parent.width - 12)
+                        width: Math.min(560, parent.width - 12)
                         height: width
                     }
                 }
 
                 Kirigami.Separator { Layout.fillWidth: true; visible: view.result !== null }
+
+                // Analyse
+                ColumnLayout {
+                    id: analysisSection
+                    Layout.fillWidth: true
+                    spacing: 4
+                    visible: view.result !== null
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Label { text: view.txt("analyze"); font.bold: true; color: Kirigami.Theme.highlightColor }
+                        Item { Layout.fillWidth: true }
+                        BusyIndicator {
+                            Layout.preferredWidth: Kirigami.Units.gridUnit * 2
+                            Layout.preferredHeight: Kirigami.Units.gridUnit * 2
+                            running: view.analysisBusy
+                            visible: running
+                            opacity: 0.7
+                        }
+                    }
+
+                    Kirigami.InlineMessage {
+                        Layout.fillWidth: true
+                        visible: view.analysisError !== ""
+                        type: Kirigami.MessageType.Error
+                        text: view.analysisError
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        visible: view.analysisModel !== null && view.analysisModel.lagna !== ""
+                        text: view.analysisModel !== null && view.analysisModel.lagna !== ""
+                              ? `${view.txt("lagna")} <b>${view.analysisModel.lagna}</b>` : ""
+                        textFormat: Text.RichText
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        visible: view.analysisModel !== null && view.analysisModel.dasha !== ""
+                        text: view.analysisModel !== null && view.analysisModel.dasha !== ""
+                              ? `${view.txt("current")} ${view.analysisModel.dasha}` : ""
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.8
+                        opacity: 0.9
+                    }
+
+                    Repeater {
+                        model: view.analysisModel !== null ? view.analysisModel.yogas : []
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 2
+                            Layout.topMargin: 6
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: `<b>${modelData.name}</b>  ${view.strengthText(modelData.strength)}`
+                                textFormat: Text.RichText
+                                color: Kirigami.Theme.highlightColor
+                                font.bold: true
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                visible: modelData.condition !== ""
+                                text: `<b>${view.txt("formation")}</b> ${modelData.condition}`
+                                textFormat: Text.RichText
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.8
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                visible: modelData.participants !== ""
+                                text: `<b>${view.txt("participants")}</b> ${modelData.participants}`
+                                textFormat: Text.RichText
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.8
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                visible: modelData.interpretation !== ""
+                                text: `<b>${view.txt("effect")}</b> ${modelData.interpretation}`
+                                textFormat: Text.RichText
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.8
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                visible: modelData.source !== ""
+                                text: `${view.txt("source")} ${modelData.source}`
+                                opacity: 0.6
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                            }
+                        }
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        visible: view.analysisModel !== null && view.analysisModel.yogas.length === 0 && view.analysisError === ""
+                        opacity: 0.7
+                        text: view.txt("noYogas")
+                    }
+                }
+
+                Kirigami.Separator { Layout.fillWidth: true; visible: view.planetRows.length > 0 }
 
                 // Planets
                 ColumnLayout {
@@ -704,6 +1167,16 @@ Item {
                                 Layout.preferredWidth: Kirigami.Units.gridUnit * 4
                             }
                             Label {
+                                text: modelData.dignity
+                                color: modelData.digColor
+                                font.bold: true
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                                elide: Text.ElideRight
+                                Layout.preferredWidth: Kirigami.Units.gridUnit * 5
+                                ToolTip.text: modelData.dignity
+                                ToolTip.visible: containedText !== text && hovered
+                            }
+                            Label {
                                 text: modelData.nak
                                 opacity: 0.8
                                 fontSizeMode: Text.HorizontalFit
@@ -730,10 +1203,20 @@ Item {
                                 Layout.preferredWidth: Kirigami.Units.gridUnit * 1.4
                             }
                             Label {
-                                text: view.txt("housePrefix") + modelData.house
-                                Layout.preferredWidth: Kirigami.Units.gridUnit * 2
+                                text: (view.txt("housePrefix") + modelData.house) + (modelData.kendra ? " ᴷ" : "")
+                                color: modelData.kendra ? "#e67e22" : Kirigami.Theme.textColor
+                                font.bold: modelData.kendra
+                                Layout.preferredWidth: Kirigami.Units.gridUnit * 2.6
                             }
                         }
+                    }
+
+                    Label {
+                        text: view.txt("digLegend")
+                        opacity: 0.6
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
                     }
                 }
 
@@ -795,7 +1278,7 @@ Item {
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredHeight: Math.max(240, vargaChart.height + 8)
+                        Layout.preferredHeight: Math.max(280, vargaChart.height + 8)
                         radius: 8
                         color: Qt.rgba(0, 0, 0, 0.15)
                         border.color: Qt.rgba(0.55, 0.55, 0.55, 0.4)
@@ -804,7 +1287,7 @@ Item {
                         KundaliChart {
                             id: vargaChart
                             anchors.centerIn: parent
-                            width: Math.min(300, parent.width - 12)
+                            width: Math.min(560, parent.width - 12)
                             height: width
                         }
                     }

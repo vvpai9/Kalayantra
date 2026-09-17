@@ -112,10 +112,10 @@ def main():
     mds = d["mahadashas"]
     check("9 mahadashas", len(mds) == 9)
     total = sum(m["years"] for m in mds)
-    start_pos = flat["dashas.start_lord_idx"]  # cycle position (0..8)
-    check("MD years sum == balance + full tail",
-          almost(total, 120.0 - KalaKosha.VIMSHOTTARI_YEARS[start_pos] + flat["dashas.balance_years"], 0.06),
-          f"{total:.3f}")
+    # All nine full Vimshottari lords materialise (120-year cycle); the natal
+    # lord's mahadasha *contains* birth, so `balance_years` is the part that
+    # remains after birth, not a shortened first entry.
+    check("MD years sum == 120.0", almost(total, 120.0, 0.06), f"{total:.3f}")
     check("exactly one current MD", sum(1 for m in mds if m["is_current"]) == 1)
     for m in mds:
         ads = m["antardashas"]
@@ -244,7 +244,7 @@ def main():
     check("all 9 dignity codes", all(isinstance(t["dignity_code"], str) for t in go["transits"]))
     # transit house should be relative to natal lagna (Simha = rashi 4, house 1)
     check("Surya transits natal 1st house (Simha)", tlist[0]["house"] == 1, f"{tlist[0]['house']}")
-    check("gochara date recorded", go["date"] == "2026-09-12", go["date"])
+    check("gochara date recorded", go["date"] == "12-09-2026", go["date"])
 
     # Special yogas should be structurally valid (name, severity, description)
     for y in go["special_yogas"]:

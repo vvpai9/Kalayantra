@@ -238,8 +238,8 @@ Item {
             statusMessage.visible = true;
             return;
         }
-        var birthISO = `${birth[2]}-${birth[1]}-${birth[0]}`;
-        var transitStr = transit ? `${transit[2]}-${transit[1]}-${transit[0]}` : "";
+        var birthISO = `${birth[0]}-${birth[1]}-${birth[2]}`;
+        var transitStr = transit ? `${transit[0]}-${transit[1]}-${transit[2]}` : "";
         var q = `date=${birthISO}` +
                 `&hour=${hourSpin.value}&minute=${minuteSpin.value}` +
                 `&lat=${lat}&lon=${lon}&alt=${alt}&tz=${tz}` +
@@ -348,6 +348,7 @@ Item {
                 value: 10
                 editable: true
                 textFromValue: function(v) { return v + i18n("h"); }
+                valueFromText: function(t) { return Math.max(0, Math.min(23, parseInt(t) || 0)); }
             }
 
             SpinBox {
@@ -357,6 +358,7 @@ Item {
                 value: 30
                 editable: true
                 textFromValue: function(v) { return v + i18n("m"); }
+                valueFromText: function(t) { return Math.max(0, Math.min(59, parseInt(t) || 0)); }
             }
 
             Button {

@@ -97,6 +97,14 @@ Item {
         return "🟡";
     }
 
+    function cfg(key, dflt) {
+        if (typeof plasmoid !== "undefined" && plasmoid.configuration) {
+            var v = plasmoid.configuration[key];
+            return (v === undefined || v === "") ? dflt : v;
+        }
+        return dflt;
+    }
+
     function load() {
         var parts = parseDateStr(dateField.text);
         if (!parts) {
@@ -106,7 +114,10 @@ Item {
             return;
         }
         var q = `date=${String(parts[2]).padStart(2, '0')}-${String(parts[1]).padStart(2, '0')}-${parts[0]}` +
-                `&tz=${plasmoid.configuration.timezone}` +
+                `&tz=${view.cfg("timezone", 5.5)}` +
+                `&lat=${view.cfg("latitude", 23.1765)}` +
+                `&lon=${view.cfg("longitude", 75.7885)}` +
+                `&alt=${view.cfg("altitude", 0)}` +
                 `&lang=${encodeURIComponent(langKey())}`;
         statusMessage.type = Kirigami.MessageType.Information;
         statusMessage.text = txt("loading");

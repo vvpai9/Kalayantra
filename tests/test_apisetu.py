@@ -239,7 +239,7 @@ CLI = [sys.executable, os.path.join(SCRIPTS, "kalayantra-cli.py")]
 def run_cli(subcommand, *args):
     env = dict(os.environ)
     env["HOME"] = _TMP_HOME
-    p = subprocess.run(CLI + [subcommand, "--direct"] + list(args), capture_output=True,
+    p = subprocess.run(CLI + [subcommand, "--direct", "--format", "json"] + list(args), capture_output=True,
                        text=True, timeout=120, env=env)
     return p.returncode, p.stdout, p.stderr
 
@@ -329,7 +329,7 @@ def test_helpers():
     mi, adh, kr, ti, tv = KC.get_lunar_month_details(jd, "amavasyanta")
     check("get_lunar_month_details returns 5-tuple",
           isinstance(mi, int) and isinstance(adh, bool) and isinstance(ti, int))
-    check("datetime_to_vaara_idx sane", 0 <= KO.datetime_to_vaara_idx("2026-09-12") <= 6)
+    check("datetime_to_vaara_idx sane", 0 <= KO.datetime_to_vaara_idx("12-09-2026") <= 6)
     check("get_masa_at_jd sane", 0 <= KO.get_masa_at_jd(jd, "amavasyanta") <= 11)
 
     # KalaVartika pure functions

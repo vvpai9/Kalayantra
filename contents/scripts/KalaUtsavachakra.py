@@ -46,9 +46,9 @@ def resolve_festival_details(key: str, metadata_key: str, lang: str) -> dict:
 
 
 def datetime_to_vaara_idx(date_str: str) -> int:
-    """Weekday index (Monday=0) for a 'YYYY-MM-DD' date string."""
+    """Weekday index (Monday=0) for a 'DD-MM-YYYY' date string."""
     parts = date_str.split('-')
-    dt = datetime.date(int(parts[0]), int(parts[1]), int(parts[2]))
+    dt = datetime.date(int(parts[2]), int(parts[1]), int(parts[0]))
     return dt.weekday()
 
 
@@ -376,7 +376,7 @@ def _calculate_festivals_internal(astro_data: dict, tz: float,
                 anniversary_display = ""
                 g_year = obs.get("gregorian_year", None)
                 if g_year is not None and str(g_year).strip() != "":
-                    calc_year = int(astro_data["date"].split("-")[0])
+                    calc_year = int(astro_data["date"].split("-")[2])
                     anniversary = calc_year - int(g_year)
                     if anniversary > 0:
                         if lang == "devanagari":

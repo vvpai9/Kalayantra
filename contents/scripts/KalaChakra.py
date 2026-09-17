@@ -611,6 +611,12 @@ def calculate_panchanga(year: int, month: int, day: int, tz: float,
         if nak_2_end_jd is not None:
             nakshatra_2_end = KalaVartika.format_time_hhmm(nak_2_end_jd, tz, jd_ut_start)
 
+    nakshatra_1_end = None
+    if nak_end_jd is not None:
+        nakshatra_1_end = KalaVartika.format_time_hhmm(nak_end_jd, tz, jd_ut_start)
+    nakshatra_survives = (nak_end_jd is None) or (nak_end_jd > tomorrow_sunrise)
+    nakshatra_active_idx = 2 if (not nakshatra_survives and nak_end_jd is not None) else 1
+
     # second tithi at sunrise
     tithi_1 = KalaKosha.TITHIS[lang][get_tithi_idx(sunrise_jd)]
     tithi_2 = None
@@ -644,9 +650,75 @@ def calculate_panchanga(year: int, month: int, day: int, tz: float,
         if next_idx != expected_next:
             is_tithi_2_kshaya = True
 
+    # --- Kshaya tithi detection (Traditional, sunrise basis) ---
+    # If the tithi at tomorrow's sunrise skips the one that should follow
+    # today's sunrise tithi (e.g. Saptami today -> Navami tomorrow), the
+    # skipped tithi (Ashtami) is kshaya and is attributed to today.
+    tithi_kshaya_idx = None
+    tithi_kshaya = None
+    tithi_kshaya_num = None
+    if tithi_mode == "traditional" and tomorrow_sunrise:
+        today_sr_idx = get_tithi_idx(sunrise_jd)
+        tomorrow_sr_idx = get_tithi_idx(tomorrow_sunrise)
+        if (tomorrow_sr_idx - today_sr_idx) % 30 == 2:
+            tithi_kshaya_idx = (today_sr_idx + 1) % 30
+            tithi_kshaya = KalaKosha.TITHIS[lang][tithi_kshaya_idx]
+            tithi_kshaya_num = (tithi_kshaya_idx % 15) + 1
+
     # --- Surya Nakshatra ---
     surya_nak_idx = int(sun_l / KalaVartika.NAKSHATRA_SPAN) % 27
     surya_nak_name = KalaKosha.NAKSHATRAS[lang][surya_nak_idx]
+
+    def get_surya_nakshatra_idx(jd):
+        s, _ = get_sidereal_longitudes(jd)
+        return int(s / KalaVartika.NAKSHATRA_SPAN) % 27
+
+    surya_nak_end_jd = find_transition(sunrise_jd, get_surya_nakshatra_idx)
+    surya_nakshatra_1_end = None
+    if surya_nak_end_jd is not None:
+        surya_nakshatra_1_end = KalaVartika.format_time_hhmm(surya_nak_end_jd, tz, jd_ut_start)
+    surya_nakshatra_2 = None
+    surya_nakshatra_2_end = None
+    if surya_nak_end_jd is not None and surya_nak_end_jd < tomorrow_sunrise:
+        s2_idx = get_surya_nakshatra_idx(surya_nak_end_jd + 0.02)
+        surya_nakshatra_2 = KalaKosha.NAKSHATRAS[lang][s2_idx]
+        s2_end_jd = find_transition(surya_nak_end_jd + 0.02, get_surya_nakshatra_idx)
+        if s2_end_jd is not None:
+            surya_nakshatra_2_end = KalaVartika.format_time_hhmm(s2_end_jd, tz, jd_ut_start)
+    surya_nakshatra_survives = (surya_nak_end_jd is None) or (surya_nak_end_jd > tomorrow_sunrise)
+    surya_nakshatra_active_idx = 2 if (not surya_nakshatra_survives and surya_nak_end_jd is not None) else 1
+
+    # --- Yoga transitions ---
+    yoga_1 = yoga_name
+    yoga_2 = None
+    yoga_1_end = None
+    yoga_2_end = None
+    if yoga_end_jd is not None:
+        yoga_1_end = KalaVartika.format_time_hhmm(yoga_end_jd, tz, jd_ut_start)
+        if yoga_end_jd < tomorrow_sunrise:
+            y2_idx = get_yoga_idx(yoga_end_jd + 0.02)
+            yoga_2 = KalaKosha.YOGAS[lang][y2_idx]
+            y2_end_jd = find_transition(yoga_end_jd + 0.02, get_yoga_idx)
+            if y2_end_jd is not None:
+                yoga_2_end = KalaVartika.format_time_hhmm(y2_end_jd, tz, jd_ut_start)
+    yoga_survives = (yoga_end_jd is None) or (yoga_end_jd > tomorrow_sunrise)
+    yoga_active_idx = 2 if (not yoga_survives and yoga_end_jd is not None) else 1
+
+    # --- Karana transitions ---
+    karana_1 = karana_name
+    karana_2 = None
+    karana_1_end = None
+    karana_2_end = None
+    if karana_end_jd is not None:
+        karana_1_end = KalaVartika.format_time_hhmm(karana_end_jd, tz, jd_ut_start)
+        if karana_end_jd < tomorrow_sunrise:
+            k2_idx = get_karana_idx(karana_end_jd + 0.02)
+            karana_2 = get_karana_name_from_idx(k2_idx, lang)
+            k2_end_jd = find_transition(karana_end_jd + 0.02, get_karana_idx)
+            if k2_end_jd is not None:
+                karana_2_end = KalaVartika.format_time_hhmm(k2_end_jd, tz, jd_ut_start)
+    karana_survives = (karana_end_jd is None) or (karana_end_jd > tomorrow_sunrise)
+    karana_active_idx = 2 if (not karana_survives and karana_end_jd is not None) else 1
 
     # --- Choghadiya ---
     ch_day = []
@@ -688,7 +760,7 @@ def calculate_panchanga(year: int, month: int, day: int, tz: float,
             "nature": ch_nat,
         })
 
-    date_str = f"{year:04d}-{month:02d}-{day:02d}"
+    date_str = f"{day:02d}-{month:02d}-{year:04d}"
 
     return {
         "date": date_str,
@@ -699,8 +771,12 @@ def calculate_panchanga(year: int, month: int, day: int, tz: float,
         "tithi_2": tithi_2,
         "tithi_2_end": tithi_2_end,
         "active_tithi": active_tithi,
+        "tithi_active_idx": active_tithi,
         "tithi_survives": tithi_survives,
         "is_tithi_2_kshaya": is_tithi_2_kshaya,
+        "tithi_kshaya": tithi_kshaya,
+        "tithi_kshaya_idx": tithi_kshaya_idx,
+        "tithi_kshaya_num": tithi_kshaya_num,
         "paksha": paksha_name,
         "is_krishna_paksha": is_krishna,
         "masa": masa_name,
@@ -708,17 +784,34 @@ def calculate_panchanga(year: int, month: int, day: int, tz: float,
         "nakshatra": nak_name,
         "nakshatra_1": nak_name,
         "nakshatra_2": nakshatra_2_name,
-        "nakshatra_end": KalaVartika.format_time_hhmm(nak_end_jd, tz, jd_ut_start) if nak_end_jd else None,
+        "nakshatra_end": nakshatra_1_end,
+        "nakshatra_1_end": nakshatra_1_end,
         "nakshatra_2_end": nakshatra_2_end,
+        "nakshatra_active_idx": nakshatra_active_idx,
+        "nakshatra_survives": nakshatra_survives,
         "nakshatra_pada": nak_pada,
         "nakshatra_adhipati": nak_adhipati,
         "nakshatra_initial": nak_initial,
         "moon_rashi": moon_rashi,
         "moon_rashi_idx": moon_rashi_idx,
+        "moon_rashi_adhipati": KalaKosha.GRAHAS[lang][KalaKosha.RASHI_LORD[moon_rashi_idx]],
+        "lagna": KalaKosha.RASIS[lang][lagna_idx],
         "lagna_idx": lagna_idx,
         "lagna_adhipati": lagna_adhipati,
         "yoga": yoga_name,
+        "yoga_1": yoga_1,
+        "yoga_1_end": yoga_1_end,
+        "yoga_2": yoga_2,
+        "yoga_2_end": yoga_2_end,
+        "yoga_active_idx": yoga_active_idx,
+        "yoga_survives": yoga_survives,
         "karana": karana_name,
+        "karana_1": karana_1,
+        "karana_1_end": karana_1_end,
+        "karana_2": karana_2,
+        "karana_2_end": karana_2_end,
+        "karana_active_idx": karana_active_idx,
+        "karana_survives": karana_survives,
         "ritu": ritu_name,
         "ayana": ayana_name,
         "samvatsara": samvatsara_name,
@@ -742,6 +835,12 @@ def calculate_panchanga(year: int, month: int, day: int, tz: float,
         "tithi_num": tithi_num,
         "tithi_idx": get_tithi_idx(sunrise_jd),
         "surya_nakshatra": surya_nak_name,
+        "surya_nakshatra_1": surya_nak_name,
+        "surya_nakshatra_1_end": surya_nakshatra_1_end,
+        "surya_nakshatra_2": surya_nakshatra_2,
+        "surya_nakshatra_2_end": surya_nakshatra_2_end,
+        "surya_nakshatra_active_idx": surya_nakshatra_active_idx,
+        "surya_nakshatra_survives": surya_nakshatra_survives,
         "sunrise_jd": sunrise_jd,
         "sunset_jd": sunset_jd,
         "moonrise_jd": moonrise_jd,
@@ -808,11 +907,13 @@ def calculate_dina_horas(year: int, month: int, day: int, tz: float,
     def hora_entry(idx, is_day):
         dur = day_dur if is_day else night_dur
         if is_day:
-            start_jd = sunrise_jd + (idx * dur / 1440.0)
-            end_jd = sunrise_jd + ((idx + 1) * dur / 1440.0)
+            step_days = dur / 1440.0 / 12.0
+            start_jd = sunrise_jd + (idx * step_days)
+            end_jd = sunrise_jd + ((idx + 1) * step_days)
         else:
-            start_jd = sunset_jd + (idx * dur / 1440.0)
-            end_jd = sunset_jd + ((idx + 1) * dur / 1440.0)
+            step_days = dur / 1440.0 / 12.0
+            start_jd = sunset_jd + (idx * step_days)
+            end_jd = sunset_jd + ((idx + 1) * step_days)
 
         lord_idx = KalaKosha.HORA_ORDER[(start_lord_pos + (12 if not is_day else 0) + idx) % 7]
         lord_name = KalaKosha.GRAHAS[lang][lord_idx]
@@ -841,6 +942,11 @@ def calculate_dina_horas(year: int, month: int, day: int, tz: float,
     night_horas = [hora_entry(i, False) for i in range(12)]
 
     return {
+        "vaara": KalaKosha.VAARAS[lang][vaara_idx],
+        "sunrise": _time_str(sunrise_jd, tz, jd_ut_start),
+        "sunset": _time_str(sunset_jd, tz, jd_ut_start),
+        "day_length_min": round(day_dur),
+        "night_length_min": round(night_dur),
         "day_horas": day_horas,
         "night_horas": night_horas,
     }
@@ -1042,7 +1148,8 @@ def calculate_vimshottari_tree(jd_ut: float, moon_lon: float, tz: float,
     nak_span = 360.0 / 27.0
     frac_elapsed = (moon_lon - nak_idx * nak_span) / nak_span
     dasha_idx0 = nak_idx % 9
-    balance = (1.0 - frac_elapsed) * KalaKosha.VIMSHOTTARI_YEARS[dasha_idx0]
+    full_first = KalaKosha.VIMSHOTTARI_YEARS[dasha_idx0]
+    balance = (1.0 - frac_elapsed) * full_first
 
     if now_jd is None:
         now_jd = _now_jd_ut()
@@ -1051,12 +1158,18 @@ def calculate_vimshottari_tree(jd_ut: float, moon_lon: float, tz: float,
         return KalaKosha.DASHA_LORDS[cycle_pos % 9]
 
     md_years_list = [0.0] * 9
-    md_years_list[0] = balance
+    md_years_list[0] = full_first
     for j in range(1, 9):
         md_years_list[j] = KalaKosha.VIMSHOTTARI_YEARS[(dasha_idx0 + j) % 9]
 
     total_days = sum(y * _YEAR_DAYS for y in md_years_list)
-    md_start = jd_ut - balance * _YEAR_DAYS
+
+    # Classical Vimshottari: at birth, `frac_elapsed` years of the natal
+    # lord's mahadasha have already run and `balance` years remain.  So the
+    # first mahadasha *contains* the birth instant: it started
+    # (full_first - balance) before birth and ends `balance` after it.
+    elapsed = full_first - balance
+    md_start = jd_ut - elapsed * _YEAR_DAYS
 
     def name(planet_idx):
         return KalaKosha.GRAHAS[lang][planet_idx]
@@ -1167,6 +1280,8 @@ def calculate_vimshottari_tree(jd_ut: float, moon_lon: float, tz: float,
         "start_lord_idx": dasha_idx0,
         "start_lord": name(dlord(dasha_idx0)),
         "balance_years": round(balance, 4),
+        "elapsed_years": round(elapsed, 4),
+        "total_years": round(sum(md_years_list), 4),
         "mahadashas": mahadashas,
     }
 
@@ -1214,6 +1329,8 @@ def calculate_kundali(year: int, month: int, day: int,
     planets = {}
     for idx in range(9):
         plon, retro, speed = details[idx]
+        if idx in (7, 8):
+            retro = True  # Rahu/Ketu are always Vakri (retrograde nodes)
         rashi = get_rashi(plon)
         nak = get_nakshatra(plon)
         pada = get_nakshatra_pada(plon)
@@ -1306,7 +1423,7 @@ def calculate_kundali(year: int, month: int, day: int,
     chart_type_en = _CHART_TYPE_L10N[lang].get("sayana" if tropical else "nirayana",
                                                 _CHART_TYPE_L10N["en"]["nirayana"])
     meta = {
-        "date": f"{year:04d}-{month:02d}-{day:02d}",
+        "date": f"{day:02d}-{month:02d}-{year:04d}",
         "jd_ut": round(jd_ut, 6),
         "timezone_hours": tz,
         "lat": lat,
@@ -1328,9 +1445,28 @@ def calculate_kundali(year: int, month: int, day: int,
         "lord": KalaKosha.GRAHAS[lang][KalaKosha.RASHI_LORD[asc_rashi]],
     }
 
+    # Moon summary for the Kundali tab (Moon sign, nakshatra lord, name initial)
+    moon_rashi = get_rashi(moon_lon)
+    moon_nak = get_nakshatra(moon_lon)
+    moon_pada = get_nakshatra_pada(moon_lon)
+    nak_initials = KalaKosha.NAKSHATRA_INITIALS[lang]
+    nak_initial_idx = moon_nak * 4 + (moon_pada - 1)
+    moon = {
+        "rashi": moon_rashi,
+        "rashi_name": KalaKosha.RASIS[lang][moon_rashi],
+        "rashi_adhipati": KalaKosha.GRAHAS[lang][KalaKosha.RASHI_LORD[moon_rashi]],
+        "nakshatra": moon_nak,
+        "nakshatra_name": KalaKosha.NAKSHATRAS[lang][moon_nak],
+        "nakshatra_pada": moon_pada,
+        "nakshatra_adhipati": KalaKosha.GRAHAS[lang][KalaKosha.NAKSHATRA_LORD[moon_nak]],
+        "nakshatra_initial": (nak_initials[nak_initial_idx]
+                              if nak_initial_idx < len(nak_initials) else ""),
+    }
+
     return {
         "meta": meta,
         "lagna": lagna,
+        "moon": moon,
         "planets": planets,
         "houses": houses,
         "vargas": vargas,
@@ -1799,7 +1935,7 @@ def calculate_gochara(birth_data: dict, year: int, month: int, day: int,
                 })
 
         result = {
-            "date": f"{year:04d}-{month:02d}-{day:02d}",
+            "date": f"{day:02d}-{month:02d}-{year:04d}",
             "jd_ut": round(jd_ut, 6),
             "ayanamsa": "sayana" if tropical else ayanamsa,
             "transits": grahas,

@@ -418,7 +418,7 @@ def compute_trigger_time(reminder, astro_data):
     time_type = reminder.get("time_type", "sunrise")
     date_str = astro_data["date"]
     parts = date_str.split("-")
-    y, m, d = int(parts[0]), int(parts[1]), int(parts[2])
+    d, m, y = int(parts[0]), int(parts[1]), int(parts[2])
     
     def parse_hhmm(s):
         if not s or s == "--":

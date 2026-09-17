@@ -179,8 +179,9 @@ via the KalaSetu `/config` endpoint, so a city chosen in the widget is reflected
 ## Command line (`kalayantra-cli`)
 
 Every subcommand shares the common ephe options (`--lat --lon --alt --tz --ayanamsa`), which may
-be omitted to use the daemon's saved coordinates. `--format json|csv`, `--output FILE` and
-`--direct` (compute locally instead of asking the daemon) are available everywhere.
+be omitted to use the daemon's saved coordinates. `--format text|json|csv` (text is the default
+human-readable output), `--output FILE` and `--direct` (compute locally instead of asking the
+daemon) are available everywhere.
 
 ```bash
 # Today's Panchanga (uses the engine daemon, falls back to direct computation)

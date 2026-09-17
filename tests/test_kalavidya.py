@@ -166,25 +166,25 @@ def test_http_and_cli():
         env = dict(os.environ)
         env["HOME"] = _TMP_HOME
         cli = os.path.join(SCRIPTS, "kalayantra-cli.py")
-        p = subprocess.run([sys.executable, cli, "vidya", "--direct"],
+        p = subprocess.run([sys.executable, cli, "vidya", "--direct", "--format", "json"],
                            capture_output=True, text=True, timeout=120, env=env)
         out = json.loads(p.stdout)
         check("CLI vidya catalog", p.returncode == 0 and "catalog" in out
               and out["count"] == KV.concept_count(), f"rc={p.returncode} {p.stderr[:200]}")
 
-        p = subprocess.run([sys.executable, cli, "vidya", "--direct", "tithi"],
+        p = subprocess.run([sys.executable, cli, "vidya", "--direct", "tithi", "--format", "json"],
                            capture_output=True, text=True, timeout=120, env=env)
         out = json.loads(p.stdout)
         check("CLI vidya concept fetch", out["found"] and out["concept"]["id"] == "tithi")
 
         p = subprocess.run([sys.executable, cli, "vidya", "--direct",
-                            "--category", "muhurta"],
+                            "--category", "muhurta", "--format", "json"],
                            capture_output=True, text=True, timeout=120, env=env)
         out = json.loads(p.stdout)
         check("CLI vidya category filter", out["category"] == "muhurta" and out["count"] >= 5)
 
         p = subprocess.run([sys.executable, cli, "vidya", "--direct",
-                            "--search", "brahma"],
+                            "--search", "brahma", "--format", "json"],
                            capture_output=True, text=True, timeout=120, env=env)
         out = json.loads(p.stdout)
         check("CLI vidya search", out["count"] >= 1, str(out.get("count")))
