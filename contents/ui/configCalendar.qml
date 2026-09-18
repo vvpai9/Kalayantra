@@ -92,6 +92,8 @@ Item {
                         textRole: "text"
                         valueRole: "value"
                         Layout.fillWidth: true
+                        enabled: page.cfg_calendarSystem !== "saura"
+                        opacity: page.cfg_calendarSystem === "saura" ? 0.4 : 1.0
                         model: [
                             {"text": i18n("Amavasyanta (New Moon to New Moon)"), "value": "amavasyanta"},
                             {"text": i18n("Purnimanta (Full Moon to Full Moon)"), "value": "purnimanta"}
@@ -110,6 +112,17 @@ Item {
                         }
                         Accessible.name: i18n("Month Boundary System")
                         Accessible.description: i18n("Choose month start/end boundary system (Amavasyanta or Purnimanta)")
+                    }
+
+                    Label {
+                        Kirigami.FormData.label: " "
+                        text: page.cfg_calendarSystem === "saura"
+                              ? i18n("Solar months run from rashi to rashi; lunar boundaries do not apply.")
+                              : " "
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                        opacity: 0.6
+                        visible: page.cfg_calendarSystem === "saura"
+                        Layout.fillWidth: true
                     }
                 }
             }

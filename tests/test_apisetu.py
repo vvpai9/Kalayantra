@@ -198,7 +198,7 @@ def test_chart_endpoints():
     kd = json.loads(body)
     for key in ("lagna", "planets", "vargas", "houses", "dashas"):
         check(f"/kundali has '{key}'", key in kd)
-    check("/kundali 9 planets", len(kd.get("planets", {})) == 9)
+    check("/kundali 13 planets", len(kd.get("planets", {})) == 13)
     check("/kundali vargas include D1..D60",
           all(f"D{n}" in kd.get("vargas", {}) for n in (1, 3, 9, 40, 60)))
 
@@ -260,7 +260,7 @@ def test_cli():
     rc, out, err = run_cli("kundali", "--date", "15-06-1990", "--hour", "10", "--minute", "30",
                            "--lat", "13.0827", "--lon", "80.2707", "--tz", "5.5")
     kd = json.loads(out)
-    check("cli kundali 9 planets", rc == 0 and len(kd.get("planets", {})) == 9)
+    check("cli kundali 13 planets", rc == 0 and len(kd.get("planets", {})) == 13)
 
     rc, out, err = run_cli("gochara", "--date", "15-06-1990", "--hour", "10", "--minute", "30",
                            "--transit-date", "12-09-2026", "--lat", "13.0827",

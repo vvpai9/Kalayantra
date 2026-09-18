@@ -18,6 +18,7 @@ Item {
     property bool editingDate: false
     // Widget-mode renders Panchanga only; the standalone app enables all tools.
     property bool showTools: false
+    property var tabs: ["Panchanga", "Kundali", "Hora / Muhurta", "Ashtakoota", "Gochara", "KalaVidya", "Settings"]
     
     function navigateToDate(y, m, d) {
         var dateStr = `${String(d).padStart(2, '0')}-${String(m).padStart(2, '0')}-${y}`;
@@ -99,6 +100,23 @@ Item {
         target: root
         function onThreeMonthsDataChanged() {
             updateGrid();
+        }
+    }
+
+    Connections {
+        target: kundaliView
+        function onRequestAnalysis() {
+            if (kaladarshana.showTools) {
+                var idx = kaladarshana.tabs.indexOf("Analyse");
+                if (idx < 0) {
+                    kaladarshana.tabs = kaladarshana.tabs.concat(["Analyse"]);
+                    idx = kaladarshana.tabs.length - 1;
+                }
+                detailTabBar.currentIndex = idx;
+                analysisView.runWithParams(kundaliView.currentParamsObject());
+            } else {
+                kundaliView.analyze();
+            }
         }
     }
 
@@ -384,7 +402,12 @@ Item {
                     
                     Kirigami.Heading {
                         level: 3
-                        text: selectedDayData ? (selectedDayData.paksha ? `${selectedMasaName} ${selectedDayData.paksha} ${plasmoid.configuration.lang === "devanagari" ? "पक्ष" : "Paksha"}` : selectedMasaName) : selectedMasaName
+                        text: {
+                            if (root.configCalendarSystem === "saura") {
+                                return selectedMasaName + (plasmoid.configuration.lang === "devanagari" ? " · सौर" : " · Saura");
+                            }
+                            return selectedDayData ? (selectedDayData.paksha ? `${selectedMasaName} ${selectedDayData.paksha} ${plasmoid.configuration.lang === "devanagari" ? "पक्ष" : "Paksha"}` : selectedMasaName) : selectedMasaName;
+                        }
                         font.bold: true
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
@@ -567,7 +590,9 @@ Item {
                                 
                                 Label {
                                     text: modelData && modelData.type === "day"
-                                          ? (modelData.tithi_kshaya_num ? `${modelData.tithi_num}-${modelData.tithi_kshaya_num}` : modelData.tithi_num)
+                                          ? (root.configCalendarSystem === "saura"
+                                             ? (modelData.solar_day ? modelData.solar_day : "–")
+                                             : (modelData.tithi_kshaya_num ? `${modelData.tithi_num}-${modelData.tithi_kshaya_num}` : modelData.tithi_num))
                                           : ""
                                     font.bold: true
                                     font.pixelSize: Kirigami.Units.gridUnit * 0.85
@@ -650,13 +675,10 @@ Item {
                     Layout.fillWidth: true
                     visible: kaladarshana.showTools
 
-                    TabButton { text: i18n("Panchanga") }
-                    TabButton { text: i18n("Kundali") }
-                    TabButton { text: i18n("Hora / Muhurta") }
-                    TabButton { text: i18n("Ashtakoota") }
-                    TabButton { text: i18n("Gochara") }
-                    TabButton { text: i18n("KalaVidya") }
-                    TabButton { text: i18n("Settings") }
+                    Repeater {
+                        model: kaladarshana.tabs
+                        TabButton { text: i18n(modelData) }
+                    }
                 }
 
                 StackLayout {
@@ -805,6 +827,9 @@ Item {
                              text: {
                                  if (!kaladarshana.selectedDayData) return i18n("Select a day");
                                  var d = kaladarshana.selectedDayData;
+                                 if (root.configCalendarSystem === "saura") {
+                                     return `${d.masa} · ${d.solar_day}`;
+                                 }
                                  if (root.configTithiMode === "traditional" && d.tithi_kshaya) {
                                      return `${d.tithi}-${d.tithi_kshaya}`;
                                  }
@@ -815,7 +840,9 @@ Item {
                          }
 
                         Label {
-                            text: kaladarshana.selectedDayData ? (kaladarshana.selectedDayData.paksha ? `${kaladarshana.selectedDayData.paksha} Paksha • ${kaladarshana.selectedDayData.vaara}` : kaladarshana.selectedDayData.vaara) : ""
+                            text: kaladarshana.selectedDayData ? (root.configCalendarSystem === "saura"
+                                ? `${kaladarshana.selectedDayData.vaara} • ${kaladarshana.selectedDayData.ayana} • ${kaladarshana.selectedDayData.ritu}`
+                                : (kaladarshana.selectedDayData.paksha ? `${kaladarshana.selectedDayData.paksha} Paksha • ${kaladarshana.selectedDayData.vaara}` : kaladarshana.selectedDayData.vaara)) : ""
                             font.bold: true
                             font.pixelSize: Kirigami.Units.gridUnit * 0.85
                             Layout.fillWidth: true
@@ -1162,6 +1189,7 @@ Item {
                 }
 
                         KundaliView {
+                            id: kundaliView
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                         }
@@ -1187,6 +1215,12 @@ Item {
                         }
 
                         SettingsView {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                        }
+
+                        AnalysisView {
+                            id: analysisView
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                         }

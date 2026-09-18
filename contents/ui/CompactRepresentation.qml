@@ -61,6 +61,9 @@ Item {
                 level: 5
                 text: {
                     if (!root.currentPanchanga) return "Loading...";
+                    if (plasmoid.configuration.calendarSystem === "saura") {
+                        return `${root.currentPanchanga.masa} ${root.currentPanchanga.solar_day} • ${root.currentPanchanga.vaara} • ${(plasmoid.configuration.lang === "devanagari") ? "घ" : "Gh"}: ${root.liveGhadiTime}`;
+                    }
                     var displayTithi = root.currentPanchanga.tithi;
                     return `${displayTithi} • ${root.currentPanchanga.vaara} • ${(plasmoid.configuration.lang === "devanagari") ? "घ" : "Gh"}: ${root.liveGhadiTime}`;
                 }
@@ -71,7 +74,13 @@ Item {
             Kirigami.Heading {
                 id: secondLine
                 level: 6
-                text: root.currentPanchanga ? `${root.currentPanchanga.masa} ${root.currentPanchanga.paksha} • ${root.currentPanchanga.samvatsara} ${root.currentPanchanga.era_year}` : ""
+                text: {
+                    if (!root.currentPanchanga) return "";
+                    if (plasmoid.configuration.calendarSystem === "saura") {
+                        return `${root.currentPanchanga.masa} Solar Day ${root.currentPanchanga.solar_day} • ${root.currentPanchanga.samvatsara} ${root.currentPanchanga.era_year}`;
+                    }
+                    return `${root.currentPanchanga.masa} ${root.currentPanchanga.paksha} • ${root.currentPanchanga.samvatsara} ${root.currentPanchanga.era_year}`;
+                }
                 font.pixelSize: Kirigami.Units.gridUnit * 0.6
                 opacity: 0.7
                 elide: Text.ElideRight

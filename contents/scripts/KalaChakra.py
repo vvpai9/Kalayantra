@@ -51,12 +51,16 @@ _AYANAMSA_TABLE = {
 }
 _AYANAMSA_MODE = "lahiri"
 
-# Swiss Ephemeris planet mapping (0–7); Ketu is Rahu+180°.
+# Swiss Ephemeris planet mapping (0–7); Ketu is Rahu+180°; 9–11 are the
+# modern outer planets.  Maandi (12) is a time-derived upagraha (not in the
+# ephemeris) and is computed separately in calculate_kundali.
 _PLANET_SWE_IDS = {
     0: swe.SUN, 1: swe.MOON, 2: swe.MARS,
     3: swe.MERCURY, 4: swe.JUPITER, 5: swe.VENUS,
     6: swe.SATURN, 7: swe.MEAN_NODE,
+    9: swe.URANUS, 10: swe.NEPTUNE, 11: swe.PLUTO,
 }
+_MAANDI_IDX = 12
 
 # ---------------------------------------------------------------------------
 # Ayanamsa management
@@ -319,15 +323,15 @@ def get_prev_sankranti_jd(jd_calc: float) -> float:
     for _ in range(40):
         s, _ = get_sidereal_longitudes(jd)
         if int(s / 30.0) % 12 != prev_sign:
-            lo, hi = jd, jd + 2.0
-            for _ in range(20):
+            lo, hi = jd, jd + 1.0
+            for _ in range(32):
                 mid = (lo + hi) / 2.0
                 sm, _ = get_sidereal_longitudes(mid)
                 if int(sm / 30.0) % 12 == prev_sign:
-                    lo = mid
-                else:
                     hi = mid
-            return lo
+                else:
+                    lo = mid
+            return hi
         jd -= 1.0
     return jd_calc - 30.0
 
@@ -336,15 +340,7 @@ def get_solar_day_of_month(jd_calc: float, lat: float, lon: float, alt: float,
                            tz: float, jd_ut_start: float) -> int:
     """Day number within the solar (saura) month (≥1)."""
     prev_jd = get_prev_sankranti_jd(jd_calc)
-    y, m, d, _ = swe.revjul(prev_jd + tz / 24.0)
-    y2, m2, d2, _ = swe.revjul(jd_calc + tz / 24.0)
-    day_sankranti = int(d)
-    day_now = int(d2)
-    sign_now = int(_get_planetary_longitude_at(jd_calc) / 30.0) % 12
-    sign_sank = int(_get_planetary_longitude_at(prev_jd) / 30.0) % 12
-    if m == m2 and y == y2:
-        return day_now - day_sankranti + 1
-    return 1
+    return int(math.floor(jd_calc - prev_jd)) + 1
 
 
 def _get_planetary_longitude_at(jd_ut: float) -> float:
@@ -456,7 +452,10 @@ def calculate_panchanga(year: int, month: int, day: int, tz: float,
     tithi_num = (tithi_idx_now % 15) + 1
     paksha_idx = 1 if is_krishna else 0
 
-    masa_name = KalaKosha.MASAS[lang][masa_idx]
+    if calendar_system == "saura":
+        masa_name = KalaKosha.SAURA_MASAS[lang][masa_idx]
+    else:
+        masa_name = KalaKosha.MASAS[lang][masa_idx]
     if is_adhika:
         masa_name = (_ADHIKA_PREFIX[lang] + " ") + masa_name
     paksha_name = KalaKosha.PAKSHAS[lang][paksha_idx] if calendar_system != "saura" else ""
@@ -1079,13 +1078,14 @@ _CHART_TYPE_L10N = {
 
 
 def _get_planetary_details(jd_ut: float, tropical: bool = False) -> dict:
-    """{idx: (longitude, retrograde, speed_deg_per_day)} for all 9 grahas."""
+    """{idx: (longitude, retrograde, speed_deg_per_day)} for all 12
+    ephemeris-based bodies (9 classical grahas + Uranus/Neptune/Pluto)."""
     result = {}
     flags = swe.FLG_SWIEPH | swe.FLG_SPEED
     if not tropical:
         swe.set_sid_mode(_get_sid_mode())
         flags |= swe.FLG_SIDEREAL
-    for idx in range(8):
+    for idx in _PLANET_SWE_IDS:
         res = swe.calc_ut(jd_ut, _PLANET_SWE_IDS[idx], flags)
         lon = res[0][0] % 360.0
         retro = res[0][3] < 0
@@ -1095,6 +1095,61 @@ def _get_planetary_details(jd_ut: float, tropical: bool = False) -> dict:
     ketu_lon = (rahu_lon + 180.0) % 360.0
     result[8] = (ketu_lon, False, rahu_speed)
     return result
+
+
+# ---------------------------------------------------------------------------
+# Maandi (time-derived upagraha, "son of Saturn")
+# ---------------------------------------------------------------------------
+# Classical rule (Bṛhat Parāśara / Phala Dīpikā): the day (sunrise→sunset)
+# and night (sunset→next sunrise) are each split into 8 parts.  Maandi rises
+# at the fractions below of the total day/night length, counting from its
+# start, for Sunday→Saturday.  The Maandi longitude is the (already
+# nirayana) ascendant at that rising moment.
+_MAANDI_DAY_PARTS   = {0: 26, 1: 22, 2: 18, 3: 14, 4: 10, 5: 6, 6: 2}
+_MAANDI_NIGHT_PARTS = {0: 10, 1: 6, 2: 2, 3: 26, 4: 22, 5: 18, 6: 14}
+
+
+def get_maandi_longitude(jd_ut: float, lat: float, lon: float, alt: float,
+                         tropical: bool = False,
+                         year: int = 0, month: int = 0, day: int = 0) -> float:
+    """Sidereal/tropical longitude of Maandi for a given birth instant.
+
+    year/month/day are the civil (local) date on which day/night is counted;
+    the birth weekday is taken from them.  If they are all 0, the date is
+    derived from jd_ut with a nominal +5.5 h offset (approximate; callers
+    with a known civil date should pass it).
+    """
+    if year and month and day:
+        wd_sun = (_dt.date(year, month, day).weekday() + 1) % 7  # Sunday=0
+        day_start_jd = swe.julday(year, month, day, 0)
+    else:
+        y2, m2, d2, _ = swe.revjul(jd_ut + 5.5 / 24.0)
+        wd_sun = (_dt.date(int(y2), int(m2), int(d2)).weekday() + 1) % 7
+        day_start_jd = math.floor(jd_ut + 5.5 / 24.0) - 5.5 / 24.0
+
+    sunrise, sunset, _, _ = get_sun_moon_rise_set(day_start_jd, lat, lon, alt)
+    next_sunrise, _, _, _ = get_sun_moon_rise_set(day_start_jd + 1.0, lat, lon, alt)
+
+    if sunrise <= jd_ut < sunset:
+        frac = _MAANDI_DAY_PARTS[wd_sun] / 30.0
+        maandi_jd = sunrise + frac * (sunset - sunrise)
+    else:
+        if jd_ut < sunrise:
+            _, night_start, _, _ = get_sun_moon_rise_set(day_start_jd - 1.0, lat, lon, alt)
+            night_end = sunrise
+        else:
+            night_start = sunset
+            night_end = next_sunrise
+        frac = _MAANDI_NIGHT_PARTS[wd_sun] / 30.0
+        maandi_jd = night_start + frac * (night_end - night_start)
+
+    ayan_val = 0.0 if tropical else get_ayanamsa_value(maandi_jd)
+    ascmc, _ = swe.houses(maandi_jd, lat, lon, b"P")
+    asc_tropical = ascmc[0] % 360.0
+    if not tropical:
+        swe.set_sid_mode(_get_sid_mode())
+        return (asc_tropical - ayan_val) % 360.0
+    return asc_tropical
 
 
 def _planet_dignity(idx: int, sign: int, lang: str = "en") -> tuple[str, str]:
@@ -1311,6 +1366,8 @@ def calculate_kundali(year: int, month: int, day: int,
     ayan_val = 0.0 if tropical else get_ayanamsa_value(jd_ut)
 
     details = _get_planetary_details(jd_ut, tropical)
+    details[_MAANDI_IDX] = (get_maandi_longitude(jd_ut, lat, lon, alt, tropical,
+                                                 year, month, day), False, 0.0)
 
     # Lagna
     ascmc, _ = swe.houses(jd_ut, lat, lon, b"P")
@@ -1327,7 +1384,7 @@ def calculate_kundali(year: int, month: int, day: int,
     moon_lon = details[1][0]
 
     planets = {}
-    for idx in range(9):
+    for idx in range(13):
         plon, retro, speed = details[idx]
         if idx in (7, 8):
             retro = True  # Rahu/Ketu are always Vakri (retrograde nodes)
@@ -1401,7 +1458,7 @@ def calculate_kundali(year: int, month: int, day: int,
         key = f"D{divisor}"
         v_planets = {}
         v_planets["Lagna"] = varga_entry(asc_sidereal, divisor)
-        for idx in range(9):
+        for idx in range(13):
             pname = KalaKosha.GRAHAS[lang][idx]
             lon_val = details[idx][0]
             v_planets[pname] = varga_entry(lon_val, divisor)

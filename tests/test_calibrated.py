@@ -91,8 +91,8 @@ def main():
 
     print("\n2. Structural invariants")
     planets = {p["idx"]: p for p in kd["planets"].values()}
-    check("9 planets", len(planets) == 9)
-    for i in range(9):
+    check("13 planets (9 grahas + Uranus/Neptune/Pluto/Maandi)", len(planets) == 13)
+    for i in range(13):
         check(f"planet {i} index key present", planets[i]["idx"] == i)
         check(f"planet {i} has speed", isinstance(planets[i].get("speed"), (int, float)))
         check(f"planet {i} prograde xor retrograde",
@@ -259,6 +259,34 @@ def main():
               e["from_rashi"] != e["to_rashi"])
     check("classical alias works (calculate_gocara)",
           hasattr(KC, "calculate_gocara"), f"hasattr={hasattr(KC, 'calculate_gocara')}")
+
+    print("\n4e. Saura (solar) calendar regression")
+    saura_days = []
+    for d in range(8, 28):
+        ps = KC.calculate_panchanga(2026, 9, d, 5.5, 28.6139, 77.2090, 216.0,
+                                    lang="en", calendar_system="saura")
+        saura_days.append(ps)
+    # masa name is a saura (rashi) name, not a lunar 'Bhadrapada'.
+    check("saura masa is rashi name",
+          all(p["masa"] in KalaKosha.SAURA_MASAS["en"] for p in saura_days),
+          f"got {[p['masa'] for p in saura_days[:3]]}")
+    check("saura has no paksha", all(p["paksha"] == "" for p in saura_days))
+    check("solar_day in 1..31", all(1 <= p["solar_day"] <= 31 for p in saura_days),
+          f"got {[p['solar_day'] for p in saura_days[:3]]}")
+    # solar day resets to 1 exactly when the saura (rashi) month flips.
+    resets = [i for i in range(1, len(saura_days))
+              if saura_days[i]["solar_day"] == 1]
+    check("solar day resets exactly once", len(resets) == 1, f"resets at {resets}")
+    if resets:
+        i = resets[0]
+        check("reset coincides with rashi change",
+              saura_days[i]["masa"] != saura_days[i - 1]["masa"],
+              f"{saura_days[i-1]['masa']} -> {saura_days[i]['masa']}")
+    # Between two days within the same saura month the day number advances by 1.
+    for a, b in zip(saura_days, saura_days[1:]):
+        if a["masa"] == b["masa"]:
+            check(f"solar day +1 within {a['masa']}", b["solar_day"] - a["solar_day"] == 1,
+                  f"{a['solar_day']} -> {b['solar_day']}")
 
     if GET_APP_BASELINE:
         print("\n5. Cross-check vs reference app baseline")

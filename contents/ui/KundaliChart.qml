@@ -11,15 +11,15 @@ Canvas {
 
     property string style: "north"
     property int ascRashi: 0
-    property var signs: []        // length 9: planet index -> rashi index (0..11)
-    property var markers: []      // length 9: { retro: bool, combust: bool }
-    property var colors: []       // length 9: color string per planet
+    property var signs: []        // length 13: planet index -> rashi index (0..11)
+    property var markers: []      // length 13: { retro: bool, combust: bool }
+    property var colors: []       // length 13: color string per planet
     property string langKey: "en"
 
     property var glyphs: {
-        "en": ["Surya", "Chandra", "Mangala", "Budha", "Guru", "Shukra", "Shani", "Rahu", "Ketu"],
-        "iast": ["Sūrya", "Candra", "Maṅgala", "Budha", "Guru", "Śukra", "Śani", "Rāhu", "Ketu"],
-        "devanagari": ["सूर्य", "चन्द्र", "मङ्गल", "बुध", "गुरु", "शुक्र", "शनि", "राहु", "केतु"]
+        "en": ["Surya", "Chandra", "Mangala", "Budha", "Guru", "Shukra", "Shani", "Rahu", "Ketu", "Uranus", "Neptune", "Pluto", "Maandi"],
+        "iast": ["Sūrya", "Candra", "Maṅgala", "Budha", "Guru", "Śukra", "Śani", "Rāhu", "Ketu", "Aruna", "Varuṇa", "Pluto", "Māndi"],
+        "devanagari": ["सूर्य", "चन्द्र", "मङ्गल", "बुध", "गुरु", "शुक्र", "शनि", "राहु", "केतु", "अरुण", "वरुण", "यम", "मान्दि"]
     }
     property var rashiGlyphs: {
         "en": ["Mesha", "Vrishabha", "Mithuna", "Karka", "Simha", "Kanya", "Tula", "Vrischika", "Dhanu", "Makara", "Kumbha", "Meena"],
@@ -57,7 +57,7 @@ Canvas {
 
     function planetListForShip(ship) {
         var pts = [];
-        for (var i = 0; i < signs.length && i < 9; i++) {
+        for (var i = 0; i < signs.length && i < 13; i++) {
             if (signs[i] === ship) pts.push(i);
         }
         pts.sort(function(a, b) { return a - b; });
@@ -183,9 +183,9 @@ Canvas {
             var xspace = cols > 1 ? Math.min(maxW + 3, 2 * hw / (cols - 1)) : Math.min(maxW + 2, hw);
             var rowW = (cols - 1) * xspace + maxW;
             var h = rowsP * spacingY;
-            return rowW <= 2 * hw && (maxH <= 0 || h <= maxH);
+            return rowW <= 2 * hw * 1.08 && (maxH <= 0 || h <= maxH * 1.08);
         }
-        while (fs > 6 && !blockFits()) {
+        while (fs > 8 && !blockFits()) {
             fs -= 1;
             maxW = 0;
             ctx.font = "bold " + fs + "px sans-serif";
@@ -287,7 +287,7 @@ Canvas {
         // clockwise layout would draw house pos = (13 - h) % 12 + 1.
         var rf = Math.max(9, Math.floor(chart.width / 42) + 3);
         var hf = Math.max(7, Math.floor(chart.width / 44) + 2);
-        var pf = Math.max(11, Math.floor(chart.width / 38) + 3);
+        var pf = Math.max(12, Math.floor(chart.width / 34) + 4);
         var pan = Math.max(50, Math.floor(chart.width / 5.5));
         for (var h = 1; h <= 12; h++) {
             var pos = ((13 - h) % 12) + 1;
@@ -305,13 +305,21 @@ Canvas {
             ctx.save();
             clipToPolygon(ctx, poly, sx, sy);
 
-            // Rashi label at the house centroid top (full name, shrinks to fit the cell)
-            var span = polySpanAtY(poly, cy - 8);
-            var rashiMaxW = span ? (span.max - span.min) * 0.92 : pan;
+            // Rashi label at the house centroid top (full name, shrinks to fit the cell).
+            // Center the text on the polygon's horizontal span at that row (not the
+            // fixed anchor cx) so one-sided clipping of long names is avoided.
+            var rowY = cy - 8;
+            var span = polySpanAtY(poly, rowY);
+            var lx = cx;
+            var rashiMaxW = pan;
+            if (span) {
+                lx = (span.min + span.max) / 2;
+                rashiMaxW = (span.max - span.min) * 0.92;
+            }
             var rf2 = fitFont(ctx, rgly[ship], rashiMaxW * chart.width / S, rf, 7);
             ctx.font = rf2 + "px sans-serif";
             ctx.fillStyle = labelColor;
-            ctx.fillText(rgly[ship], sx(cx), sy(cy) - 8);
+            ctx.fillText(rgly[ship], sx(lx), sy(rowY));
 
             // Planets — anchored at the cell centroid so the block is always
             // inside its house, sized from the spans at that point.
@@ -370,7 +378,7 @@ var gly = glyphs[langKey] || glyphs["en"];
         ctx.textBaseline = "middle";
 
         var rf = Math.max(9, Math.floor(cw / 9) + 4);
-        var pf = Math.max(10, Math.floor(chart.width / 38) + 2);
+        var pf = Math.max(12, Math.floor(chart.width / 34) + 3);
         for (var s = 0; s < 12; s++) {
             var rc = table[s];
             var cellX = x0 + rc[1] * cw;

@@ -312,11 +312,27 @@ RASIS = {
 
 GRAHAS = {
     "en": ["Surya", "Chandra", "Mangala", "Budha", "Guru",
-           "Shukra", "Shani", "Rahu", "Ketu"],
+           "Shukra", "Shani", "Rahu", "Ketu",
+           "Uranus", "Neptune", "Pluto", "Maandi"],
     "iast": ["Sūrya", "Candra", "Maṅgala", "Budha", "Guru",
-             "Śukra", "Śani", "Rāhu", "Ketu"],
+             "Śukra", "Śani", "Rāhu", "Ketu",
+             "Aruna", "Varuṇa", "Pluto", "Māndi"],
     "devanagari": ["सूर्य", "चन्द्र", "मङ्गल", "बुध", "गुरु",
-                   "शुक्र", "शनि", "राहु", "केतु"],
+                   "शुक्र", "शनि", "राहु", "केतु",
+                   "अरुण", "वरुण", "यम", "मान्दि"],
+}
+
+# Modern outer-planet / Upagraha names used when a longer label is shown.
+GRAHA_LONG_NAMES = {
+    "en": ["Surya", "Chandra", "Mangala", "Budha", "Guru",
+           "Shukra", "Shani", "Rahu", "Ketu",
+           "Aruna (Uranus)", "Varuna (Neptune)", "Yama (Pluto)", "Maandi"],
+    "iast": ["Sūrya", "Candra", "Maṅgala", "Budha", "Guru",
+             "Śukra", "Śani", "Rāhu", "Ketu",
+             "Aruna (Uranus)", "Varuṇa (Neptune)", "Yama (Pluto)", "Māndi"],
+    "devanagari": ["सूर्य", "चन्द्र", "मङ्गल", "बुध", "गुरु",
+                   "शुक्र", "शनि", "राहु", "केतु",
+                   "अरुण (यूरेनस)", "वरुण (नेपच्यून)", "यम (प्लूटो)", "मान्दि"],
 }
 
 RASHI_GLYPHS = {
@@ -329,9 +345,12 @@ RASHI_GLYPHS = {
 }
 
 GRAHA_GLYPHS = {
-    "en": ["Su", "Mo", "Ma", "Me", "Ju", "Ve", "Sa", "Ra", "Ke"],
-    "iast": ["Su", "Ca", "Ma", "Bu", "Gu", "Śu", "Śa", "Rā", "Ke"],
-    "devanagari": ["सू", "चं", "मं", "बु", "गु", "शु", "श", "रा", "के"],
+    "en": ["Su", "Mo", "Ma", "Me", "Ju", "Ve", "Sa", "Ra", "Ke",
+           "Ur", "Ne", "Pl", "Md"],
+    "iast": ["Su", "Ca", "Ma", "Bu", "Gu", "Śu", "Śa", "Rā", "Ke",
+             "Ar", "Va", "Pl", "Mā"],
+    "devanagari": ["सू", "चं", "मं", "बु", "गु", "शु", "श", "रा", "के",
+                   "अ", "व", "प्लू", "मा"],
 }
 
 # Owner planet index (0..8) of each rashi.
@@ -847,6 +866,22 @@ BUILTIN_CITIES = [
     {"name": "Leh", "lat": 34.1526, "lon": 77.5771, "tz": 5.5, "alt": 3500.0},
     {"name": "Mount Abu", "lat": 24.5926, "lon": 72.7156, "tz": 5.5, "alt": 1220.0},
     {"name": "Udupi", "lat": 13.3409, "lon": 74.7421, "tz": 5.5, "alt": 27.0},
+    {"name": "Manipal", "lat": 13.3526, "lon": 74.7935, "tz": 5.5, "alt": 50.0},
+    {"name": "Kundapura", "lat": 13.6313, "lon": 74.6902, "tz": 5.5, "alt": 12.0},
+    {"name": "Byndoor", "lat": 13.8667, "lon": 74.6333, "tz": 5.5, "alt": 9.0},
+    {"name": "Bijoor", "lat": 13.8439, "lon": 74.6397, "tz": 5.5, "alt": 15.0},
+    {"name": "Bhatkal", "lat": 13.9852, "lon": 74.5551, "tz": 5.5, "alt": 10.0},
+    {"name": "Honnavar", "lat": 14.2797, "lon": 74.4450, "tz": 5.5, "alt": 8.0},
+    {"name": "Manjeshwar", "lat": 12.7243, "lon": 74.8743, "tz": 5.5, "alt": 0.0},
+    {"name": "Murudeshwar", "lat": 14.0943, "lon": 74.4845, "tz": 5.5, "alt": 5.0},
+    {"name": "Shirali", "lat": 14.0167, "lon": 74.5167, "tz": 5.5, "alt": 12.0},
+    {"name": "Gunavante", "lat": 14.2224, "lon": 74.4658, "tz": 5.5, "alt": 5.0},
+    {"name": "Padukuli", "lat": 14.2542, "lon": 74.5052, "tz": 5.5, "alt": 15.0},
+    {"name": "Kumta", "lat": 14.4258, "lon": 74.4117, "tz": 5.5, "alt": 2.0},
+    {"name": "Ankola", "lat": 14.6606, "lon": 74.3047, "tz": 5.5, "alt": 16.0},
+    {"name": "Sirsi", "lat": 14.6207, "lon": 74.8355, "tz": 5.5, "alt": 590.0},
+    {"name": "Yellapur", "lat": 14.9637, "lon": 74.7093, "tz": 5.5, "alt": 480.0},
+    {"name": "Karwar", "lat": 14.8136, "lon": 74.1297, "tz": 5.5, "alt": 10.0},
     {"name": "Puri", "lat": 19.8135, "lon": 85.8312, "tz": 5.5, "alt": 3.0},
     {"name": "Dwarka", "lat": 22.2394, "lon": 68.9678, "tz": 5.5, "alt": 10.0},
     {"name": "Somnath", "lat": 20.8898, "lon": 70.4008, "tz": 5.5, "alt": 3.0},

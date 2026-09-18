@@ -11,6 +11,8 @@ Item {
     property var medhaResult: null
     property var answerResult: null
     property var cityChoices: []
+    property string langOverride: ""
+    property string ayanamsaOverride: ""
 
     readonly property var uiTxt: ({
         "en": {
@@ -97,6 +99,7 @@ Item {
     })
 
     function langKey() {
+        if (view.langOverride) return view.langOverride;
         return (typeof plasmoid !== "undefined" && plasmoid.configuration) ? plasmoid.configuration.lang : "en";
     }
 
@@ -171,7 +174,7 @@ Item {
                 `&hour=${hourSpin.value}&minute=${minuteSpin.value}` +
                 `&lat=${lat}&lon=${lon}&alt=${alt}&tz=${tz}` +
                 `&lang=${encodeURIComponent(langKey())}` +
-                `&ayanamsa=${cfg("ayanamsa", "lahiri")}` +
+                `&ayanamsa=${view.ayanamsaOverride || cfg("ayanamsa", "lahiri")}` +
                 (question ? `&question=${encodeURIComponent(question)}` : '');
         statusMessage.type = Kirigami.MessageType.Information;
         statusMessage.text = txt("computing");
@@ -198,6 +201,21 @@ Item {
             }
         };
         xhr.send();
+    }
+
+    function runWithParams(p) {
+        dateField.text = p.date || dateField.text;
+        hourSpin.value = (p.hour !== undefined) ? p.hour : hourSpin.value;
+        minuteSpin.value = (p.minute !== undefined) ? p.minute : minuteSpin.value;
+        latField.text = (p.lat !== undefined) ? String(Number(p.lat).toFixed(4)) : latField.text;
+        lonField.text = (p.lon !== undefined) ? String(Number(p.lon).toFixed(4)) : lonField.text;
+        altField.text = (p.alt !== undefined) ? String(Number(p.alt).toFixed(1)) : altField.text;
+        tzField.text = (p.tz !== undefined) ? String(Number(p.tz).toFixed(1)) : tzField.text;
+        view.langOverride = p.lang || "";
+        view.ayanamsaOverride = p.ayanamsa || "";
+        view.medhaResult = null;
+        view.answerResult = null;
+        view.analyze(null);
     }
 
     ColumnLayout {

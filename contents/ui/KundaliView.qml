@@ -16,10 +16,15 @@ Item {
 
     property int expandedMd: -1
     property int expandedAd: -1
+    property bool autoAdFocus: true
 
     property var analysisModel: null
     property string analysisError: ""
     property bool analysisBusy: false
+    property var _analysisBodha: null
+    property var _analysisMedha: null
+
+    signal requestAnalysis()
 
     Timer {
         id: analysisTimer
@@ -433,6 +438,20 @@ Item {
                 `&lang=${encodeURIComponent(langKey())}&ayanamsa=${ayanamsaCombo.currentValue}`;
     }
 
+    function currentParamsObject() {
+        return {
+            date: view.selectedDateStr(),
+            hour: hourSpin.value,
+            minute: minuteSpin.value,
+            lat: parseFloat(latField.text),
+            lon: parseFloat(lonField.text),
+            alt: parseFloat(altField.text),
+            tz: parseFloat(tzField.text),
+            lang: langKey(),
+            ayanamsa: ayanamsaCombo.currentValue
+        };
+    }
+
     function fetchAnalysis(path, onOk) {
         var xhr = new XMLHttpRequest();
         xhr.open("GET", "http://127.0.0.1:8642" + path + "?" + view.birthParams(), true);
@@ -566,12 +585,12 @@ Item {
 
     function makeChartData(chartKey) {
         var bars = planetArray();
-        var signs = [-1, -1, -1, -1, -1, -1, -1, -1, -1];
+        var signs = [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1];
         var markers = [];
         var colors = [];
         var v = view.result.vargas[chartKey];
         if (chartKey === "D1") {
-            for (var i = 0; i < 9; i++) {
+            for (var i = 0; i < 13; i++) {
                 if (bars[i]) {
                     signs[i] = bars[i].rashi;
                     markers[i] = { retro: bars[i].retrograde, combust: bars[i].combust };
@@ -580,7 +599,7 @@ Item {
             }
             return { signs: signs, markers: markers, colors: colors };
         }
-        for (var j = 0; j < 9; j++) {
+        for (var j = 0; j < 13; j++) {
             if (bars[j]) {
                 var ve = v.planets[bars[j].name];
                 signs[j] = ve ? ve.rashi : -1;
@@ -627,7 +646,7 @@ Item {
         var bars = planetArray();
         var v = view.result.vargas[key];
         var rows = [];
-        for (var i = 0; i < 9; i++) {
+        for (var i = 0; i < 13; i++) {
             if (!bars[i]) continue;
             var ve = v.planets[bars[i].name];
             rows.push({
@@ -645,7 +664,7 @@ Item {
 
         var bars = planetArray();
         var rows = [];
-        for (var i = 0; i < 9; i++) {
+        for (var i = 0; i < 13; i++) {
             var p = bars[i];
             if (!p) continue;
             rows.push({
@@ -654,6 +673,7 @@ Item {
                 sign: p.rashi_name,
                 nak: p.nakshatra_name + " " + p.nakshatra_pada,
                 house: p.house,
+                rashiNum: (p.rashi !== undefined && p.rashi !== null) ? p.rashi + 1 : (((r.lagna ? r.lagna.rashi : 0) + p.house - 1) % 12) + 1,
                 dignity: p.dignity || "",
                 digColor: dignityColor(p.dignity_code),
                 retro: p.retrograde,
@@ -667,7 +687,7 @@ Item {
         var houses = r.houses || {};
         var hrows = [];
         for (var h = 1; h <= 12; h++) {
-            hrows.push({ num: h, name: houses[h] ? houses[h].rashi_name : "--", lord: houses[h] ? houses[h].lord : "--" });
+            hrows.push({ num: h, signNum: ((r.lagna.rashi + h - 1) % 12) + 1, name: houses[h] ? houses[h].rashi_name : "--", lord: houses[h] ? houses[h].lord : "--" });
         }
         view.houseRows = hrows;
 
@@ -686,6 +706,7 @@ Item {
 
         // Expand the currently running dasha periods.
         var das = r.dashas;
+        view.autoAdFocus = true;
         if (das && das.mahadashas) {
             for (var m = 0; m < das.mahadashas.length; m++) {
                 if (das.mahadashas[m].is_current) {
@@ -706,6 +727,22 @@ Item {
         if (!view.result || !view.result.dashas) return "";
         var d = view.result.dashas;
         return `${view.txt("vimshottari")} — ${view.txt("balance")} ${d.balance_years.toFixed(2)}y · ${d.start_lord} ${d.balance_years.toFixed(2)}y — ${d.mahadashas[d.mahadashas.length - 1].end_date}`;
+    }
+
+    function fmtYears(y) {
+        var v = Number(y);
+        if (isNaN(v)) return "--";
+        var s = (Math.floor(v) === v) ? String(v) : v.toFixed(3);
+        return s.replace(/\.?0+$/, "") + "y";
+    }
+
+    function currentDashaText() {
+        if (!view.result || !view.result.dashas || !view.result.dashas.mahadashas) return "";
+        var list = view.result.dashas.mahadashas;
+        for (var i = 0; i < list.length; i++) {
+            if (list[i].is_current) return `● ${list[i].lord} · ${list[i].end_date}`;
+        }
+        return "";
     }
 
     ColumnLayout {
@@ -812,7 +849,7 @@ Item {
                     text: view.txt("analyze")
                     icon.name: "tools-wizard"
                     enabled: view.result !== null
-                    onClicked: view.analyze()
+                    onClicked: view.requestAnalysis()
                 }
             }
 
@@ -1203,7 +1240,7 @@ Item {
                                 Layout.preferredWidth: Kirigami.Units.gridUnit * 1.4
                             }
                             Label {
-                                text: (view.txt("housePrefix") + modelData.house) + (modelData.kendra ? " ᴷ" : "")
+                                text: "R" + modelData.rashiNum + (modelData.kendra ? " ᴷ" : "")
                                 color: modelData.kendra ? "#e67e22" : Kirigami.Theme.textColor
                                 font.bold: modelData.kendra
                                 Layout.preferredWidth: Kirigami.Units.gridUnit * 2.6
@@ -1238,7 +1275,7 @@ Item {
                             model: view.houseRows
 
                             Label {
-                                text: `${modelData.num}. ${modelData.name} (${modelData.lord})`
+                                text: `${modelData.signNum}. ${modelData.name} (${modelData.lord})`
                                 font.pixelSize: Kirigami.Units.gridUnit * 0.75
                             }
                         }
@@ -1336,17 +1373,63 @@ Item {
                 // Vimshottari dasha tree
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 2
+                    spacing: 6
                     visible: view.result && view.result.dashas
 
-                    Label {
-                        text: view.dashaSummary()
-                        font.bold: true
-                    }
-                    Label {
-                        text: view.txt("dashaHeader")
-                        opacity: 0.7
-                        font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                    Rectangle {
+                        Layout.fillWidth: true
+                        radius: 8
+                        color: Qt.rgba(0.29, 0.69, 0.38, 0.10)
+                        border.color: Qt.rgba(0.29, 0.69, 0.38, 0.45)
+                        border.width: 1
+                        implicitHeight: dashaHeader.implicitHeight + 12
+
+                        ColumnLayout {
+                            id: dashaHeader
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.leftMargin: 10
+                            anchors.rightMargin: 10
+                            spacing: 2
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+
+                                Label {
+                                    text: view.txt("vimshottari")
+                                    font.bold: true
+                                    font.pixelSize: Kirigami.Units.gridUnit * 0.95
+                                }
+
+                                Item { Layout.fillWidth: true }
+
+                                Rectangle {
+                                    Layout.preferredWidth: currentTag.implicitWidth + 14
+                                    Layout.preferredHeight: currentTag.implicitHeight + 5
+                                    radius: 10
+                                    color: "#2ecc71"
+                                    visible: view.currentDashaText() !== ""
+                                    Label {
+                                        id: currentTag
+                                        anchors.centerIn: parent
+                                        text: view.currentDashaText()
+                                        font.bold: true
+                                        font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                                        color: "#0b1210"
+                                    }
+                                }
+                            }
+
+                            Label {
+                                text: view.dashaSummary()
+                                opacity: 0.75
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.72
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+                        }
                     }
 
                     Repeater {
@@ -1358,56 +1441,81 @@ Item {
 
                             Rectangle {
                                 Layout.fillWidth: true
-                                radius: 4
-                                color: modelData.is_current ? Qt.rgba(0.29, 0.69, 0.38, 0.22) : "transparent"
-                                implicitHeight: mdRow.implicitHeight + 6
-                                border.color: modelData.is_current ? Qt.rgba(0.29, 0.69, 0.38, 0.6) : "transparent"
+                                radius: 6
+                                color: modelData.is_current ? Qt.rgba(0.29, 0.69, 0.38, 0.16) : "#1c232d"
+                                border.color: modelData.is_current ? Qt.rgba(0.29, 0.69, 0.38, 0.6) : Qt.rgba(0.35, 0.42, 0.55, 0.35)
                                 border.width: 1
+                                implicitHeight: mdRow.implicitHeight + 10
+
+                                Rectangle {
+                                    width: 4
+                                    height: parent.height
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    color: modelData.is_current ? "#2ecc71" : "#5a6b82"
+                                }
 
                                 RowLayout {
                                     id: mdRow
                                     anchors.left: parent.left
                                     anchors.right: parent.right
                                     anchors.verticalCenter: parent.verticalCenter
-                                    anchors.leftMargin: 6
+                                    anchors.leftMargin: 10
                                     anchors.rightMargin: 6
-                                    spacing: 6
+                                    spacing: 8
 
-                                    Label {
-                                        text: modelData.is_current ? "\u25CF " : ""
-                                        color: "#2ecc71"
-                                        font.bold: true
-                                    }
                                     Label {
                                         text: modelData.lord
                                         font.bold: true
-                                        Layout.preferredWidth: Kirigami.Units.gridUnit * 4
+                                        font.pixelSize: Kirigami.Units.gridUnit * 0.9
+                                        Layout.preferredWidth: Kirigami.Units.gridUnit * 5
                                     }
-                                    Label {
-                                        text: modelData.years + "y"
-                                        Layout.preferredWidth: Kirigami.Units.gridUnit * 4
+
+                                    Rectangle {
+                                        radius: 4
+                                        color: Qt.rgba(0, 0, 0, 0.25)
+                                        implicitWidth: yearsBadge.implicitWidth + 10
+                                        implicitHeight: yearsBadge.implicitHeight + 4
+                                        Label {
+                                            id: yearsBadge
+                                            anchors.centerIn: parent
+                                            text: view.fmtYears(modelData.years)
+                                            font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                                            opacity: 0.85
+                                        }
                                     }
+
                                     Label {
                                         text: `${modelData.start_date} → ${modelData.end_date}`
-                                        opacity: 0.8
-                                        fontSizeMode: Text.HorizontalFit
+                                        opacity: 0.75
+                                        font.pixelSize: Kirigami.Units.gridUnit * 0.72
+                                        elide: Text.ElideMiddle
                                         Layout.fillWidth: true
                                     }
+
                                     Label {
-                                        text: modelData.is_current ? view.txt("current") : ""
+                                        text: view.txt("current")
+                                        visible: modelData.is_current
                                         color: "#2ecc71"
                                         font.bold: true
                                         font.pixelSize: Kirigami.Units.gridUnit * 0.7
                                     }
+
                                     ToolButton {
-                                        icon.name: view.expandedMd === model.index ? "go-up" : "go-down"
-                                        onClicked: view.expandedMd = (view.expandedMd === model.index) ? -1 : model.index
+                                        icon.name: "go-down"
+                                        rotation: view.expandedMd === model.index ? 180 : 0
+                                        onClicked: {
+                                            view.autoAdFocus = false;
+                                            view.expandedMd = (view.expandedMd === model.index) ? -1 : model.index;
+                                        }
                                     }
                                 }
 
                                 MouseArea {
                                     anchors.fill: parent
-                                    onClicked: view.expandedMd = (view.expandedMd === model.index) ? -1 : model.index
+                                    onClicked: {
+                                        view.autoAdFocus = false;
+                                        view.expandedMd = (view.expandedMd === model.index) ? -1 : model.index;
+                                    }
                                 }
                             }
 
@@ -1423,42 +1531,62 @@ Item {
                                     ColumnLayout {
                                         Layout.fillWidth: true
                                         spacing: 1
+                                        visible: !view.autoAdFocus || modelData.is_current
 
                                         Rectangle {
                                             Layout.fillWidth: true
-                                            radius: 3
-                                            color: modelData.is_current ? Qt.rgba(0.29, 0.69, 0.38, 0.18) : "transparent"
-                                            implicitHeight: adRow.implicitHeight + 4
-                                            border.color: modelData.is_current ? Qt.rgba(0.29, 0.69, 0.38, 0.5) : "transparent"
+                                            radius: 5
+                                            color: modelData.is_current ? Qt.rgba(0.29, 0.69, 0.38, 0.14) : "#1c232d"
+                                            border.color: modelData.is_current ? Qt.rgba(0.29, 0.69, 0.38, 0.5) : Qt.rgba(0.35, 0.42, 0.55, 0.3)
                                             border.width: 1
+                                            implicitHeight: adRow.implicitHeight + 8
 
                                             RowLayout {
                                                 id: adRow
                                                 anchors.left: parent.left
                                                 anchors.right: parent.right
                                                 anchors.verticalCenter: parent.verticalCenter
-                                                anchors.leftMargin: 6
+                                                anchors.leftMargin: 8
                                                 anchors.rightMargin: 6
-                                                spacing: 5
+                                                spacing: 8
 
-                                                Label { text: modelData.is_current ? "\u25CF " : ""; color: "#2ecc71"; font.bold: true }
-                                                Label { text: modelData.lord; font.bold: true; Layout.preferredWidth: Kirigami.Units.gridUnit * 4 }
-                                                Label { text: modelData.years + "y"; Layout.preferredWidth: Kirigami.Units.gridUnit * 4 }
+                                                Label { text: modelData.lord; font.bold: true; font.pixelSize: Kirigami.Units.gridUnit * 0.85; Layout.preferredWidth: Kirigami.Units.gridUnit * 5 }
+                                                Label {
+                                                    text: view.fmtYears(modelData.years)
+                                                    font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                                                    opacity: 0.85
+                                                    Layout.preferredWidth: Kirigami.Units.gridUnit * 2.5
+                                                }
                                                 Label {
                                                     text: `${modelData.start_date} → ${modelData.end_date}`
-                                                    opacity: 0.8
-                                                    fontSizeMode: Text.HorizontalFit
+                                                    opacity: 0.75
+                                                    font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                                                    elide: Text.ElideMiddle
                                                     Layout.fillWidth: true
                                                 }
+                                                Label {
+                                                    text: view.txt("current")
+                                                    visible: modelData.is_current
+                                                    color: "#2ecc71"
+                                                    font.bold: true
+                                                    font.pixelSize: Kirigami.Units.gridUnit * 0.65
+                                                }
                                                 ToolButton {
-                                                    icon.name: view.expandedAd === model.index ? "go-up" : "go-down"
-                                                    onClicked: view.expandedAd = (view.expandedAd === model.index) ? -1 : model.index
+                                                    icon.name: "go-down"
+                                                    rotation: view.expandedAd === model.index ? 180 : 0
+                                                    onClicked: {
+                                                        view.autoAdFocus = false;
+                                                        view.expandedAd = (view.expandedAd === model.index) ? -1 : model.index;
+                                                    }
                                                 }
                                             }
 
                                             MouseArea {
                                                 anchors.fill: parent
-                                                onClicked: view.expandedAd = (view.expandedAd === model.index) ? -1 : model.index
+                                                onClicked: {
+                                                    view.autoAdFocus = false;
+                                                    view.expandedAd = (view.expandedAd === model.index) ? -1 : model.index;
+                                                }
                                             }
                                         }
 
@@ -1471,30 +1599,43 @@ Item {
 
                                             Rectangle {
                                                 Layout.fillWidth: true
-                                                radius: 2
-                                                color: modelData.is_current ? Qt.rgba(0.29, 0.69, 0.38, 0.15) : "transparent"
-                                                implicitHeight: pdRow.implicitHeight + 4
-                                                border.color: modelData.is_current ? Qt.rgba(0.29, 0.69, 0.38, 0.4) : "transparent"
+                                                radius: 4
+                                                color: modelData.is_current ? Qt.rgba(0.29, 0.69, 0.38, 0.12) : "#1c232d"
+                                                border.color: modelData.is_current ? Qt.rgba(0.29, 0.69, 0.38, 0.45) : Qt.rgba(0.35, 0.42, 0.55, 0.25)
                                                 border.width: 1
+                                                implicitHeight: pdRow.implicitHeight + 7
 
                                                 RowLayout {
                                                     id: pdRow
                                                     anchors.left: parent.left
                                                     anchors.right: parent.right
                                                     anchors.verticalCenter: parent.verticalCenter
-                                                    anchors.leftMargin: 6
+                                                    anchors.leftMargin: 8
                                                     anchors.rightMargin: 6
-                                                    spacing: 5
+                                                    spacing: 8
 
-                                                    Label { text: modelData.is_current ? "\u25CF " : ""; color: "#2ecc71"; font.bold: true }
-                                                    Label { text: modelData.lord; font.bold: true; Layout.preferredWidth: Kirigami.Units.gridUnit * 4 }
-                                                    Label { text: modelData.years + "y"; Layout.preferredWidth: Kirigami.Units.gridUnit * 4 }
+                                                    Label { text: modelData.lord; font.bold: true; font.pixelSize: Kirigami.Units.gridUnit * 0.8; Layout.preferredWidth: Kirigami.Units.gridUnit * 5 }
+                                                    Label {
+                                                        text: view.fmtYears(modelData.years)
+                                                        font.pixelSize: Kirigami.Units.gridUnit * 0.68
+                                                        opacity: 0.85
+                                                        Layout.preferredWidth: Kirigami.Units.gridUnit * 2.5
+                                                    }
                                                     Label {
                                                         text: `${modelData.start_date} → ${modelData.end_date}`
-                                                        opacity: 0.8
-                                                        fontSizeMode: Text.HorizontalFit
+                                                        opacity: 0.75
+                                                        font.pixelSize: Kirigami.Units.gridUnit * 0.68
+                                                        elide: Text.ElideMiddle
                                                         Layout.fillWidth: true
                                                     }
+                                                    Label {
+                                                        text: view.txt("current")
+                                                        visible: modelData.is_current
+                                                        color: "#2ecc71"
+                                                        font.bold: true
+                                                        font.pixelSize: Kirigami.Units.gridUnit * 0.62
+                                                    }
+                                                    Item { Layout.preferredWidth: Kirigami.Units.gridUnit * 2 }
                                                 }
                                             }
                                         }
