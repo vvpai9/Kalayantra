@@ -63,12 +63,22 @@ kpackagetool6 --type Plasma/Applet --install .
 
 echo -e "${GREEN}✓ Plasmoid widget installed successfully!${NC}"
 
-# 4. Install standalone app + CLI
-echo -e "${BLUE}[5/5] Installing standalone app and CLI...${NC}"
+# 4. Install standalone app + CLI + application icon
+echo -e "${BLUE}[5/5] Installing standalone app, CLI and icon...${NC}"
 STANDALONE_DIR="${HOME}/.local/share/kalayantra"
 BIN_DIR="${HOME}/.local/bin"
 APPLICATIONS_DIR="${HOME}/.local/share/applications"
-mkdir -p "${STANDALONE_DIR}" "${BIN_DIR}" "${APPLICATIONS_DIR}" "${HOME}/.cache/kalayantra"
+ICONS_DIR="${HOME}/.local/share/icons/hicolor/scalable/apps"
+mkdir -p "${STANDALONE_DIR}" "${BIN_DIR}" "${APPLICATIONS_DIR}" "${ICONS_DIR}" "${HOME}/.cache/kalayantra"
+
+# Application icon (used by both the Plasma widget and the standalone app)
+cp contents/images/kalayantra.svg "${ICONS_DIR}/kalayantra.svg"
+mkdir -p "${HOME}/.local/share/icons/hicolor/128x128/apps" "${HOME}/.local/share/icons/hicolor/256x256/apps"
+cp contents/images/kalayantra.png "${HOME}/.local/share/icons/hicolor/128x128/apps/kalayantra.png"
+cp contents/images/kalayantra-256.png "${HOME}/.local/share/icons/hicolor/256x256/apps/kalayantra.png"
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    gtk-update-icon-cache -f "${HOME}/.local/share/icons/hicolor" >/dev/null 2>&1 || true
+fi
 
 # Remove stale layout from previous versions (scripts/ui were installed flat before)
 rm -rf "${STANDALONE_DIR}/scripts" "${STANDALONE_DIR}/ui"
@@ -77,9 +87,10 @@ rm -f "${STANDALONE_DIR}/kalayantra-app" "${STANDALONE_DIR}/KalaYantraApp.qml"
 # Mirror the repository layout so the standalone app's relative path
 # 'import "../contents/ui"' resolves correctly at runtime.
 mkdir -p "${STANDALONE_DIR}/contents" "${STANDALONE_DIR}/standalone"
-rm -rf "${STANDALONE_DIR}/contents/scripts" "${STANDALONE_DIR}/contents/ui"
+rm -rf "${STANDALONE_DIR}/contents/scripts" "${STANDALONE_DIR}/contents/ui" "${STANDALONE_DIR}/contents/images"
 cp -r contents/scripts "${STANDALONE_DIR}/contents/scripts"
 cp -r contents/ui "${STANDALONE_DIR}/contents/ui"
+cp -r contents/images "${STANDALONE_DIR}/contents/images"
 cp standalone/KalaYantraApp.qml "${STANDALONE_DIR}/standalone/KalaYantraApp.qml"
 cp standalone/kalayantra-app "${STANDALONE_DIR}/standalone/kalayantra-app"
 chmod +x "${STANDALONE_DIR}/standalone/kalayantra-app"
@@ -96,11 +107,17 @@ Name=Kālayantra
 GenericName=Panchanga Calendar
 Comment=Hindu Calendar & Astronomical Panchanga
 Exec=${STANDALONE_DIR}/standalone/kalayantra-app
-Icon=office-calendar
+Icon=kalayantra
 Terminal=false
 Categories=Utility;Office;
 StartupNotify=true
+StartupWMClass=kalayantra
 EOF
+
+# Refresh icon + desktop caches so the icon shows up immediately
+if command -v kbuildsycoca6 >/dev/null 2>&1; then
+    kbuildsycoca6 >/dev/null 2>&1 || true
+fi
 
 echo -e "${GREEN}✓ Standalone app and CLI installed.${NC}"
 

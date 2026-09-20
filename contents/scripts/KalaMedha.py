@@ -583,6 +583,44 @@ def answer_question(question: str, kundali: dict, lang: str = "en") -> dict:
     }
 
 
+def answer_with_llm(question: str, kundali: dict, lang: str = "en",
+                    provider: str = "ollama", timeout: int = 120) -> dict:
+    """Answer a natural-language question with the connected LLM.
+
+    The deterministic answer (from :func:`answer_question`) is used as the
+    fallback and its evidence is kept; the LLM text is stamped over the plain
+    ``answer`` so the reply is fluent yet can be traced back to the evidence.
+    If no provider is reachable the deterministic answer is returned as-is."""
+    base = medha_analysis(kundali, lang)
+    fallback = answer_question(question, kundali, lang)
+    if not llm_available(provider, timeout=0.5):
+        return fallback
+    if lang == "devanagari":
+        lang_hint = "Devanagari script"
+    elif lang == "iast":
+        lang_hint = "IAST (transliterated Sanskrit)"
+    else:
+        lang_hint = "English"
+    system = (
+        "You are KalaMedha, an expert Jyotiṣa assistant inside an offline "
+        "Panchanga tool. Answer the user's question strictly from the chart "
+        "evidence provided (planetary positions, houses, yogas, strengths and "
+        "the current dasha). Never invent positions or facts that are not in "
+        "the evidence; if the evidence is silent, say so briefly. Be concise, "
+        "warm and practical. Reply in " + lang_hint + "."
+    )
+    try:
+        text = query_llm(system, _llm_prompt(base, lang, question),
+                         provider=provider, timeout=timeout)
+    except LLMUnavailableError:
+        return fallback
+    out = dict(fallback)
+    out["answer"] = text.strip() or fallback["answer"]
+    out["llm"] = True
+    out["llm_provider"] = provider
+    return out
+
+
 def _answer_overview(bodha: dict, answers: dict, intents: list, lang: str,
                      topic: str | None) -> dict:
     sect = generate_narrative(bodha, lang=lang)

@@ -45,7 +45,9 @@ offline engine.
   the Sun's sidereal signs, tracks solar Shaka years, hides Pakshas, disables day transitions,
   and counts sequential solar days from the Sankranti moment.
 - **Editable Gregorian date** (DD-MM-YYYY) with a "Today" shortcut and live
-  `Kirigami.InlineMessage` validation.
+  `Kirigami.InlineMessage` validation. Impossible dates (31-Feb, leap-year errors etc.) are
+  rejected everywhere with a clear message — in the UI before any request, and by the daemon
+  with a readable HTTP 400 rather than a crash.
 - **Dynamic Hindu month/year navigation** headers (e.g. `Jyeṣṭha Masa`, `Shaka 1948`).
 - **Panchanga transition detector** for traditional (sunrise-anchored) and current modes.
 - **Trilingual output** — English, IAST, Devanagari.
@@ -75,6 +77,19 @@ offline engine.
   combust/retrograde status, plus the Vimshottari timeline.
 - **Varga D1–D60** — all 18 divisional charts rendered (North / South / East Indian styles).
 - **Vimshottari dasha** with balance — computed natively.
+- **Expandable dasha tree** — tap the drill-down on a Mahādaśā row to reveal its Antardaśās,
+  and on an Antardaśā row to reveal its Pratyantardaśās (each with dates and span); the
+  currently running periods are highlighted and auto-expanded on compute.
+- **Chara Karakas (Jaimini)** — the natural-significator sequence (Ātmakāraka → Dārākāraka) for the
+  7- or 8-graha scheme, tabulated as *Graha | Degree | Karaka | Represents*; Rahe's degree is stored
+  reversed per the 8-karaka rule so its karaka-longitude is correct.
+- **Ghaṭaka Chakra** — each rāśi's *inauspicious* set (Ghat month, tithis, days, nakṣatra, yoga,
+  karaṇa, prahara, and the male/female Ghat Candra positions) so new ventures can be avoided when
+  these coincide with the lunar status.
+- **Saved Kundalīs** — birth details can be saved under a name and reloaded with one click (Save /
+  Load buttons in the chart form), or managed directly through the API (`/save_kundali`,
+  `/list_kundalis`, `/load_kundali`, `/delete_kundali`). Only the birth parameters are stored; a
+  chart is always freshly recomputed on load.
 
 ### Gochara (transits)
 
@@ -108,8 +123,10 @@ changes)Skip, and intra-day transit conjunctions.
   plain-language questions like *"Where is Shani?"*, *"Is Guru strong?"*, *"What does Guru
   aspect?"*, *"What is the current dasha?"* — every statement cited from the computed chart.
   Optional **local LLM hook** (Ollama via a pluggable provider registry) can enrich the reading
-  and degrades gracefully back to the rule engine. Exposed as `GET /medha`, the
-  `kalayantra-cli medha` subcommand, and the internal `KalaMedha` Python API.
+  with an `answer` and degrades gracefully back to the rule engine. Question-answering and the
+  LLM hook are exposed through `GET /medha?question=…&llm=true` and
+  `kalayantra-cli medha --question … --llm`; the desktop Analyse tab computes the
+  deterministic rule-based reading only.
 - **KalaVidya — Concepts & Formulas:** curated knowledge ships with the app — an informational
   knowledge layer (`GET /vidya`), no computation, no server-side AI, just curated knowledge.
   48 concepts across 13 categories (panchanga, time, sidereal frame, grahas, lagna, vargas,
@@ -156,8 +173,8 @@ This will:
 2. Configure a systemd **user** service (`kalachakra.service`) to run the **KalaSetu** daemon on
    port `8642`.
 3. Enable and start the background service.
-4. Install the standalone desktop app (`~/.local/share/kalayantra/`) and an application-menu
-   entry.
+4. Install the standalone desktop app (`~/.local/share/kalayantra/`), an application-menu
+   entry, and the Kālayantra **app icon** into your icon theme.
 5. Install the `kalayantra-cli` command-line tool into `~/.local/bin/`.
 
 ## Standalone App
@@ -283,7 +300,25 @@ curl "http://127.0.0.1:8642/kundali?date=15-06-1990&hour=10&minute=30&lat=13.082
 ```
 
 Returns `lagna`, all nine grahas (longitude, rāśi, nakṣatra & pāda, bhāva, dignity, retrograde),
-the D1–D60 `vargas`, `houses`, and the Vimshottari `mahadashas` with balanceependencia.
+the D1–D60 `vargas`, the Chara Karakas (`karakas`, 7/8-graha schemes with degree in sign and what
+each karaka represents), the Ghaṭaka Chakra (`ghatak`), `houses`, and the Vimshottari `mahadashas`
+with balance.
+
+#### Saved Kundalīs (birth profiles)
+
+```bash
+curl -X POST "http://127.0.0.1:8642/save_kundali" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Meera","date":"15-06-1990","hour":10,"minute":30,"lat":13.0827,"lon":80.2707,"tz":5.5,"ayanamsa":"lahiri"}'
+curl "http://127.0.0.1:8642/list_kundalis"                       # all saved profiles
+curl "http://127.0.0.1:8642/load_kundali?id=…"                   # one profile's birth fields
+curl -X POST "http://127.0.0.1:8642/delete_kundali?id=…"         # remove a profile
+```
+
+Profiles only store the birth parameters (`name`, `date`, `hour`, `minute`, `lat`, `lon`, `alt`,
+`tz`, `ayanamsa`); passing them back to `/kundali` recomputes a fresh chart. Stored in
+`~/.config/kalayantra/kundalis.json`. The widget's Kundali form also exposes Save / Load buttons
+that use these endpoints.
 
 #### `GET /bodha` (and versioned alias `GET /api/v1/bodha`) — KalaBodha structured reasoning
 
@@ -372,7 +407,7 @@ curl -X POST "http://127.0.0.1:8642/range" \
 Run the complete regression suite (no network required; all calculations run locally):
 
 ```bash
-python3 tests/test_calibrated.py   # calculation engine (410 tests)
+python3 tests/test_calibrated.py   # calculation engine (488 tests)
 python3 tests/test_kalabodha.py    # Jyotiṣa reasoning layer (204 tests)
 python3 tests/test_apisetu.py      # HTTP API, CLI & public helpers (93 tests)
 python3 tests/test_kalamedha.py    # KalaMedha offline AI layer (42 tests)

@@ -13,6 +13,23 @@ Item {
     property var houseRows: []
     property var vargaPlacements: []
     property var cityChoices: []
+    property var karakaRows: []
+    property var karakaCells: []
+    property int karakaScheme: 7
+    property var ghatakRows: []
+    property var savedProfiles: []
+
+    // Column widths (grid units) for the "Nine Grahas" list header + rows.
+    readonly property var grahaSpan: ({
+        "nm": Kirigami.Units.gridUnit * 4.2,
+        "deg": Kirigami.Units.gridUnit * 3.0,
+        "sign": Kirigami.Units.gridUnit * 3.6,
+        "dig": Kirigami.Units.gridUnit * 3.8,
+        "motion": Kirigami.Units.gridUnit * 3.0,
+        "asta": Kirigami.Units.gridUnit * 2.8,
+        "v": Kirigami.Units.gridUnit * 2.6,
+        "r": Kirigami.Units.gridUnit * 3.6
+    })
 
     property int expandedMd: -1
     property int expandedAd: -1
@@ -85,6 +102,8 @@ Item {
             "vargottam": "Vargottam",
             "dig": "Dignity",
             "deg": "Deg",
+            "nakCol": "Nakshatra",
+            "rashiCol": "Rashi #",
             "lord": "Lord",
             "houses": "Houses",
             "current": "Now running",
@@ -94,7 +113,9 @@ Item {
             "show": "Expand",
             "dashaHeader": "9 Mahadashas · current auto-expanded",
             "selectVarga": "Division",
-            "digLegend": "ᴷ = Kendra (1/4/7/10) · V = Vargottam · red-tinted names = Vakri, ◆ = Asta",
+            "digLegend": "<font color='#e67e22'><b>R</b></font> = Rashi (sign) number of the Graha · <b>ᴷ</b> = Kendra (1/4/7/10) · <font color='#2ecc71'><b>V</b></font> = Vargottam (same sign in D1 &amp; D9) · <font color='#c0392b'><b>ᴿ</b></font>/red names = Vakri · <b>●</b> = Asta",
+            "rTooltip": "R = Rashi (sign) number: this Graha occupies sign no. %1 — %2. 1 = Mesh, 12 = Meena. Appended ᴷ means the sign is a Kendra (1/4/7/10).",
+            "vTooltip": "V = Vargottam: this Graha sits in the same sign in both the Rashi (D1) and Navamsa (D9) charts — considered strong.",
             "analyze": "Analyse",
             "analyzing": "Analyzing…",
             "analysisYogas": "Yogas detected:",
@@ -105,7 +126,40 @@ Item {
             "source": "Source:",
             "moonSign": "Moon Sign:",
             "nakLord": "Nakshatra Lord:",
-            "nameInitial": "Name Initial:"
+            "nameInitial": "Name Initial:",
+            "karakas": "Chara Karakas",
+            "scheme": "Scheme",
+            "sevenKaraka": "7-Karaka (no Rahu)",
+            "eightKaraka": "8-Karaka (with Rahu)",
+            "karakaCol": "Karaka",
+            "meaningCol": "Represents",
+            "graha": "Graha",
+            "sign": "Rashi",
+            "ghatak": "Ghatak Chakra",
+            "ghatakIntro": "Inauspicious elements for a %1 (Moon) native — avoid launching new work when they coincide.",
+            "ghatMaas": "Ghat Month",
+            "ghatTithi": "Ghat Tithi",
+            "ghatVaar": "Ghat Day",
+            "ghatNak": "Ghat Nakshatra",
+            "ghatYoga": "Ghat Yoga",
+            "ghatKarana": "Ghat Karana",
+            "prahar": "Ghat Prahar",
+            "ghatChandraM": "Ghat Chandra (male)",
+            "ghatChandraF": "Ghat Chandra (female)",
+            "pos": "from sign",
+            "saveKundali": "Save",
+            "loadKundali": "Load",
+            "saveTitle": "Save Kundali",
+            "savePrompt": "Profile name",
+            "saved": "Saved profile '%1'.",
+            "savedFail": "Save failed (%1).",
+            "listTitle": "Load Kundali",
+            "loadPrompt": "Saved profiles:",
+            "noProfiles": "No saved profiles yet.",
+            "loadFail": "Load failed (%1).",
+            "delProf": "Delete",
+            "loaded": "Loaded '%1'.",
+            "profSummary": "%1 · %2:%3 · %4, %5 · %6"
         },
         "iast": {
             "title": "Kundalī (Janma Kuṇḍalī)",
@@ -153,6 +207,8 @@ Item {
             "vargottam": "Vargottama",
             "dig": "Uccatā",
             "deg": "Aṁśa",
+            "nakCol": "Nakṣatra",
+            "rashiCol": "Rāśi #",
             "lord": "Svāmī",
             "houses": "Bhāva",
             "current": "Adya",
@@ -162,7 +218,9 @@ Item {
             "show": "Vistāra",
             "dashaHeader": "9 mahādaśā · adya svataḥ",
             "selectVarga": "Varga",
-            "digLegend": "ᴷ = Kendra (1/4/7/10) · V = Vargottama · ᴿ-coloured names = Vakrī, ◆ = Asta",
+            "digLegend": "<font color='#e67e22'><b>R</b></font> = Rāśi-anka yatra grahaḥ · <b>ᴷ</b> = Kendra (1/4/7/10) · <font color='#2ecc71'><b>V</b></font> = Vargottama (sama rāśī D1-D9) · <font color='#c0392b'><b>ᴿ</b></font>/rakta-nāma = Vakrī · <b>●</b> = Asta",
+            "rTooltip": "R = Rāśi-ankaḥ: asmin grahaḥ %1-tamāyāṁ rāśau — %2. 1 = Meṣa, 12 = Mīna. Yadi Kendra (1/4/7/10) tadā ᴷ añjyate.",
+            "vTooltip": "V = Vargottama: grahaḥ D1-Rāśi-aye ehate D9-Navāṁśa samāna-rāśau — balavattaraḥ.",
             "analyze": "Viśleṣaṇa",
             "analyzing": "Viśleṣaṇa…",
             "analysisYogas": "Upa-labdha yogāḥ:",
@@ -173,7 +231,40 @@ Item {
             "source": "Srotaḥ:",
             "moonSign": "Candra Rāśi:",
             "nakLord": "Nakṣatra Svāmī:",
-            "nameInitial": "Nāma Prāraṁbha:"
+            "nameInitial": "Nāma Prāraṁbha:",
+            "karakas": "Cara Kārakas",
+            "scheme": "Vidhi",
+            "sevenKaraka": "7-Kāraka (vina Rāhu)",
+            "eightKaraka": "8-Kāraka (saha Rāhu)",
+            "karakaCol": "Kāraka",
+            "meaningCol": "Artha",
+            "graha": "Graha",
+            "sign": "Rāśi",
+            "ghatak": "Ghaṭaka Cakra",
+            "ghatakIntro": "Aśubha-tattvāni %1-rāśi-jātasya — ghaṭaka-saṁyoge navakarma na kuryāt.",
+            "ghatMaas": "Ghaṭa Māsa",
+            "ghatTithi": "Ghaṭa Tithi",
+            "ghatVaar": "Ghaṭa Vāra",
+            "ghatNak": "Ghaṭa Nakṣatra",
+            "ghatYoga": "Ghaṭa Yoga",
+            "ghatKarana": "Ghaṭa Karaṇa",
+            "prahar": "Ghaṭa Prahara",
+            "ghatChandraM": "Ghaṭa Candra (puruṣa)",
+            "ghatChandraF": "Ghaṭa Candra (strī)",
+            "pos": "rāśi-ārabhya",
+            "saveKundali": "Rakṣaṇa",
+            "loadKundali": "Uddhāra",
+            "saveTitle": "Kuṇḍalī rakṣaṇa",
+            "savePrompt": "Profile nāma",
+            "saved": "'%1' rakṣitam.",
+            "savedFail": "Rakṣaṇa truṭi (%1).",
+            "listTitle": "Kuṇḍalī uddhāra",
+            "loadPrompt": "Rakṣitā profiles:",
+            "noProfiles": "Na kaścit profile rakṣitaḥ.",
+            "loadFail": "Uddhāra truṭi (%1).",
+            "delProf": "Nāśa",
+            "loaded": "'%1' uddhṛtam.",
+            "profSummary": "%1 · %2:%3 · %4, %5 · %6"
         },
         "devanagari": {
             "title": "कुंडली (जन्म कुंडली)",
@@ -221,6 +312,8 @@ Item {
             "vargottam": "वर्गोत्तम",
             "dig": "स्थिति",
             "deg": "अंश",
+            "nakCol": "नक्षत्र",
+            "rashiCol": "राशि #",
             "lord": "स्वामी",
             "houses": "भाव",
             "current": "वर्तमान",
@@ -230,7 +323,9 @@ Item {
             "show": "विस्तार",
             "dashaHeader": "9 महादशाएँ · वर्तमान स्वतः खुला",
             "selectVarga": "वर्ग",
-            "digLegend": "ᴷ = केंद्र (1/4/7/10) · V = वर्गोत्तम · लाल रंग के नाम = वक्री, ◆ = अस्त",
+            "digLegend": "<font color='#e67e22'><b>R</b></font> = ग्रह की राशि का क्रमांक · <b>ᴷ</b> = केंद्र (1/4/7/10) · <font color='#2ecc71'><b>V</b></font> = वर्गोत्तम (D1 व D9 में समान राशि) · <font color='#c0392b'><b>ᴿ</b></font>/लाल नाम = वक्री · <b>●</b> = अस्त",
+            "rTooltip": "R = राशि क्रमांक: यह ग्रह %1वीं राशि में स्थित है — %2। 1 = मेष, 12 = मीन। केंद्र (1/4/7/10) होने पर ᴷ जुड़ा है।",
+            "vTooltip": "V = वर्गोत्तम: यह ग्रह राशि (D1) और नवांश (D9) दोनों चार्ट में एक ही राशि में है — बलवान माना जाता है।",
             "analyze": "विश्लेषण",
             "analyzing": "विश्लेषण हो रहा है…",
             "analysisYogas": "प्राप्त योग:",
@@ -241,7 +336,40 @@ Item {
             "source": "स्रोत:",
             "moonSign": "चन्द्र राशि:",
             "nakLord": "नक्षत्र स्वामी:",
-            "nameInitial": "नाम प्रारंभ:"
+            "nameInitial": "नाम प्रारंभ:",
+            "karakas": "चर कारक",
+            "scheme": "विधि",
+            "sevenKaraka": "7-कारक (राहु रहित)",
+            "eightKaraka": "8-कारक (राहु सहित)",
+            "karakaCol": "कारक",
+            "meaningCol": "अर्थ",
+            "graha": "ग्रह",
+            "sign": "राशि",
+            "ghatak": "घातक चक्र",
+            "ghatakIntro": "%1 (चंद्र) राशि वाले के अशुभ तत्व — इनके मिलने पर नया कार्य शुरू न करें।",
+            "ghatMaas": "घात मास",
+            "ghatTithi": "घात तिथि",
+            "ghatVaar": "घात वार",
+            "ghatNak": "घात नक्षत्र",
+            "ghatYoga": "घात योग",
+            "ghatKarana": "घात करण",
+            "prahar": "घात प्रहर",
+            "ghatChandraM": "घात चंद्र (पुरुष)",
+            "ghatChandraF": "घात चंद्र (स्त्री)",
+            "pos": "राशि से",
+            "saveKundali": "सहेजें",
+            "loadKundali": "लोड करें",
+            "saveTitle": "कुंडली सहेजें",
+            "savePrompt": "प्रोफ़ाइल नाम",
+            "saved": "'%1' सहेज ली गई।",
+            "savedFail": "सहेजने में त्रुटि (%1)।",
+            "listTitle": "कुंडली लोड करें",
+            "loadPrompt": "सहेजी गई प्रोफ़ाइलें:",
+            "noProfiles": "अभी कोई प्रोफ़ाइल सहेजी नहीं गई।",
+            "loadFail": "लोड करने में त्रुटि (%1)।",
+            "delProf": "हटाएँ",
+            "loaded": "'%1' लोड हो गई।",
+            "profSummary": "%1 · %2:%3 · %4, %5 · %6"
         }
     })
 
@@ -410,11 +538,18 @@ Item {
                     }
                 } else {
                     statusMessage.type = Kirigami.MessageType.Error;
-                    statusMessage.text = txt("engineErr").arg(xhr.status);
+                    statusMessage.text = view.serverErrorText(xhr) || view.txt("engineErr").arg(xhr.status);
                 }
             }
         };
         xhr.send();
+    }
+
+    function serverErrorText(xhr) {
+        try {
+            var j = JSON.parse(xhr.responseText);
+            return j.message || j.error || "";
+        } catch (e) { return ""; }
     }
 
     // ---------- data helpers ----------
@@ -450,6 +585,127 @@ Item {
             lang: langKey(),
             ayanamsa: ayanamsaCombo.currentValue
         };
+    }
+
+    // ---------- saved kundali profiles ----------
+
+    function openSaveDialog() {
+        profileNameField.text = ckLastName || "";
+        saveKundaliDialog.open();
+    }
+
+    property string ckLastName: ""
+
+    function doSave(name) {
+        name = String(name || "").trim();
+        if (!name) return;
+        view.ckLastName = name;
+        var body = currentParamsObject();
+        body.name = name;
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "http://127.0.0.1:8642/save_kundali", true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return;
+            if (xhr.status === 200) {
+                statusMessage.type = Kirigami.MessageType.Positive;
+                statusMessage.text = txt("saved").arg(name);
+                statusMessage.visible = true;
+                view.refreshProfiles();
+            } else {
+                statusMessage.type = Kirigami.MessageType.Error;
+                statusMessage.text = txt("savedFail").arg(xhr.status);
+            }
+        };
+        xhr.send(JSON.stringify(body));
+    }
+
+    function refreshProfiles() {
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "http://127.0.0.1:8642/list_kundalis", true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return;
+            if (xhr.status === 200) {
+                try {
+                    view.savedProfiles = JSON.parse(xhr.responseText).profiles || [];
+                } catch (e) {
+                    view.savedProfiles = [];
+                }
+            } else {
+                view.savedProfiles = [];
+            }
+        };
+        xhr.send();
+    }
+
+    function openLoadDialog() {
+        view.refreshProfiles();
+        loadKundaliDialog.open();
+    }
+
+    function profileSummary(p) {
+        var params = p.params || {};
+        var date = String(params.date || "");
+        var hh = String(Number(params.hour) || 0);
+        var mm = String(Number(params.minute) || 0).padStart(2, "0");
+        var lat = Number(params.lat) || 0;
+        var lon = Number(params.lon) || 0;
+        var ay = String(params.ayanamsa || "lahiri");
+        return txt("profSummary").arg(date, hh, mm, lat.toFixed(2), lon.toFixed(2), ay);
+    }
+
+    function loadProfile(id) {
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "http://127.0.0.1:8642/load_kundali?id=" + encodeURIComponent(id), true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return;
+            if (xhr.status === 200) {
+                var prof = null;
+                try {
+                    prof = JSON.parse(xhr.responseText).profile;
+                } catch (e) { prof = null; }
+                if (prof) {
+                    view.applyProfile(prof);
+                    loadKundaliDialog.close();
+                    return;
+                }
+            }
+            statusMessage.type = Kirigami.MessageType.Error;
+            statusMessage.text = txt("loadFail").arg(xhr.status);
+        };
+        xhr.send();
+    }
+
+    function deleteProfile(id) {
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "http://127.0.0.1:8642/delete_kundali?id=" + encodeURIComponent(id), true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === XMLHttpRequest.DONE) view.refreshProfiles();
+        };
+        xhr.send();
+    }
+
+    function applyProfile(prof) {
+        var p = prof.params || {};
+        var d = view.parseDateStr(String(p.date || ""));
+        if (d) {
+            yearCombo.currentIndex = d[0] - 1800;
+            monthCombo.currentIndex = d[1] - 1;
+            dayCombo.currentIndex = d[2] - 1;
+            view.clampDay();
+        }
+        hourSpin.value = Math.max(0, Math.min(23, Number(p.hour) || 0));
+        minuteSpin.value = Math.max(0, Math.min(59, Number(p.minute) || 0));
+        latField.text = String(Number(p.lat) || "");
+        lonField.text = String(Number(p.lon) || "");
+        altField.text = String(Number(p.alt) || "0");
+        tzField.text = String(Number(p.tz) || "5.5");
+        var ai = ayanamsaCombo.indexOfValue(String(p.ayanamsa || "lahiri"));
+        ayanamsaCombo.currentIndex = ai >= 0 ? ai : ayanamsaCombo.currentIndex;
+        statusMessage.type = Kirigami.MessageType.Positive;
+        statusMessage.text = txt("loaded").arg(prof.name);
+        statusMessage.visible = true;
+        view.compute();
     }
 
     function fetchAnalysis(path, onOk) {
@@ -691,6 +947,23 @@ Item {
         }
         view.houseRows = hrows;
 
+        view.rebuildKarakas();
+
+        var gr = [];
+        if (r.ghatak) {
+            var g = r.ghatak;
+            gr.push({ key: view.txt("ghatMaas"), value: g.ghat_maas });
+            gr.push({ key: view.txt("ghatTithi"), value: g.ghat_tithis.join(", ") + (g.ghat_tithis_full.length ? "  ·  " + g.ghat_tithis_full.join(", ") : "") });
+            gr.push({ key: view.txt("ghatVaar"), value: g.ghat_vaara });
+            gr.push({ key: view.txt("ghatNak"), value: g.ghat_nakshatra });
+            gr.push({ key: view.txt("ghatYoga"), value: g.ghat_yoga });
+            gr.push({ key: view.txt("ghatKarana"), value: g.ghat_karana });
+            gr.push({ key: view.txt("prahar"), value: (g.prahar !== undefined && g.prahar !== null) ? String(g.prahar) : "--" });
+            gr.push({ key: view.txt("ghatChandraM"), value: g.ghat_chandra_male.rashi + " (" + view.txt("pos") + " " + g.ghat_chandra_male.position + ")" });
+            gr.push({ key: view.txt("ghatChandraF"), value: g.ghat_chandra_female.rashi + " (" + view.txt("pos") + " " + g.ghat_chandra_female.position + ")" });
+        }
+        view.ghatakRows = gr;
+
         updateMainChart();
 
         var keys = view.vargaKeys;
@@ -723,17 +996,55 @@ Item {
         }
     }
 
+    function rebuildKarakas() {
+        view.karakaRows = [];
+        view.karakaCells = [];
+        if (!view.result || !view.result.karakas) return;
+        var range = (view.karakaScheme === 7) ? view.result.karakas.seven : view.result.karakas.eight;
+        if (!range) return;
+        var rows = [];
+        var cells = [];
+        for (var i = 0; i < range.length; i++) {
+            var k = range[i];
+            var planet = k.planet + (k.retrograde ? " ᴿ" : "") + (k.via_rahu ? " ◂" : "");
+            rows.push({
+                rank: k.rank,
+                karaka: k.karaka,
+                meaning: k.meaning || "",
+                planet: planet,
+                deg: formatDeg(k.degree_in_sign),
+                sign: k.rashi_name,
+                house: k.house
+            });
+            var r = i + 1;
+            var band = (k.rank === 1 || k.rank === range.length);
+            cells.push({ row: r, col: 0, text: planet, fill: true, bold: false, wrap: false, small: false, band: band });
+            cells.push({ row: r, col: 1, text: view.formatDeg(k.degree_in_sign), fill: false, bold: false, wrap: false, small: false, band: false });
+            cells.push({ row: r, col: 2, text: k.karaka, fill: true, bold: true, wrap: false, small: false, band: band });
+            cells.push({ row: r, col: 3, text: k.meaning || "", fill: true, bold: false, wrap: true, small: true, band: false });
+        }
+        view.karakaRows = rows;
+        view.karakaCells = cells;
+    }
+
     function dashaSummary() {
         if (!view.result || !view.result.dashas) return "";
         var d = view.result.dashas;
-        return `${view.txt("vimshottari")} — ${view.txt("balance")} ${d.balance_years.toFixed(2)}y · ${d.start_lord} ${d.balance_years.toFixed(2)}y — ${d.mahadashas[d.mahadashas.length - 1].end_date}`;
+        return `${view.txt("vimshottari")} — ${view.txt("balance")} ${view.fmtYears(d.balance_years)} · ${d.start_lord} ${view.fmtYears(d.balance_years)} — ${d.mahadashas[d.mahadashas.length - 1].end_date}`;
     }
 
     function fmtYears(y) {
         var v = Number(y);
         if (isNaN(v)) return "--";
-        var s = (Math.floor(v) === v) ? String(v) : v.toFixed(3);
-        return s.replace(/\.?0+$/, "") + "y";
+        var years = Math.floor(v + 1e-9);
+        var frac = v - years;
+        var months = Math.floor(frac * 12 + 1e-9);
+        var days = Math.round((frac * 12 - months) * (365.2425 / 12));
+        var parts = [];
+        if (years > 0) parts.push(years + "y");
+        if (months > 0) parts.push(months + "m");
+        if (days > 0) parts.push(days + "d");
+        return parts.length ? parts.join(" ") : "0y";
     }
 
     function currentDashaText() {
@@ -747,7 +1058,8 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: Kirigami.Units.smallSpacing
+        anchors.margins: Kirigami.Units.largeSpacing
+        spacing: Kirigami.Units.largeSpacing
 
         Kirigami.Heading {
             text: view.txt("title")
@@ -757,7 +1069,7 @@ Item {
         // Birth date: Date / Month / Year dropdowns with invalid-date fallback
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 2
+            spacing: 4
 
             RowLayout {
                 Layout.fillWidth: true
@@ -765,9 +1077,9 @@ Item {
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 2
-                    Label {
-                        text: view.txt("date")
+spacing: 4
+            Label {
+                text: view.txt("date")
                         font.pixelSize: Kirigami.Units.gridUnit * 0.7
                         opacity: 0.7
                     }
@@ -780,7 +1092,7 @@ Item {
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 2
+                    spacing: 4
                     Label {
                         text: view.txt("month")
                         font.pixelSize: Kirigami.Units.gridUnit * 0.7
@@ -796,7 +1108,7 @@ Item {
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 2
+                    spacing: 4
                     Label {
                         text: view.txt("year")
                         font.pixelSize: Kirigami.Units.gridUnit * 0.7
@@ -851,6 +1163,18 @@ Item {
                     enabled: view.result !== null
                     onClicked: view.requestAnalysis()
                 }
+
+                Button {
+                    text: view.txt("saveKundali")
+                    icon.name: "document-save"
+                    onClicked: view.openSaveDialog()
+                }
+
+                Button {
+                    text: view.txt("loadKundali")
+                    icon.name: "document-open"
+                    onClicked: view.openLoadDialog()
+                }
             }
 
             Component.onCompleted: {
@@ -890,7 +1214,7 @@ Item {
 
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 2
+                spacing: 4
                 Label {
                     text: view.txt("latLabel")
                     font.pixelSize: Kirigami.Units.gridUnit * 0.7
@@ -907,7 +1231,7 @@ Item {
 
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 2
+                spacing: 4
                 Label {
                     text: view.txt("lonLabel")
                     font.pixelSize: Kirigami.Units.gridUnit * 0.7
@@ -924,7 +1248,7 @@ Item {
 
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 2
+                spacing: 4
                 Label {
                     text: view.txt("altLabel")
                     font.pixelSize: Kirigami.Units.gridUnit * 0.7
@@ -941,7 +1265,7 @@ Item {
 
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 2
+                spacing: 4
                 Label {
                     text: view.txt("tzLabel")
                     font.pixelSize: Kirigami.Units.gridUnit * 0.7
@@ -1015,7 +1339,9 @@ Item {
 
             ColumnLayout {
                 width: parent.width
-                spacing: Kirigami.Units.smallSpacing
+                spacing: Kirigami.Units.largeSpacing * 1.4
+                Layout.topMargin: Kirigami.Units.largeSpacing
+                Layout.bottomMargin: Kirigami.Units.largeSpacing
 
                 // Meta
                 Label {
@@ -1048,7 +1374,7 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignHCenter
-                    Layout.preferredHeight: Math.max(280, mainChart.height + 8)
+                    Layout.preferredHeight: Math.max(320, mainChart.height + 12)
                     radius: 8
                     color: Qt.rgba(0, 0, 0, 0.15)
                     visible: view.result !== null
@@ -1058,7 +1384,7 @@ Item {
                     KundaliChart {
                         id: mainChart
                         anchors.centerIn: parent
-                        width: Math.min(560, parent.width - 12)
+                        width: Math.min(640, parent.width - 16)
                         height: width
                     }
                 }
@@ -1069,7 +1395,8 @@ Item {
                 ColumnLayout {
                     id: analysisSection
                     Layout.fillWidth: true
-                    spacing: 4
+                    Layout.topMargin: Kirigami.Units.largeSpacing
+                    spacing: 6
                     visible: view.result !== null
 
                     RowLayout {
@@ -1117,7 +1444,7 @@ Item {
 
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 2
+                            spacing: 4
                             Layout.topMargin: 6
 
                             Label {
@@ -1176,10 +1503,26 @@ Item {
                 // Planets
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 2
+                    Layout.topMargin: Kirigami.Units.largeSpacing
+                    spacing: 4
                     visible: view.planetRows.length > 0
 
                     Label { text: view.txt("nineGrahas"); font.bold: true }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+
+                        Label { text: view.txt("graha"); font.bold: true; opacity: 0.7; font.pixelSize: Kirigami.Units.gridUnit * 0.6; Layout.preferredWidth: view.grahaSpan.nm }
+                        Label { text: view.txt("deg"); font.bold: true; opacity: 0.7; font.pixelSize: Kirigami.Units.gridUnit * 0.6; Layout.preferredWidth: view.grahaSpan.deg }
+                        Label { text: view.txt("sign"); font.bold: true; opacity: 0.7; font.pixelSize: Kirigami.Units.gridUnit * 0.6; Layout.preferredWidth: view.grahaSpan.sign }
+                        Label { text: view.txt("dig"); font.bold: true; opacity: 0.7; font.pixelSize: Kirigami.Units.gridUnit * 0.6; Layout.preferredWidth: view.grahaSpan.dig; elide: Text.ElideRight; ToolTip.text: view.txt("dig"); ToolTip.visible: truncated && hovered }
+                        Label { text: view.txt("nakCol"); font.bold: true; opacity: 0.7; font.pixelSize: Kirigami.Units.gridUnit * 0.6; Layout.fillWidth: true; elide: Text.ElideRight; ToolTip.text: view.txt("nakCol"); ToolTip.visible: truncated && hovered }
+                        Label { text: view.txt("motion"); font.bold: true; opacity: 0.7; font.pixelSize: Kirigami.Units.gridUnit * 0.6; Layout.preferredWidth: view.grahaSpan.motion; elide: Text.ElideRight }
+                        Label { text: view.txt("asta"); font.bold: true; opacity: 0.7; font.pixelSize: Kirigami.Units.gridUnit * 0.6; Layout.preferredWidth: view.grahaSpan.asta; elide: Text.ElideRight }
+                        Label { text: view.txt("vargottam"); font.bold: true; color: "#2ecc71"; font.pixelSize: Kirigami.Units.gridUnit * 0.55; Layout.preferredWidth: view.grahaSpan.v; elide: Text.ElideRight; ToolTip.text: view.txt("vTooltip"); ToolTip.visible: truncated && hovered }
+                        Label { text: view.txt("rashiCol"); font.bold: true; color: "#e67e22"; font.pixelSize: Kirigami.Units.gridUnit * 0.6; Layout.preferredWidth: view.grahaSpan.r; elide: Text.ElideRight; ToolTip.text: view.txt("rTooltip").replace("%1", "?").replace("%2", "…"); ToolTip.visible: truncated && hovered }
+                    }
 
                     Repeater {
                         model: view.planetRows
@@ -1191,69 +1534,109 @@ Item {
                             Label {
                                 text: modelData.name
                                 font.bold: true
-                                Layout.preferredWidth: Kirigami.Units.gridUnit * 4.5
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.95
+                                Layout.preferredWidth: view.grahaSpan.nm
                                 color: modelData.digColor
+                                elide: Text.ElideRight
+                                ToolTip.text: modelData.name
+                                ToolTip.visible: truncated && hovered
                             }
                             Label {
                                 text: modelData.degree
-                                Layout.preferredWidth: Kirigami.Units.gridUnit * 3.2
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.9
+                                Layout.preferredWidth: view.grahaSpan.deg
                                 opacity: 0.9
                             }
                             Label {
                                 text: modelData.sign
-                                Layout.preferredWidth: Kirigami.Units.gridUnit * 4
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.9
+                                Layout.preferredWidth: view.grahaSpan.sign
+                                elide: Text.ElideRight
+                                ToolTip.text: modelData.sign
+                                ToolTip.visible: truncated && hovered
                             }
                             Label {
                                 text: modelData.dignity
                                 color: modelData.digColor
                                 font.bold: true
-                                font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.85
                                 elide: Text.ElideRight
-                                Layout.preferredWidth: Kirigami.Units.gridUnit * 5
+                                Layout.preferredWidth: view.grahaSpan.dig
                                 ToolTip.text: modelData.dignity
-                                ToolTip.visible: containedText !== text && hovered
+                                ToolTip.visible: truncated && hovered
                             }
                             Label {
                                 text: modelData.nak
                                 opacity: 0.8
                                 fontSizeMode: Text.HorizontalFit
                                 Layout.fillWidth: true
+                                ToolTip.text: modelData.nak
+                                ToolTip.visible: truncated && hovered
                             }
                             Label {
                                 text: modelData.retro ? `${view.txt("vakri")}` : view.txt("maargi")
                                 color: modelData.retro ? "#e74c3c" : "#2ecc71"
                                 font.bold: true
-                                font.pixelSize: Kirigami.Units.gridUnit * 0.7
-                                Layout.preferredWidth: Kirigami.Units.gridUnit * 3.4
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.85
+                                Layout.preferredWidth: view.grahaSpan.motion
+                                elide: Text.ElideRight
+                                ToolTip.text: modelData.retro ? view.txt("vakri") : view.txt("maargi")
+                                ToolTip.visible: truncated && hovered
                             }
                             Label {
                                 text: modelData.combust ? view.txt("asta") : ""
                                 color: "#e67e22"
                                 font.bold: true
-                                font.pixelSize: Kirigami.Units.gridUnit * 0.7
-                                Layout.preferredWidth: Kirigami.Units.gridUnit * 3
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.85
+                                Layout.preferredWidth: view.grahaSpan.asta
+                                elide: Text.ElideRight
                             }
-                            Label {
-                                text: modelData.vargottam ? "V" : ""
-                                color: "#2ecc71"
-                                font.bold: true
-                                Layout.preferredWidth: Kirigami.Units.gridUnit * 1.4
+                            Rectangle {
+                                Layout.alignment: Qt.AlignVCenter
+                                Layout.preferredWidth: view.grahaSpan.v
+                                Layout.preferredHeight: Math.max(Kirigami.Units.gridUnit * 1.6, 14)
+                                radius: 5
+                                color: modelData.vargottam ? "#2ecc71" : "transparent"
+                                Label {
+                                    anchors.centerIn: parent
+                                    text: "V"
+                                    visible: modelData.vargottam
+                                    color: "#0b1210"
+                                    font.bold: true
+                                    font.pixelSize: Kirigami.Units.gridUnit * 0.85
+                                }
+                                ToolTip.visible: modelData.vargottam && hovered
+                                ToolTip.text: view.txt("vTooltip")
                             }
-                            Label {
-                                text: "R" + modelData.rashiNum + (modelData.kendra ? " ᴷ" : "")
-                                color: modelData.kendra ? "#e67e22" : Kirigami.Theme.textColor
-                                font.bold: modelData.kendra
-                                Layout.preferredWidth: Kirigami.Units.gridUnit * 2.6
+                            Rectangle {
+                                Layout.alignment: Qt.AlignVCenter
+                                Layout.preferredWidth: view.grahaSpan.r
+                                Layout.preferredHeight: Math.max(Kirigami.Units.gridUnit * 1.6, 14)
+                                radius: 5
+                                color: modelData.kendra ? Qt.rgba(0.9, 0.6, 0.1, 0.30) : Qt.rgba(0.6, 0.6, 0.7, 0.16)
+                                Label {
+                                    anchors.centerIn: parent
+                                    text: "R" + modelData.rashiNum + (modelData.kendra ? "ᴷ" : "")
+                                    color: modelData.kendra ? "#f5a623" : Kirigami.Theme.textColor
+                                    font.bold: modelData.kendra
+                                    font.pixelSize: Kirigami.Units.gridUnit * 0.8
+                                }
+                                ToolTip.visible: hovered
+                                ToolTip.text: view.txt("rTooltip")
+                                        .replace("%1", String(modelData.rashiNum))
+                                        .replace("%2", view.rashiName(modelData.rashiNum - 1))
                             }
                         }
                     }
 
                     Label {
                         text: view.txt("digLegend")
-                        opacity: 0.6
-                        font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                        textFormat: Text.RichText
+                        opacity: 0.7
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.8
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
+                        color: Kirigami.Theme.textColor
                     }
                 }
 
@@ -1262,7 +1645,8 @@ Item {
                 // Houses
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 2
+                    Layout.topMargin: Kirigami.Units.largeSpacing
+                    spacing: 4
                     visible: view.houseRows.length > 0
 
                     Label { text: view.txt("houses"); font.bold: true }
@@ -1276,7 +1660,118 @@ Item {
 
                             Label {
                                 text: `${modelData.signNum}. ${modelData.name} (${modelData.lord})`
-                                font.pixelSize: Kirigami.Units.gridUnit * 0.75
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.85
+                            }
+                        }
+                    }
+                }
+
+                // Chara Karakas (Jaimini)
+                Kirigami.Separator { Layout.fillWidth: true; visible: view.karakaRows.length > 0 }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.topMargin: Kirigami.Units.largeSpacing
+                    spacing: 6
+                    visible: view.karakaRows.length > 0
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+
+                        Label { text: view.txt("karakas"); font.bold: true }
+                        Item { Layout.fillWidth: true }
+                        Label { text: view.txt("scheme"); opacity: 0.7 }
+                        ComboBox {
+                            Layout.preferredWidth: Kirigami.Units.gridUnit * 7
+                            model: [view.txt("sevenKaraka"), view.txt("eightKaraka")]
+                            currentIndex: view.karakaScheme === 7 ? 0 : 1
+                            onActivated: {
+                                view.karakaScheme = (index === 0) ? 7 : 8;
+                                view.rebuildKarakas();
+                            }
+                        }
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        text: (view.result && view.result.karakas) ? view.result.karakas.note : ""
+                        wrapMode: Text.WordWrap
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.65
+                        opacity: 0.75
+                    }
+
+                    GridLayout {
+                        Layout.fillWidth: true
+                        columns: 4
+                        columnSpacing: Kirigami.Units.smallSpacing
+                        rowSpacing: 2
+
+                        Label { text: view.txt("graha"); font.bold: true; opacity: 0.75 }
+                        Label { text: view.txt("deg"); font.bold: true; opacity: 0.75 }
+                        Label { text: view.txt("karakaCol"); font.bold: true; opacity: 0.75 }
+                        Label { text: view.txt("meaningCol"); font.bold: true; opacity: 0.75 }
+
+                        Repeater {
+                            model: view.karakaCells
+
+                            Label {
+                                Layout.row: modelData.row
+                                Layout.column: modelData.col
+                                Layout.fillWidth: modelData.fill
+                                Layout.minimumWidth: modelData.col === 1 ? Kirigami.Units.gridUnit * 4 : 0
+                                text: modelData.text
+                                font.bold: modelData.bold
+                                font.pixelSize: modelData.small ? Kirigami.Units.gridUnit * 0.85 : 14
+                                wrapMode: modelData.wrap ? Text.WordWrap : Text.NoWrap
+                                elide: modelData.fill ? Text.ElideNone : Text.ElideRight
+                                opacity: modelData.small ? 0.75 : (modelData.band ? 1 : 0.9)
+                            }
+                        }
+                    }
+                }
+
+                // Ghatak Chakra (Muhurta)
+                Kirigami.Separator { Layout.fillWidth: true; visible: view.ghatakRows.length > 0 }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.topMargin: Kirigami.Units.largeSpacing
+                    spacing: 6
+                    visible: view.ghatakRows.length > 0
+
+                    Label { text: view.txt("ghatak"); font.bold: true }
+
+                    Label {
+                        Layout.fillWidth: true
+                        text: view.txt("ghatakIntro").replace("%1", (view.result && view.result.ghatak) ? view.result.ghatak.janma_rashi : "")
+                        wrapMode: Text.WordWrap
+                        font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                        opacity: 0.8
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+
+                        Repeater {
+                            model: view.ghatakRows
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 6
+                                Label {
+                                    text: modelData.key + ":"
+                                    font.bold: true
+                                    opacity: 0.85
+                                    Layout.preferredWidth: Math.max(implicitWidth, Kirigami.Units.gridUnit * 12)
+                                }
+                                Label {
+                                    text: modelData.value
+                                    Layout.fillWidth: true
+                                    font.bold: true
+                                    wrapMode: Text.WordWrap
+                                }
                             }
                         }
                     }
@@ -1287,7 +1782,8 @@ Item {
                 // Selected varga chart + placements
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 4
+                    Layout.topMargin: Kirigami.Units.largeSpacing
+                    spacing: 6
                     visible: view.result !== null
 
                     RowLayout {
@@ -1315,7 +1811,7 @@ Item {
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredHeight: Math.max(280, vargaChart.height + 8)
+                        Layout.preferredHeight: Math.max(320, vargaChart.height + 12)
                         radius: 8
                         color: Qt.rgba(0, 0, 0, 0.15)
                         border.color: Qt.rgba(0.55, 0.55, 0.55, 0.4)
@@ -1324,7 +1820,7 @@ Item {
                         KundaliChart {
                             id: vargaChart
                             anchors.centerIn: parent
-                            width: Math.min(560, parent.width - 12)
+                            width: Math.min(640, parent.width - 16)
                             height: width
                         }
                     }
@@ -1340,29 +1836,17 @@ Item {
                         Layout.fillWidth: true
                         columns: 2
                         columnSpacing: Kirigami.Units.smallSpacing
+                        rowSpacing: 2
                         visible: view.vargaPlacements.length > 0
 
                         Repeater {
                             model: view.vargaPlacements
 
-                            RowLayout {
+                            Label {
                                 Layout.fillWidth: true
-                                spacing: 4
-
-                                Label {
-                                    text: modelData.name
-                                    font.bold: true
-                                    Layout.preferredWidth: Kirigami.Units.gridUnit * 4
-                                }
-                                Label {
-                                    text: modelData.sign
-                                    opacity: 0.9
-                                    Layout.fillWidth: true
-                                }
-                                Label {
-                                    text: modelData.deg
-                                    opacity: 0.75
-                                }
+                                text: modelData.name + "  —  " + modelData.sign + "  (" + modelData.deg + ")"
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.85
+                                wrapMode: Text.WordWrap
                             }
                         }
                     }
@@ -1373,7 +1857,8 @@ Item {
                 // Vimshottari dasha tree
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 6
+                    Layout.topMargin: Kirigami.Units.largeSpacing
+                    spacing: Kirigami.Units.mediumSpacing
                     visible: view.result && view.result.dashas
 
                     Rectangle {
@@ -1391,7 +1876,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.leftMargin: 10
                             anchors.rightMargin: 10
-                            spacing: 2
+                            spacing: 4
 
                             RowLayout {
                                 Layout.fillWidth: true
@@ -1437,7 +1922,7 @@ Item {
 
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 1
+                            spacing: 3
 
                             Rectangle {
                                 Layout.fillWidth: true
@@ -1529,9 +2014,13 @@ Item {
                                     model: modelData.antardashas
 
                                     ColumnLayout {
+                                        id: adCol
                                         Layout.fillWidth: true
-                                        spacing: 1
+                                        spacing: 3
                                         visible: !view.autoAdFocus || modelData.is_current
+                                        // Capture the antardasha index here: inside the nested
+                                        // pratyantardasha repeater `model.index` would shadow it.
+                                        readonly property int adIndex: model.index
 
                                         Rectangle {
                                             Layout.fillWidth: true
@@ -1573,10 +2062,10 @@ Item {
                                                 }
                                                 ToolButton {
                                                     icon.name: "go-down"
-                                                    rotation: view.expandedAd === model.index ? 180 : 0
+                                                    rotation: view.expandedAd === adCol.adIndex ? 180 : 0
                                                     onClicked: {
                                                         view.autoAdFocus = false;
-                                                        view.expandedAd = (view.expandedAd === model.index) ? -1 : model.index;
+                                                        view.expandedAd = (view.expandedAd === adCol.adIndex) ? -1 : adCol.adIndex;
                                                     }
                                                 }
                                             }
@@ -1585,7 +2074,7 @@ Item {
                                                 anchors.fill: parent
                                                 onClicked: {
                                                     view.autoAdFocus = false;
-                                                    view.expandedAd = (view.expandedAd === model.index) ? -1 : model.index;
+                                                    view.expandedAd = (view.expandedAd === adCol.adIndex) ? -1 : adCol.adIndex;
                                                 }
                                             }
                                         }
@@ -1594,7 +2083,7 @@ Item {
                                         Repeater {
                                             Layout.fillWidth: true
                                             Layout.leftMargin: 18
-                                            visible: view.expandedAd === model.index
+                                            visible: view.expandedAd === adCol.adIndex
                                             model: modelData.pratyantardashas
 
                                             Rectangle {
@@ -1643,6 +2132,117 @@ Item {
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    Kirigami.Dialog {
+        id: saveKundaliDialog
+        title: view.txt("saveTitle")
+        standardButtons: Kirigami.Dialog.Ok | Kirigami.Dialog.Cancel
+        preferredWidth: Kirigami.Units.gridUnit * 32
+
+        contentItem: RowLayout {
+            spacing: Kirigami.Units.smallSpacing
+
+            Label {
+                text: view.txt("savePrompt")
+                opacity: 0.85
+            }
+            TextField {
+                id: profileNameField
+                Layout.fillWidth: true
+                placeholderText: view.txt("savePrompt")
+                focus: true
+                onAccepted: saveKundaliDialog.accept()
+            }
+        }
+
+        onAccepted: view.doSave(profileNameField.text)
+    }
+
+    Kirigami.Dialog {
+        id: loadKundaliDialog
+        title: view.txt("listTitle")
+        standardButtons: Kirigami.Dialog.Close
+        preferredWidth: Math.min(view.width * 0.92, Kirigami.Units.gridUnit * 105)
+        preferredHeight: Math.min(view.height * 0.85, Kirigami.Units.gridUnit * 52)
+
+        contentItem: ColumnLayout {
+            spacing: Kirigami.Units.largeSpacing
+
+            Label {
+                text: view.txt("loadPrompt")
+                opacity: 0.85
+                visible: view.savedProfiles.length > 0
+            }
+
+            Label {
+                text: view.txt("noProfiles")
+                opacity: 0.6
+                visible: view.savedProfiles.length === 0
+                horizontalAlignment: Text.AlignHCenter
+                Layout.fillWidth: true
+            }
+
+            ListView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(view.savedProfiles.length * 100, 640)
+                clip: true
+                model: view.savedProfiles
+                spacing: Kirigami.Units.mediumSpacing
+
+                delegate: Rectangle {
+                    width: ListView.view.width
+                    height: profileRow.implicitHeight + 22
+                    radius: 10
+                    color: "#1c232d"
+                    border.color: Qt.rgba(0.35, 0.42, 0.55, 0.25)
+                    border.width: 1
+
+                    RowLayout {
+                        id: profileRow
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.leftMargin: 18
+                        anchors.rightMargin: 14
+                        spacing: 14
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 4
+                            Label {
+                                text: modelData.name
+                                font.bold: true
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.9
+                                elide: Text.ElideNone
+                                wrapMode: Text.Wrap
+                                Layout.fillWidth: true
+                            }
+                            Label {
+                                text: view.profileSummary(modelData)
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.75
+                                opacity: 0.75
+                                wrapMode: Text.Wrap
+                                Layout.fillWidth: true
+                            }
+                        }
+
+                        ToolButton {
+                            text: view.txt("delProf")
+                            icon.name: "edit-delete"
+                            Layout.preferredWidth: Kirigami.Units.gridUnit * 4
+                            Layout.preferredHeight: Kirigami.Units.gridUnit * 3
+                            onClicked: view.deleteProfile(modelData.id)
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: view.loadProfile(modelData.id)
                     }
                 }
             }

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <rect x="0" y="0" width="192" height="192" rx="42" fill="#2e2960"/>
+  <rect x="0" y="0" width="192" height="192" rx="42" fill="none" stroke="#3f3a7d" stroke-width="2"/>
+
+  <!-- 12 rashi ticks on the wheel rim -->
+  <g stroke="#f2bf4d" stroke-width="4.2" stroke-linecap="round">
+    <path d="M96 21 L96 28" transform="rotate(0 96 96)"/>
+    <path d="M96 21 L96 28" transform="rotate(30 96 96)"/>
+    <path d="M96 21 L96 28" transform="rotate(60 96 96)"/>
+    <path d="M96 21 L96 28" transform="rotate(90 96 96)"/>
+    <path d="M96 21 L96 28" transform="rotate(120 96 96)"/>
+    <path d="M96 21 L96 28" transform="rotate(150 96 96)"/>
+    <path d="M96 21 L96 28" transform="rotate(180 96 96)"/>
+    <path d="M96 21 L96 28" transform="rotate(210 96 96)"/>
+    <path d="M96 21 L96 28" transform="rotate(240 96 96)"/>
+    <path d="M96 21 L96 28" transform="rotate(270 96 96)"/>
+    <path d="M96 21 L96 28" transform="rotate(300 96 96)"/>
+    <path d="M96 21 L96 28" transform="rotate(330 96 96)"/>
+  </g>
+
+  <circle cx="96" cy="96" r="62" fill="none" stroke="#f2bf4d" stroke-width="5"/>
+  <circle cx="96" cy="96" r="45" fill="none" stroke="#ffd97a" stroke-width="2.4"/>
+
+  <path d="M96 59 L133 96 L96 133 L59 96 Z" fill="none" stroke="#ffd97a" stroke-width="3.6" stroke-linejoin="round"/>
+  <circle cx="96" cy="96" r="8.5" fill="#ffd97a"/>
+</svg>

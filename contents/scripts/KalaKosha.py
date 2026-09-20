@@ -211,6 +211,58 @@ VAARAS = {
 }
 
 # ---------------------------------------------------------------------------
+# Chara Karakas (Jaimini movable significators).
+# Index-position matches KARAKA_INFO below: [0..7] = Atma, Amatya, Bhratru,
+# Matru, Pitru, Putra, Gnati, Dara. The seven-karaka scheme drops Pitru (4).
+# ---------------------------------------------------------------------------
+KARAKAS = {
+    "en": ["Atmakaraka", "Amatyakaraka", "Bhratrukaraka", "Matrukaraka",
+           "Pitrukaraka", "Putrakaraka", "Gnatikaraka", "Darakaraka"],
+    "iast": ["Ātmakāraka", "Amātyakāraka", "Bhrātṛkāraka", "Mātṛkāraka",
+             "Pitṛkāraka", "Putrakāraka", "Jñātikāraka", "Dārakāraka"],
+    "devanagari": ["आत्मकारक", "अमात्यकारक", "भ्रातृकारक", "मातृकारक",
+                   "पितृकारक", "पुत्रकारक", "ज्ञातिकारक", "दारकारक"],
+}
+
+KARAKA_MEANINGS = {
+    "en": ["Soul · self", "Career · counsel", "Siblings · courage",
+           "Mother · home", "Father · dharma", "Children · devotion",
+           "Kin · obstacles", "Spouse · partnership"],
+    "devanagari": ["आत्मा · स्वयं", "कर्म · मंत्री", "भ्राता · साहस",
+                   "माता · गृह", "पिता · धर्म", "पुत्र · भक्ति",
+                   "ज्ञाति · विघ्न", "दार · साझेदारी"],
+}
+
+# ---------------------------------------------------------------------------
+# Ghataka Chakra — classical Muhurta table of inauspicious elements keyed by
+# birth (Moon) rashi. One row per Janma Rashi (0..11):
+#   maas      → index into MASAS (Chandra māsa that is harmful)
+#   tithis    → the three waxing tithis of the harmful group (the same three
+#               repeated +15 give the Kṛṣṇa pakṣa half)
+#   vaara     → index into VAARAS (Monday = 0 convention)
+#   nakshatra → index into NAKSHATRAS
+#   yoga      → index into YOGAS
+#   karana    → index into KARANAS
+#   prahar    → harmful time-of-day division (1..4)
+#   c_male / c_female → harmful transit-Moon position counted from the birth
+#               rashi (1 = same sign)
+# ---------------------------------------------------------------------------
+GHATA_CHAKRA = [
+    {"maas": 7,  "tithis": [1, 6, 11], "vaara": 6, "nakshatra": 9,  "yoga": 0,  "karana": 0,  "prahar": 1, "c_male": 1,  "c_female": 1},   # Mesha
+    {"maas": 8,  "tithis": [5, 10, 15], "vaara": 5, "nakshatra": 12, "yoga": 23, "karana": 7,  "prahar": 4, "c_male": 5,  "c_female": 8},   # Vrishabha
+    {"maas": 3,  "tithis": [2, 7, 12], "vaara": 0, "nakshatra": 14, "yoga": 18, "karana": 2,  "prahar": 3, "c_male": 9,  "c_female": 7},   # Mithuna
+    {"maas": 9,  "tithis": [2, 7, 12], "vaara": 2, "nakshatra": 16, "yoga": 12, "karana": 9,  "prahar": 1, "c_male": 2,  "c_female": 9},   # Karka
+    {"maas": 2,  "tithis": [3, 8, 13], "vaara": 5, "nakshatra": 18, "yoga": 7,  "karana": 0,  "prahar": 1, "c_male": 6,  "c_female": 4},   # Simha
+    {"maas": 5,  "tithis": [5, 10, 15], "vaara": 5, "nakshatra": 21, "yoga": 23, "karana": 2,  "prahar": 1, "c_male": 10, "c_female": 3},   # Kanya
+    {"maas": 10, "tithis": [4, 9, 14], "vaara": 3, "nakshatra": 23, "yoga": 23, "karana": 3,  "prahar": 4, "c_male": 3,  "c_female": 6},   # Tula
+    {"maas": 6,  "tithis": [1, 6, 11], "vaara": 4, "nakshatra": 26, "yoga": 16, "karana": 4,  "prahar": 1, "c_male": 7,  "c_female": 2},   # Vrischika
+    {"maas": 4,  "tithis": [3, 8, 13], "vaara": 4, "nakshatra": 1,  "yoga": 14, "karana": 3,  "prahar": 1, "c_male": 4,  "c_female": 10},  # Dhanu
+    {"maas": 1,  "tithis": [4, 9, 14], "vaara": 1, "nakshatra": 3,  "yoga": 26, "karana": 7,  "prahar": 4, "c_male": 8,  "c_female": 11},  # Makara
+    {"maas": 0,  "tithis": [3, 8, 13], "vaara": 3, "nakshatra": 5,  "yoga": 9,  "karana": 10, "prahar": 3, "c_male": 11, "c_female": 5},   # Kumbha
+    {"maas": 11, "tithis": [5, 10, 15], "vaara": 4, "nakshatra": 8,  "yoga": 14, "karana": 8,  "prahar": 4, "c_male": 12, "c_female": 12},  # Meena
+]
+
+# ---------------------------------------------------------------------------
 # Choghadiya — 7 names, nature mapping, weekday start offsets
 # ---------------------------------------------------------------------------
 CHOGHADIYAS = {
@@ -369,13 +421,18 @@ OWN_SIGNS = {0: [4], 1: [3], 2: [0, 7], 3: [2, 5], 4: [8, 11],
 MOOLATRIKONA_SIGN = {0: 4, 1: 3, 2: 0, 3: 5, 4: 8, 5: 6, 6: 9,
                      7: None, 8: None}
 
-# Natural friends / enemies / neutrals (planetary index sets).
-GRAHA_FRIENDS = {0: {1, 2, 4}, 1: {0, 3}, 2: {0, 4}, 3: {1, 5},
-                 4: {0, 2, 6}, 5: {3, 6}, 6: {3, 5}}
-GRAHA_ENEMIES = {0: {5, 6}, 1: set(), 2: {5}, 3: {4}, 4: {1, 5},
-                 5: {0, 2}, 6: {0, 1, 4}}
-GRAHA_NEUTRALS = {0: {3}, 1: {2, 4, 5, 6}, 2: {1, 3, 6}, 3: {0, 2, 6},
-                  4: {3}, 5: {1, 4}, 6: {2}}
+# Natural friends / enemies / neutrals for all nine grahas (Lahiri-table
+# convention, including Rahu and Ketu); the three sets partition the other
+# eight grahas for every planet except Surya, whose list omits Ketu.
+GRAHA_FRIENDS = {0: {1, 2, 4}, 1: {0, 3}, 2: {0, 1, 4}, 3: {0, 5, 7},
+                 4: {0, 1, 2}, 5: {3, 6, 7}, 6: {3, 5, 7},
+                 7: {3, 5, 6}, 8: {5, 6, 3}}
+GRAHA_ENEMIES = {0: {5, 6, 7}, 1: {7, 8}, 2: {6, 5}, 3: {1, 4},
+                 4: {3, 5}, 5: {0, 1}, 6: {0, 2, 1},
+                 7: {0, 2, 1}, 8: {0, 2, 1}}
+GRAHA_NEUTRALS = {0: {3}, 1: {6, 5, 4, 2}, 2: {3, 7, 8}, 3: {2, 6, 8},
+                  4: {7, 6, 8}, 5: {4, 2, 8}, 6: {4, 8},
+                  7: {4, 8}, 8: {4, 7}}
 
 # Lord planet (0..8) of each nakshatra (9-planet cycle starting with Ketu).
 NAKSHATRA_LORD = [8, 5, 0, 1, 2, 7, 4, 6, 3] * 3

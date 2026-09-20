@@ -9,7 +9,6 @@ Item {
     implicitHeight: 640
 
     property var medhaResult: null
-    property var answerResult: null
     property var cityChoices: []
     property string langOverride: ""
     property string ayanamsaOverride: ""
@@ -37,10 +36,7 @@ Item {
             "yogasSection": "Yogas",
             "dashaSection": "Current Dasha",
             "strengthsSection": "Strength & Weakness Rankings",
-            "evidenceSection": "Supporting Evidence",
-            "askQuestion": "Ask a question about this chart…",
-            "askBtn": "Ask",
-            "answerSection": "Answer"
+            "evidenceSection": "Supporting Evidence"
         },
         "iast": {
             "title": "Kuṇḍalī Vicāra (KalaMedha)",
@@ -64,10 +60,7 @@ Item {
             "yogasSection": "Yoga",
             "dashaSection": "Vartamāna Daśā",
             "strengthsSection": "Bala–Durbala Rankings",
-            "evidenceSection": "Sākṣya",
-            "askQuestion": "Praśna…",
-            "askBtn": "Pṛccha",
-            "answerSection": "Uttara"
+            "evidenceSection": "Sākṣya"
         },
         "devanagari": {
             "title": "कुंडली विश्लेषण (कालमेध)",
@@ -91,10 +84,7 @@ Item {
             "yogasSection": "योग",
             "dashaSection": "वर्तमान दशा",
             "strengthsSection": "बल–दुर्बल क्रम",
-            "evidenceSection": "साक्ष्य",
-            "askQuestion": "प्रश्न पूछें…",
-            "askBtn": "पूछें",
-            "answerSection": "उत्तर"
+            "evidenceSection": "साक्ष्य"
         }
     })
 
@@ -157,7 +147,7 @@ Item {
         xhr.send();
     }
 
-    function analyze(question) {
+    function analyze() {
         var parts = parseDateStr(dateField.text);
         if (!parts) {
             statusMessage.type = Kirigami.MessageType.Error;
@@ -174,8 +164,7 @@ Item {
                 `&hour=${hourSpin.value}&minute=${minuteSpin.value}` +
                 `&lat=${lat}&lon=${lon}&alt=${alt}&tz=${tz}` +
                 `&lang=${encodeURIComponent(langKey())}` +
-                `&ayanamsa=${view.ayanamsaOverride || cfg("ayanamsa", "lahiri")}` +
-                (question ? `&question=${encodeURIComponent(question)}` : '');
+                `&ayanamsa=${view.ayanamsaOverride || cfg("ayanamsa", "lahiri")}`;
         statusMessage.type = Kirigami.MessageType.Information;
         statusMessage.text = txt("computing");
         statusMessage.visible = true;
@@ -188,7 +177,6 @@ Item {
                 try {
                     var d = JSON.parse(xhr.responseText);
                     view.medhaResult = d.medha || null;
-                    view.answerResult = d.answer || null;
                 } catch (e) {
                     statusMessage.type = Kirigami.MessageType.Error;
                     statusMessage.text = txt("parseFail");
@@ -196,11 +184,18 @@ Item {
                 }
             } else {
                 statusMessage.type = Kirigami.MessageType.Error;
-                statusMessage.text = txt("engineErr").arg(xhr.status);
+                statusMessage.text = view.serverErrorText(xhr) || view.txt("engineErr").arg(xhr.status);
                 statusMessage.visible = true;
             }
         };
         xhr.send();
+    }
+
+    function serverErrorText(xhr) {
+        try {
+            var j = JSON.parse(xhr.responseText);
+            return j.message || j.error || "";
+        } catch (e) { return ""; }
     }
 
     function runWithParams(p) {
@@ -214,8 +209,7 @@ Item {
         view.langOverride = p.lang || "";
         view.ayanamsaOverride = p.ayanamsa || "";
         view.medhaResult = null;
-        view.answerResult = null;
-        view.analyze(null);
+        view.analyze();
     }
 
     ColumnLayout {
@@ -237,7 +231,7 @@ Item {
             }
             SpinBox { id: hourSpin; from: 0; to: 23; value: 10; editable: true; textFromValue: function(v) { return v + i18n("h"); }; valueFromText: function(t) { return Math.max(0, Math.min(23, parseInt(t) || 0)); } }
             SpinBox { id: minuteSpin; from: 0; to: 59; value: 30; editable: true; textFromValue: function(v) { return v + i18n("m"); }; valueFromText: function(t) { return Math.max(0, Math.min(59, parseInt(t) || 0)); } }
-            Button { text: view.txt("compute"); icon.name: "view-refresh"; onClicked: view.analyze(null) }
+            Button { text: view.txt("compute"); icon.name: "view-refresh"; onClicked: view.analyze() }
         }
 
         // Params row 2: city search
@@ -257,26 +251,7 @@ Item {
             TextField { id: tzField; placeholderText: view.txt("tzh"); text: String(Number(view.cfg("timezone", 5.5)).toFixed(1)); Layout.preferredWidth: Kirigami.Units.gridUnit * 3; validator: DoubleValidator { bottom: -12; top: 14; decimals: 2 } }
         }
 
-        // Question field
-        RowLayout {
-            Layout.fillWidth: true; spacing: Kirigami.Units.smallSpacing
-            TextField { id: questionField; Layout.fillWidth: true; placeholderText: view.txt("askQuestion"); onAccepted: view.analyze(text) }
-            Button { text: view.txt("askBtn"); icon.name: "help-contents"; onClicked: view.analyze(questionField.text.trim()) }
-        }
-
         Kirigami.InlineMessage { id: statusMessage; Layout.fillWidth: true; type: Kirigami.MessageType.Warning; visible: false }
-
-        // Answer card (when a question was asked)
-        Kirigami.Card {
-            Layout.fillWidth: true
-            visible: view.answerResult !== null
-            header: Kirigami.Heading { text: view.txt("answerSection"); level: 4 }
-            contentItem: Label {
-                text: view.answerResult ? (view.answerResult.answer || "--") : ""
-                wrapMode: Text.WordWrap; Layout.fillWidth: true
-                textFormat: Text.RichText
-            }
-        }
 
         ScrollView {
             Layout.fillWidth: true

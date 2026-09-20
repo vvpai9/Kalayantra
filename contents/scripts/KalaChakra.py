@@ -1187,6 +1187,18 @@ def _planet_dignity(idx: int, sign: int, lang: str = "en") -> tuple[str, str]:
 # Vimshottari Dasha tree
 # ---------------------------------------------------------------------------
 
+def years_to_ymd(years: float) -> dict:
+    """Split a (possibly fractional) Vimshottari period into whole years,
+    months (1/12 of a solar year) and days for display.  The decimal
+    ``years`` field is kept for arithmetic; ``duration`` carries this
+    non-decimal breakdown."""
+    y = int(years + 1e-9)
+    frac = years - y
+    m = int(frac * 12.0 + 1e-9)
+    days = int(round((frac * 12.0 - m) * (_YEAR_DAYS / 12.0)))
+    return {"years": y, "months": m, "days": days}
+
+
 def calculate_vimshottari_tree(jd_ut: float, moon_lon: float, tz: float,
                                lang: str = "en",
                                now_jd: float | None = None,
@@ -1270,6 +1282,7 @@ def calculate_vimshottari_tree(jd_ut: float, moon_lon: float, tz: float,
                                     "lord": name(dlord((p_md+j+k+s+t) % 9)),
                                     "lord_idx": dlord((p_md+j+k+s+t) % 9),
                                     "years": round(p_ys, 4),
+                                    "duration": years_to_ymd(p_ys),
                                     "start_jd": round(pr_start_jd, 4),
                                     "end_jd": round(p_end_jd, 4),
                                     "start_date": _jd_to_datetime_str(pr_start_jd, tz),
@@ -1281,6 +1294,7 @@ def calculate_vimshottari_tree(jd_ut: float, moon_lon: float, tz: float,
                             "lord": name(dlord((p_md+j+k+s) % 9)),
                             "lord_idx": dlord((p_md+j+k+s) % 9),
                             "years": round(sk_ys, 4),
+                            "duration": years_to_ymd(sk_ys),
                             "start_jd": round(sk_start_jd, 4),
                             "end_jd": round(sk_end_jd, 4),
                             "start_date": _jd_to_datetime_str(sk_start_jd, tz),
@@ -1294,6 +1308,7 @@ def calculate_vimshottari_tree(jd_ut: float, moon_lon: float, tz: float,
                     "lord": pd_name,
                     "lord_idx": dlord(p_pd),
                     "years": round(pd_years, 4),
+                    "duration": years_to_ymd(pd_years),
                     "start_date": _jd_to_datetime_str(pd_start_jd, tz),
                     "end_date": _jd_to_datetime_str(pd_end_jd, tz),
                     "is_current": in_period(pd_start_jd, pd_end_jd),
@@ -1305,6 +1320,7 @@ def calculate_vimshottari_tree(jd_ut: float, moon_lon: float, tz: float,
                 "lord": ad_name,
                 "lord_idx": dlord(p_ad),
                 "years": round(ad_years, 4),
+                "duration": years_to_ymd(ad_years),
                 "start_date": _jd_to_datetime_str(ad_start_jd, tz),
                 "end_date": _jd_to_datetime_str(ad_end_jd, tz),
                 "is_current": in_period(ad_start_jd, ad_end_jd),
@@ -1316,6 +1332,7 @@ def calculate_vimshottari_tree(jd_ut: float, moon_lon: float, tz: float,
             "lord": md_name,
             "lord_idx": dlord(p_md),
             "years": round(md_years, 4),
+            "duration": years_to_ymd(md_years),
             "start_date": _jd_to_datetime_str(md_start_jd, tz),
             "end_date": _jd_to_datetime_str(md_end_jd, tz),
             "is_current": in_period(md_start_jd, md_end_jd),
@@ -1335,7 +1352,9 @@ def calculate_vimshottari_tree(jd_ut: float, moon_lon: float, tz: float,
         "start_lord_idx": dasha_idx0,
         "start_lord": name(dlord(dasha_idx0)),
         "balance_years": round(balance, 4),
+        "balance_duration": years_to_ymd(balance),
         "elapsed_years": round(elapsed, 4),
+        "elapsed_duration": years_to_ymd(elapsed),
         "total_years": round(sum(md_years_list), 4),
         "mahadashas": mahadashas,
     }
@@ -1528,6 +1547,100 @@ def calculate_kundali(year: int, month: int, day: int,
         "houses": houses,
         "vargas": vargas,
         "dashas": dashas,
+        "karakas": calculate_karakas(planets, lang),
+        "ghatak": calculate_ghatak_chakra(moon_rashi, lang),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Chara Karakas + Ghataka Chakra (Jaimini / Muhurta additions)
+# ---------------------------------------------------------------------------
+
+# Seven-karaka scheme drops Pitrukaraka (index 4); the eight-karaka scheme
+# adds Rahu (counted backward).  Ketu (8) is always excluded.
+_KARAKA_SEVEN = [0, 1, 2, 3, 5, 6, 7]
+_KARAKA_EIGHT = [0, 1, 2, 3, 4, 5, 6, 7]
+
+
+def calculate_karakas(planets: dict, lang: str = "en") -> dict:
+    """Jaimini Chara Karakas from a natal D1 planet map.
+
+    Every graha is ranked by the degree it has travelled within its sign
+    (0..30, sign itself ignored): highest = Atmakaraka, lowest = Darakaraka.
+    The eight-karaka scheme includes Rahu with its degree measured backward
+    (30° − degree); Ketu never participates.  Both schemes are returned.
+    """
+    grahas = [p for p in planets.values() if p.get("idx") in _KARAKA_EIGHT]
+    grahas.sort(key=lambda p: p["idx"])
+
+    def rank(with_rahu: bool, karaka_idxs):
+        cands = []
+        for p in grahas:
+            if not with_rahu and p["idx"] == 7:
+                continue
+            deg = p.get("degree_in_sign", 0.0)
+            eff = (30.0 - deg) if (with_rahu and p["idx"] == 7) else deg
+            cands.append((eff, p))
+        # Highest effective degree first; ties resolve toward the natural
+        # karaka order (Surya, Chandra, Mangala, Budha, Guru, Sukra, Sani, Rahu).
+        cands.sort(key=lambda c: (c[0], -c[1]["idx"]), reverse=True)
+        out = []
+        for rank_num, (eff, p) in enumerate(cands, start=1):
+            k_idx = karaka_idxs[rank_num - 1]
+            meanings = KalaKosha.KARAKA_MEANINGS.get(lang) or \
+                KalaKosha.KARAKA_MEANINGS["en"]
+            via_rahu = with_rahu and p["idx"] == 7
+            out.append({
+                "rank": rank_num,
+                "karaka_idx": k_idx,
+                "karaka": KalaKosha.KARAKAS[lang][k_idx],
+                "meaning": meanings[k_idx],
+                "planet": p["name"],
+                "idx": p["idx"],
+                "degree_in_sign": round(eff if via_rahu else p.get("degree_in_sign", 0.0), 4),
+                "rashi": p["rashi"],
+                "rashi_name": p["rashi_name"],
+                "nakshatra_name": p["nakshatra_name"],
+                "nakshatra_pada": p["nakshatra_pada"],
+                "house": p["house"],
+                "retrograde": p.get("retrograde", False),
+                "via_rahu": via_rahu,
+            })
+        return out
+
+    return {
+        "seven": rank(False, _KARAKA_SEVEN),
+        "eight": rank(True, _KARAKA_EIGHT),
+        "note": ("Ranked by degree within the sign — highest = Atmakaraka, "
+                 "lowest = Darakaraka. The eight-karaka scheme counts Rahu "
+                 "backward (30° − degree); Ketu is excluded."),
+    }
+
+
+def calculate_ghatak_chakra(moon_rashi: int, lang: str = "en") -> dict:
+    """Ghataka Chakra row for a birth (Moon) rashi.
+
+    Lists the lunar month, tithi group, weekday, nakshatra, nitya yoga,
+    karana, prahar and transit-Moon positions that are classically treated as
+    inauspicious for starting new undertakings for a native of this rashi.
+    """
+    row = KalaKosha.GHATA_CHAKRA[moon_rashi % 12]
+    cm = (moon_rashi + row["c_male"] - 1) % 12
+    cf = (moon_rashi + row["c_female"] - 1) % 12
+    return {
+        "janma_rashi": KalaKosha.RASIS[lang][moon_rashi % 12],
+        "ghat_maas": KalaKosha.MASAS[lang][row["maas"]],
+        "ghat_tithis": list(row["tithis"]),
+        "ghat_tithis_full": sorted(set(row["tithis"] + [t + 15 for t in row["tithis"]])),
+        "ghat_vaara": KalaKosha.VAARAS[lang][row["vaara"]],
+        "ghat_nakshatra": KalaKosha.NAKSHATRAS[lang][row["nakshatra"]],
+        "ghat_yoga": KalaKosha.YOGAS[lang][row["yoga"]],
+        "ghat_karana": KalaKosha.KARANAS[lang][row["karana"]],
+        "prahar": row["prahar"],
+        "ghat_chandra_male": {"position": row["c_male"],
+                              "rashi": KalaKosha.RASIS[lang][cm]},
+        "ghat_chandra_female": {"position": row["c_female"],
+                                "rashi": KalaKosha.RASIS[lang][cf]},
     }
 
 
@@ -1969,27 +2082,51 @@ def calculate_gochara(birth_data: dict, year: int, month: int, day: int,
                 "description": f"Guru transits house {guru_house_from_lagna} from natal Lagna.",
             })
 
+        # Budha-Aditya Yoga: a Yuti (same-rashi conjunction, matching the
+        # natal conjunction doctrine) of Surya and Budha in the transit chart.
+        sun_rashi = get_rashi(transit_lon[0])
+        budha_rashi = get_rashi(transit_lon[3])
+        budha_sun_sep = abs((transit_lon[3] - transit_lon[0]) % 360.0)
+        if budha_sun_sep > 180.0:
+            budha_sun_sep = 360.0 - budha_sun_sep
+        if budha_rashi == sun_rashi:
+            yogas.append({
+                "name": "Budha-Aditya Yoga",
+                "severity": "low",
+                "description": (
+                    f"Surya and Budha are in a Yuti in {KalaKosha.RASIS[lang][sun_rashi]} "
+                    f"(angular separation {budha_sun_sep:.1f}\u00B0) — a favourable yoga "
+                    "bestowing sharp intellect, eloquence and quick grasping power."
+                ),
+            })
+
         # ---- Next sign ingress (transit edges) ----
-        # For the slower grahas report the JD of the next rashi change.
+        # Report each graha's next rashi change (forward or via retrograde
+        # station), listed chronologically.  Surya and fast-moving Budha are
+        # included; Chandra flips every ~2.3 days and would drown the list.
         edges = []
 
         def _rashi_at(jd):
             res = swe.calc_ut(jd, _PLANET_SWE_IDS[idx], flags)
             return get_rashi(res[0][0] % 360.0)
 
-        for idx in (4, 5, 6, 7, 2):
+        for idx in (0, 2, 3, 4, 5, 6, 7):
             tlon = transit_lon[idx]
             cur_rashi = get_rashi(tlon)
             max_days = 1000.0
             found_jd = find_transition(jd_ut, _rashi_at, max_days=max_days, step_days=0.5)
             if found_jd is not None:
                 new_rashi = get_rashi(swe.calc_ut(found_jd, _PLANET_SWE_IDS[idx], flags)[0][0] % 360.0)
-                edges.append({
+                edge = {
                     "graha": KalaKosha.GRAHAS[lang][idx],
                     "from_rashi": KalaKosha.RASIS[lang][cur_rashi],
                     "to_rashi": KalaKosha.RASIS[lang][new_rashi],
                     "date": KalaVartika.format_datetime(found_jd, tz),
-                })
+                }
+                edges.append((found_jd, edge))
+
+        edges.sort(key=lambda item: item[0])
+        edges = [e for _, e in edges]
 
         result = {
             "date": f"{day:02d}-{month:02d}-{year:04d}",

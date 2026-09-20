@@ -483,7 +483,7 @@ Item {
 
                 Button {
                     text: plasmoid.configuration.lang === "devanagari" ? "ऐप खोलें" : "Open App"
-                    icon.name: "window-new"
+                    icon.name: "kalayantra"
                     visible: !kaladarshana.showTools
                     ToolTip.text: plasmoid.configuration.lang === "devanagari" ? "पूर्ण ऐप खोलें" : "Open the full application"
                     ToolTip.visible: hovered

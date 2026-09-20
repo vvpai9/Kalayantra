@@ -10,7 +10,7 @@ Window {
     height: 760
     minimumWidth: 960
     minimumHeight: 620
-    visible: true
+    visible: false
     color: Kirigami.Theme.backgroundColor
 
     property QtObject plasmoid: QtObject {
@@ -256,7 +256,19 @@ Window {
     }
 
     Component.onCompleted: {
+        // Set the window icon before the window is shown: a static `icon:`
+        // binding on a qml6 Window can abort loading, so we assign it here.
+        // Prefer a direct file URL (theme-independent, always resolves to the
+        // installed PNG) and keep the themed "kalayantra" name as fallback.
+        try { root.icon.source = Qt.resolvedUrl("../contents/images/kalayantra.png") } catch (e) { }
+        try { root.icon.name = "kalayantra" } catch (e) { }
+        // Align the app identifier with the desktop file (org.kalayantra.app)
+        // so Plasma can match the window to the icon on the taskbar/titlebar.
+        try { Qt.application.name = "kalayantra" } catch (e) { }
         fetchConfig();
+        // The window must become visible only after the icon is in place, or
+        // the window manager may commit an icon-less titlebar at map time.
+        try { root.visible = true } catch (e) { }
     }
 
     Kaladarshana {

@@ -27,6 +27,7 @@ CUSTOM_OBSERVANCES_PATH = os.path.join(CONFIG_DIR, "custom_observances.json")
 REMINDERS_PATH = os.path.join(CONFIG_DIR, "reminders.json")
 NOTIFICATION_CACHE_PATH = os.path.join(CONFIG_DIR, "notification_cache.json")
 LAST_COORDS_PATH = os.path.join(CONFIG_DIR, "last_coordinates.json")
+KUNDALIS_PATH = os.path.join(CONFIG_DIR, "kundalis.json")
 
 reminder_wakeup_event = threading.Event()
 
@@ -35,6 +36,27 @@ CACHE = {}
 
 # Canonical date format for all API dates (day, range, kundali, hora, muhurta, ...)
 DATE_FORMAT = "%d-%m-%Y"
+
+
+class KalaDateError(ValueError):
+    """Raised when a date-style request parameter is missing or is not a real
+    calendar date (e.g. 31-02-2026), so handlers can answer with a clean 400
+    instead of crashing the request with a 500."""
+
+
+def parse_request_datetime(s, param="date"):
+    """Parse a DD-MM-YYYY request parameter into a datetime.datetime.
+
+    Blank/missing input and dates that do not really exist (31st February,
+    00th of a month, month 13, ...) raise KalaDateError with a user-friendly
+    message instead of letting a bare ValueError surface as a 500."""
+    if s is None or not str(s).strip():
+        raise KalaDateError('Missing required "{0}" parameter (format DD-MM-YYYY)'.format(param))
+    text = str(s).strip()
+    try:
+        return datetime.datetime.strptime(text, DATE_FORMAT)
+    except ValueError:
+        raise KalaDateError('Invalid {0} "{1}" — expected a real date in DD-MM-YYYY format'.format(param, text))
 
 # Columns exported in CSV format (used by /range, /month and /day with format=csv)
 CSV_COLUMNS = [
@@ -81,6 +103,7 @@ class ConfigManager:
         self._reminders_cache = None
         self._notification_cache = None
         self._last_coords_cache = None
+        self._kundalis_cache = None
         self._last_mtimes = {}
 
     def ensure_config_exists(self):
@@ -94,7 +117,8 @@ class ConfigManager:
             (CUSTOM_OBSERVANCES_PATH, []),
             (REMINDERS_PATH, []),
             (NOTIFICATION_CACHE_PATH, {"date": "", "sent": []}),
-            (LAST_COORDS_PATH, {"lat": 23.1765, "lon": 75.7885, "alt": 0.0, "tz": 5.5, "calendar_system": "shaka", "month_system": "amavasyanta", "lang": "en"})
+            (LAST_COORDS_PATH, {"lat": 23.1765, "lon": 75.7885, "alt": 0.0, "tz": 5.5, "calendar_system": "shaka", "month_system": "amavasyanta", "lang": "en"}),
+            (KUNDALIS_PATH, []),
         ]:
             if not os.path.exists(path):
                 try:
@@ -350,6 +374,29 @@ class ConfigManager:
             except Exception as e:
                 logger.error(f"Error saving last coordinates: {e}")
 
+    def load_saved_kundalis(self):
+        if self._kundalis_cache is not None:
+            return json.loads(json.dumps(self._kundalis_cache))
+        self.ensure_config_exists()
+        with self.lock:
+            try:
+                with open(KUNDALIS_PATH, "r", encoding="utf-8") as f:
+                    self._kundalis_cache = json.load(f)
+                    return json.loads(json.dumps(self._kundalis_cache))
+            except Exception as e:
+                logger.error(f"Error loading saved kundalis: {e}")
+                return []
+
+    def save_saved_kundalis(self, kundalis):
+        self.ensure_config_exists()
+        with self.lock:
+            try:
+                with open(KUNDALIS_PATH, "w", encoding="utf-8") as f:
+                    json.dump(kundalis, f, indent=2, ensure_ascii=False)
+                self._kundalis_cache = kundalis
+            except Exception as e:
+                logger.error(f"Error saving kundalis: {e}")
+
 config_manager = ConfigManager()
 
 def ensure_config_exists():
@@ -387,6 +434,12 @@ def load_last_coordinates():
 
 def save_last_coordinates(coords):
     config_manager.save_last_coordinates(coords)
+
+def load_saved_kundalis():
+    return config_manager.load_saved_kundalis()
+
+def save_saved_kundalis(kundalis):
+    config_manager.save_saved_kundalis(kundalis)
 
 
 def send_desktop_notification(title, body):
@@ -614,12 +667,20 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
             '/api/v1/vidya': self.handle_vidya,
             '/launch_app': self.handle_launch_app,
             '/system_info': self.handle_system_info,
+            '/llm': self.handle_llm_status,
             '/openapi.json': self.handle_openapi,
             '/docs': self.handle_docs,
+            '/save_kundali': self.handle_save_kundali,
+            '/list_kundalis': self.handle_list_kundalis,
+            '/load_kundali': self.handle_load_kundali,
+            '/delete_kundali': self.handle_delete_kundali,
         }
         handler = endpoints.get(path)
         if handler:
-            handler(query)
+            try:
+                handler(query)
+            except KalaDateError as e:
+                self.send_json_response(400, {"error": str(e), "message": str(e), "success": False})
         else:
             self.send_response(404)
             self.end_headers()
@@ -632,6 +693,22 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
             "processor": platform.processor(),
         }
         self.send_json_response(200, info)
+
+    def handle_llm_status(self, query=None):
+        """Report whether an external LLM (e.g. Ollama) is connected so the UI
+        can enable/disable the "Ask a question" field accordingly."""
+        try:
+            import KalaMedha
+            available = KalaMedha.llm_available(timeout=0.5)
+            info = {
+                "available": available,
+                "provider": "ollama",
+                "model": KalaMedha.OllamaProvider.DEFAULT_MODEL,
+                "base_url": "http://127.0.0.1:11434",
+            }
+            self.send_json_response(200, info)
+        except Exception as e:
+            self.send_json_response(500, {"error": str(e)})
 
     def handle_config(self, query=None):
         try:
@@ -662,11 +739,11 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
             
             date_str = query.get('date', [None])[0]
             if date_str:
-                dt = datetime.datetime.strptime(date_str, DATE_FORMAT)
+                dt = parse_request_datetime(date_str, "date")
             else:
                 dt = datetime.datetime.now()
                 date_str = dt.strftime(DATE_FORMAT)
-                
+
             tithi_mode = query.get('tithi_mode', ['traditional'])[0]
             calendar_system = query.get('calendar_system', ['shaka'])[0]
             month_system = query.get('month_system', ['amavasyanta'])[0]
@@ -730,7 +807,9 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
                 self.send_csv_response(200, [astro_data])
             else:
                 self.send_json_response(200, astro_data)
-            
+
+        except KalaDateError:
+            raise
         except Exception as e:
             self.send_json_response(500, {"error": str(e)})
 
@@ -749,6 +828,9 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
             
             year = int(query.get('year', [datetime.datetime.now().year])[0])
             month = int(query.get('month', [datetime.datetime.now().month])[0])
+            if month < 1 or month > 12 or year < 1 or year > 9999:
+                self.send_json_response(400, {"error": "invalid year/month (month must be 1-12)"})
+                return
             
             tithi_mode = query.get('tithi_mode', ['traditional'])[0]
             calendar_system = query.get('calendar_system', ['shaka'])[0]
@@ -808,7 +890,7 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
                 
                 if not start_str:
                     start_str = date_str or today_str
-                start_dt = datetime.datetime.strptime(start_str, DATE_FORMAT)
+                start_dt = parse_request_datetime(start_str, "start")
                 
                 if not end_str:
                     if days:
@@ -816,7 +898,7 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
                     else:
                         end_dt = start_dt
                 else:
-                    end_dt = datetime.datetime.strptime(end_str, DATE_FORMAT)
+                    end_dt = parse_request_datetime(end_str, "end")
                     
                 if end_dt < start_dt:
                     self.send_json_response(400, {"error": "end must be on or after start"})
@@ -1364,7 +1446,7 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
             tz = float(query.get('tz', [5.5])[0])
             date_str = query.get('date', [None])[0]
             if date_str:
-                dt = datetime.datetime.strptime(date_str, DATE_FORMAT)
+                dt = parse_request_datetime(date_str, "date")
             else:
                 dt = datetime.datetime.now()
             hour = float(query.get('hour', [12.0])[0])
@@ -1380,8 +1462,94 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
             kd["_meta"] = {"date": date_str or dt.strftime(DATE_FORMAT),
                            "hour": hour, "minute": minute, "ayanamsa": ayanamsa}
             self.send_json_response(200, kd)
+        except KalaDateError:
+            raise
         except Exception as e:
             self.send_json_response(500, {"error": str(e)})
+
+    def _kundali_params_from_query(self, query):
+        """Extract and validate the birth parameters shared by /kundali and
+        the saved-kundali endpoints."""
+        date_str = query.get('date', [None])[0]
+        if not date_str:
+            return None, "date is required (DD-MM-YYYY)"
+        try:
+            dt = datetime.datetime.strptime(date_str, DATE_FORMAT)
+        except Exception:
+            return None, f"invalid date '{date_str}' (expected DD-MM-YYYY)"
+        try:
+            params = {
+                "date": date_str,
+                "hour": float(query.get('hour', [12.0])[0]),
+                "minute": float(query.get('minute', [0])[0]),
+                "lat": float(query.get('lat', [23.1765])[0]),
+                "lon": float(query.get('lon', [75.7885])[0]),
+                "alt": float(query.get('alt', [0.0])[0]),
+                "tz": float(query.get('tz', [5.5])[0]),
+                "ayanamsa": query.get('ayanamsa', ['lahiri'])[0],
+                "lang": query.get('lang', ['en'])[0],
+            }
+        except (TypeError, ValueError) as e:
+            return None, f"invalid numeric birth parameter: {e}"
+        return params, None
+
+    def handle_save_kundali(self, query):
+        name = (query.get('name', [None])[0] or "").strip()
+        if not name:
+            self.send_json_response(400, {"error": "name is required"})
+            return
+        profile_id = query.get('id', [None])[0]
+        params, err = self._kundali_params_from_query(query)
+        if err:
+            self.send_json_response(400, {"error": err})
+            return
+        profiles = load_saved_kundalis()
+        if profile_id:
+            existing = next((p for p in profiles if p.get("id") == profile_id), None)
+            if not existing:
+                self.send_json_response(404, {"error": "profile not found"})
+                return
+            existing.update({"name": name, "params": params,
+                             "updated": datetime.datetime.now().isoformat(timespec="seconds")})
+        else:
+            profiles.append({
+                "id": uuid.uuid4().hex[:12],
+                "name": name,
+                "params": params,
+                "created": datetime.datetime.now().isoformat(timespec="seconds"),
+            })
+        profiles = profiles[-100:]
+        save_saved_kundalis(profiles)
+        self.send_json_response(200, {"success": True,
+                                      "id": profiles[-1]["id"], "count": len(profiles)})
+
+    def handle_list_kundalis(self, query):
+        profiles = load_saved_kundalis()
+        self.send_json_response(200, {"profiles": profiles})
+
+    def handle_load_kundali(self, query):
+        profile_id = query.get('id', [None])[0]
+        if not profile_id:
+            self.send_json_response(400, {"error": "id is required"})
+            return
+        profile = next((p for p in load_saved_kundalis() if p.get("id") == profile_id), None)
+        if not profile:
+            self.send_json_response(404, {"error": "profile not found"})
+            return
+        self.send_json_response(200, {"success": True, "profile": profile})
+
+    def handle_delete_kundali(self, query):
+        profile_id = query.get('id', [None])[0]
+        if not profile_id:
+            self.send_json_response(400, {"error": "id is required"})
+            return
+        profiles = load_saved_kundalis()
+        remaining = [p for p in profiles if p.get("id") != profile_id]
+        if len(remaining) == len(profiles):
+            self.send_json_response(404, {"error": "profile not found"})
+            return
+        save_saved_kundalis(remaining)
+        self.send_json_response(200, {"success": True, "count": len(remaining)})
 
     def handle_analysis(self, query):
         try:
@@ -1391,7 +1559,7 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
             tz = float(query.get('tz', [5.5])[0])
             date_str = query.get('date', [None])[0]
             if date_str:
-                dt = datetime.datetime.strptime(date_str, DATE_FORMAT)
+                dt = parse_request_datetime(date_str, "date")
             else:
                 dt = datetime.datetime.now()
             hour = float(query.get('hour', [12.0])[0])
@@ -1406,6 +1574,8 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
             )
             analysis = KalaChakra.generate_analysis(kd, lang=lang)
             self.send_json_response(200, {"kundali": kd, "analysis": analysis})
+        except KalaDateError:
+            raise
         except Exception as e:
             self.send_json_response(500, {"error": str(e)})
 
@@ -1422,7 +1592,7 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
             tz = float(query.get('tz', [5.5])[0])
             date_str = query.get('date', [None])[0]
             if date_str:
-                dt = datetime.datetime.strptime(date_str, DATE_FORMAT)
+                dt = parse_request_datetime(date_str, "date")
             else:
                 dt = datetime.datetime.now()
             hour = float(query.get('hour', [12.0])[0])
@@ -1443,6 +1613,8 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
                     dt.year, dt.month, dt.day, hour, minute, tz, lat, lon, alt,
                     ayanamsa=ayanamsa, lang=lang)
             self.send_json_response(200, response)
+        except KalaDateError:
+            raise
         except Exception as e:
             self.send_json_response(500, {"error": str(e)})
 
@@ -1461,7 +1633,7 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
             tz = float(query.get('tz', [5.5])[0])
             date_str = query.get('date', [None])[0]
             if date_str:
-                dt = datetime.datetime.strptime(date_str, DATE_FORMAT)
+                dt = parse_request_datetime(date_str, "date")
             else:
                 dt = datetime.datetime.now()
             hour = float(query.get('hour', [12.0])[0])
@@ -1482,8 +1654,16 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
             else:
                 response["medha"] = KalaMedha.medha_analysis(kd, lang=lang)
             if question:
-                response["answer"] = KalaMedha.answer_question(question, kd, lang=lang)
+                # When a local LLM (e.g. Ollama) is reachable, answer the
+                # question with it; otherwise fall back to the deterministic
+                # evidence engine automatically.
+                if use_llm or KalaMedha.llm_available():
+                    response["answer"] = KalaMedha.answer_with_llm(question, kd, lang=lang)
+                else:
+                    response["answer"] = KalaMedha.answer_question(question, kd, lang=lang)
             self.send_json_response(200, response)
+        except KalaDateError:
+            raise
         except Exception as e:
             self.send_json_response(500, {"error": str(e)})
 
@@ -1542,7 +1722,7 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
             tz = float(query.get('tz', [5.5])[0])
             date_str = query.get('date', [None])[0]
             if date_str:
-                dt = datetime.datetime.strptime(date_str, DATE_FORMAT)
+                dt = parse_request_datetime(date_str, "date")
             else:
                 dt = datetime.datetime.now()
             hour = float(query.get('hour', [12.0])[0])
@@ -1553,7 +1733,7 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
 
             t_date_str = query.get('transit_date', [None])[0]
             if t_date_str:
-                t_dt = datetime.datetime.strptime(t_date_str, DATE_FORMAT)
+                t_dt = parse_request_datetime(t_date_str, "transit_date")
             else:
                 t_dt = dt
             t_hour = float(query.get('transit_hour', [t_dt.hour])[0])
@@ -1568,6 +1748,8 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
                 tz, lat, lon, lang=lang, ayanamsa=ayanamsa,
             )
             self.send_json_response(200, {"kundali": kd, "gochara": gochara})
+        except KalaDateError:
+            raise
         except Exception as e:
             self.send_json_response(500, {"error": str(e)})
 
@@ -1583,10 +1765,12 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
                 now_local = datetime.datetime.now() + datetime.timedelta(hours=tz)
                 dt = now_local
             else:
-                dt = datetime.datetime.strptime(date_str, DATE_FORMAT)
+                dt = parse_request_datetime(date_str, "date")
             data = KalaChakra.calculate_dina_horas(
                 dt.year, dt.month, dt.day, tz, lat, lon, alt, lang=lang)
             self.send_json_response(200, data)
+        except KalaDateError:
+            raise
         except Exception as e:
             self.send_json_response(500, {"error": str(e)})
 
@@ -1602,10 +1786,12 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
                 now_local = datetime.datetime.now() + datetime.timedelta(hours=tz)
                 dt = now_local
             else:
-                dt = datetime.datetime.strptime(date_str, DATE_FORMAT)
+                dt = parse_request_datetime(date_str, "date")
             data = KalaChakra.calculate_muhurtas(
                 dt.year, dt.month, dt.day, tz, lat, lon, alt, lang=lang)
             self.send_json_response(200, data)
+        except KalaDateError:
+            raise
         except Exception as e:
             self.send_json_response(500, {"error": str(e)})
 
@@ -1754,7 +1940,12 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
             ("/export_reminders", "Export reminders", [], "Export all reminders as JSON.", False),
             ("/evaluate_reminders", "Evaluate reminders for a date", common_params, "Return reminders matching a date.", True),
             ("/system_info", "Runtime system information", [], "platform.machine() etc.", True),
+            ("/llm", "External LLM connection status", [], "Reports whether an optional local LLM (Ollama) is reachable so the UI can enable/disable the question field.", False),
             ("/config", "Saved coordinates and calendar settings", [], "Last used location and engine settings; used by the standalone app to adopt widget configuration.", False),
+            ("/save_kundali", "Save a kundali birth profile", kundali_params + [("name", "Profile name (required)"), ("id", "uuid to update an existing profile")], "Stores the birth parameters under a named profile so the same chart can be reloaded without re-entering details. Use POST with a JSON body containing name + birth fields.", True),
+            ("/list_kundalis", "List saved kundali profiles", [], "Returns all named, saved birth profiles with id, name, created and birth params.", False),
+            ("/load_kundali", "Load a saved kundali profile", [("id", "Profile id from /list_kundalis")], "Returns the stored birth parameters for a saved profile; pass them straight back to /kundali.", False),
+            ("/delete_kundali", "Delete a saved kundali profile", [("id", "Profile id from /list_kundalis")], "Removes a saved birth profile.", False),
         ]:
             item = {"get": build_op(summary, params, desc)}
             if allow_post:
@@ -1841,6 +2032,10 @@ Excel, LibreOffice Calc, Google Sheets (Power Query / API connector), Word mail-
 <tr><td><span class="badge get">GET</span> <span class="badge post">POST</span> <code>/launch_app</code></td><td>Open the standalone KalaYantra desktop app</td></tr>
 <tr><td><span class="badge get">GET</span> <span class="badge post">POST</span> <code>/system_info</code></td><td>Runtime info</td></tr>
 <tr><td><span class="badge get">GET</span> <code>/config</code></td><td>Saved coordinates &amp; settings (used by the standalone app)</td></tr>
+<tr><td><span class="badge get">GET</span> <span class="badge post">POST</span> <code>/save_kundali</code></td><td>Save a kundali birth profile: <code>name</code> + birth fields (date, hour, minute, lat, lon, alt, tz, ayanamsa)</td></tr>
+<tr><td><span class="badge get">GET</span> <code>/list_kundalis</code></td><td>List saved kundali birth profiles</td></tr>
+<tr><td><span class="badge get">GET</span> <code>/load_kundali</code></td><td>Load a saved profile by <code>id</code> (returns its birth fields)</td></tr>
+<tr><td><span class="badge get">GET</span> <span class="badge post">POST</span> <code>/delete_kundali</code></td><td>Delete a saved kundali profile by <code>id</code></td></tr>
 <tr><td><span class="badge get">GET</span> <code>/openapi.json</code></td><td>OpenAPI 3.0 spec (for API-first clients)</td></tr>
 </table>
 

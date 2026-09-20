@@ -265,10 +265,17 @@ Item {
                 }
             } else {
                 statusMessage.type = Kirigami.MessageType.Error;
-                statusMessage.text = txt("engineErr").arg(xhr.status);
+                statusMessage.text = view.serverErrorText(xhr) || view.txt("engineErr").arg(xhr.status);
             }
         };
         xhr.send();
+    }
+
+    function serverErrorText(xhr) {
+        try {
+            var j = JSON.parse(xhr.responseText);
+            return j.message || j.error || "";
+        } catch (e) { return ""; }
     }
 
     function populate() {
@@ -335,7 +342,7 @@ Item {
 
             TextField {
                 id: birthDateField
-                placeholderText: "DD-MM-YYYY"
+                placeholderText: view.txt("birthDate") + " · DD-MM-YYYY"
                 text: view.todayStr()
                 Layout.preferredWidth: Kirigami.Units.gridUnit * 8
                 validator: RegularExpressionValidator { regularExpression: /^\d{2}-\d{2}-\d{4}$/ }
@@ -361,28 +368,24 @@ Item {
                 valueFromText: function(t) { return Math.max(0, Math.min(59, parseInt(t) || 0)); }
             }
 
-            Button {
-                text: view.txt("compute")
-                icon.name: "view-refresh"
-                onClicked: view.compute()
-            }
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Kirigami.Units.smallSpacing
-
             Label {
-                text: view.txt("transitDate")
-                opacity: 0.7
+                text: "\u2192"
+                opacity: 0.4
             }
+
             TextField {
                 id: transitDateField
-                placeholderText: "DD-MM-YYYY"
+                placeholderText: view.txt("transitDate") + " · DD-MM-YYYY"
                 text: view.todayStr()
                 Layout.fillWidth: true
                 validator: RegularExpressionValidator { regularExpression: /^\d{2}-\d{2}-\d{4}$/ }
                 onAccepted: view.compute()
+            }
+
+            Button {
+                text: view.txt("compute")
+                icon.name: "view-refresh"
+                onClicked: view.compute()
             }
         }
 
@@ -403,8 +406,27 @@ Item {
             }
             ComboBox {
                 id: cityCombo
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 9
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 11
                 onActivated: view.applyCityChoice(currentIndex)
+            }
+            ComboBox {
+                id: ayanamsaCombo
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 13
+                textRole: "text"
+                valueRole: "value"
+                model: [
+                    { "text": "Sayana (Tropical)", "value": "sayana" },
+                    { "text": "Lahiri (Chitrapaksha)", "value": "lahiri" },
+                    { "text": "Raman", "value": "raman" },
+                    { "text": "Krishnamurti (KP)", "value": "krishnamurti" },
+                    { "text": "True Chitra", "value": "true_citra" },
+                    { "text": "Fagan/Bradley", "value": "fagan_bradley" },
+                    { "text": "DeLuce", "value": "deluce" }
+                ]
+                Component.onCompleted: {
+                    var idx = indexOfValue(view.cfg("ayanamsa", "lahiri"));
+                    currentIndex = idx >= 0 ? idx : 0;
+                }
             }
         }
 
@@ -442,31 +464,6 @@ Item {
             }
         }
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Kirigami.Units.smallSpacing
-
-            ComboBox {
-                id: ayanamsaCombo
-                Layout.fillWidth: true
-                textRole: "text"
-                valueRole: "value"
-                model: [
-                    { "text": "Sayana (Tropical)", "value": "sayana" },
-                    { "text": "Lahiri (Chitrapaksha)", "value": "lahiri" },
-                    { "text": "Raman", "value": "raman" },
-                    { "text": "Krishnamurti (KP)", "value": "krishnamurti" },
-                    { "text": "True Chitra", "value": "true_citra" },
-                    { "text": "Fagan/Bradley", "value": "fagan_bradley" },
-                    { "text": "DeLuce", "value": "deluce" }
-                ]
-                Component.onCompleted: {
-                    var idx = indexOfValue(view.cfg("ayanamsa", "lahiri"));
-                    currentIndex = idx >= 0 ? idx : 0;
-                }
-            }
-        }
-
         Kirigami.InlineMessage {
             id: statusMessage
             Layout.fillWidth: true
@@ -476,15 +473,16 @@ Item {
         }
 
         ScrollView {
+            id: gocharaScroll
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
+            contentWidth: availableWidth
             ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
             ColumnLayout {
-                width: parent.width - Kirigami.Units.largeSpacing
+                width: gocharaScroll.availableWidth
                 spacing: Kirigami.Units.largeSpacing
-                anchors.margins: Kirigami.Units.largeSpacing
 
                 Label {
                     text: view.txt("noChart")
@@ -507,7 +505,60 @@ Item {
                     }
 
                     contentItem: ColumnLayout {
-                        spacing: 2
+                        spacing: Kirigami.Units.smallSpacing
+
+                        // Table Header
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Kirigami.Units.smallSpacing
+                            opacity: 0.6
+
+                            Label {
+                                text: view.txt("graha") || "Graha"
+                                font.bold: true
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.75
+                                Layout.preferredWidth: Kirigami.Units.gridUnit * 5
+                                Layout.minimumWidth: Kirigami.Units.gridUnit * 3.5
+                            }
+                            Label {
+                                text: view.txt("retro") || "Vakri"
+                                font.bold: true
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.75
+                                Layout.preferredWidth: Kirigami.Units.gridUnit * 4
+                                Layout.minimumWidth: Kirigami.Units.gridUnit * 2.5
+                            }
+                            Label {
+                                text: view.txt("sign") || "Sign"
+                                font.bold: true
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.75
+                                Layout.preferredWidth: Kirigami.Units.gridUnit * 6
+                                Layout.minimumWidth: Kirigami.Units.gridUnit * 4
+                            }
+                            Label {
+                                text: view.txt("house") || "House"
+                                font.bold: true
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.75
+                                Layout.preferredWidth: Kirigami.Units.gridUnit * 5
+                                Layout.minimumWidth: Kirigami.Units.gridUnit * 3.5
+                            }
+                            Label {
+                                text: view.txt("deg") || "Deg"
+                                font.bold: true
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.75
+                                Layout.preferredWidth: Kirigami.Units.gridUnit * 5
+                                Layout.minimumWidth: Kirigami.Units.gridUnit * 3.5
+                            }
+                            Label {
+                                text: view.txt("severity") === "Bala" ? "Sthiti" : "Dignity"
+                                font.bold: true
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.75
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: Kirigami.Units.gridUnit * 4
+                            }
+                        }
+
+                        Kirigami.Separator { Layout.fillWidth: true; opacity: 0.4 }
+
                         Repeater {
                             model: view.transitRows
                             delegate: RowLayout {
@@ -517,140 +568,215 @@ Item {
                                 Label {
                                     text: modelData.name
                                     font.bold: true
-                                    Layout.preferredWidth: Kirigami.Units.gridUnit * 3
+                                    Layout.preferredWidth: Kirigami.Units.gridUnit * 5
+                                    Layout.minimumWidth: Kirigami.Units.gridUnit * 3.5
+                                    elide: Text.ElideRight
+                                    ToolTip.text: modelData.name
+                                    ToolTip.visible: truncated && hovered
                                 }
                                 Label {
-                                    text: modelData.retro ? "● " + view.txt("retro") : ""
-                                    font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                                    text: modelData.retro ? "● " + view.txt("retro") : "—"
+                                    font.pixelSize: Kirigami.Units.gridUnit * 0.8
                                     color: modelData.retro ? "#e74c3c" : "transparent"
-                                    Layout.preferredWidth: Kirigami.Units.gridUnit * 3
+                                    opacity: modelData.retro ? 1.0 : 0.25
+                                    Layout.preferredWidth: Kirigami.Units.gridUnit * 4
+                                    Layout.minimumWidth: Kirigami.Units.gridUnit * 2.5
+                                    elide: Text.ElideRight
+                                    ToolTip.text: view.txt("retro")
+                                    ToolTip.visible: modelData.retro && truncated && hovered
                                 }
                                 Label {
                                     text: modelData.sign
-                                    opacity: 0.9
-                                    Layout.preferredWidth: Kirigami.Units.gridUnit * 3
+                                    opacity: 0.95
+                                    font.bold: true
+                                    Layout.preferredWidth: Kirigami.Units.gridUnit * 6
+                                    Layout.minimumWidth: Kirigami.Units.gridUnit * 4
+                                    elide: Text.ElideRight
+                                    ToolTip.text: modelData.sign
+                                    ToolTip.visible: truncated && hovered
                                 }
                                 Label {
                                     text: view.txt("house") + " " + modelData.house
-                                    opacity: 0.7
-                                    Layout.preferredWidth: Kirigami.Units.gridUnit * 3
+                                    opacity: 0.85
+                                    Layout.preferredWidth: Kirigami.Units.gridUnit * 5
+                                    Layout.minimumWidth: Kirigami.Units.gridUnit * 3.5
+                                    elide: Text.ElideRight
                                 }
                                 Label {
                                     text: modelData.degree
-                                    opacity: 0.6
-                                    Layout.preferredWidth: Kirigami.Units.gridUnit * 3
+                                    opacity: 0.75
+                                    font.family: "monospace"
+                                    Layout.preferredWidth: Kirigami.Units.gridUnit * 5
+                                    Layout.minimumWidth: Kirigami.Units.gridUnit * 3.5
+                                    elide: Text.ElideRight
                                 }
                                 Label {
                                     text: modelData.dignity
-                                    opacity: 0.7
+                                    opacity: 0.9
+                                    font.bold: true
+                                    color: modelData.dignity === "Exalted" || modelData.dignity === "Uccha" ? "#2ecc71" :
+                                           modelData.dignity === "Debilitated" || modelData.dignity === "Neecha" ? "#e74c3c" :
+                                           modelData.dignity.indexOf("Friend") !== -1 || modelData.dignity.indexOf("Mitra") !== -1 ? "#3498db" :
+                                           modelData.dignity.indexOf("Enemy") !== -1 || modelData.dignity.indexOf("Shatru") !== -1 ? "#e67e22" : "currentColor"
+                                    Layout.fillWidth: true
+                                    Layout.minimumWidth: Kirigami.Units.gridUnit * 4
                                     elide: Text.ElideRight
-                                    Layout.fillWidth: true
+                                    ToolTip.text: modelData.dignity
+                                    ToolTip.visible: truncated && hovered
                                 }
                             }
                         }
                     }
                 }
 
-                // Special yogas
-                Kirigami.Card {
+                // Grid layout for Special Yogas & Next Sign Changes to utilize empty space
+                GridLayout {
                     Layout.fillWidth: true
-                    visible: view.result !== null
+                    columns: gocharaScroll.width > 700 ? 2 : 1
+                    columnSpacing: Kirigami.Units.largeSpacing
+                    rowSpacing: Kirigami.Units.largeSpacing
 
-                    header: RowLayout {
-                        Layout.margins: Kirigami.Units.largeSpacing
-                        spacing: Kirigami.Units.smallSpacing
-                        Kirigami.Icon { source: "favorite" }
-                        Kirigami.Heading { text: view.txt("transitYogas"); level: 4 }
-                    }
+                    // Special yogas
+                    Kirigami.Card {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        Layout.alignment: Qt.AlignTop
+                        visible: view.result !== null
 
-                    contentItem: ColumnLayout {
-                        spacing: 2
-                        Label {
-                            text: view.txt("noneYoga")
-                            visible: view.yogaRows.length === 0
-                            opacity: 0.6
-                            wrapMode: Text.WordWrap
-                            Layout.fillWidth: true
-                        }
-                        Repeater {
-                            model: view.yogaRows
-                            delegate: ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    spacing: Kirigami.Units.smallSpacing
-                                    Rectangle {
-                                        width: 10
-                                        height: 10
-                                        radius: 5
-                                        color: modelData.color
-                                    }
-                                    Label {
-                                        text: modelData.name
-                                        font.bold: true
-                                    }
-                                    Label {
-                                        text: modelData.severity
-                                        font.pixelSize: Kirigami.Units.gridUnit * 0.7
-                                        opacity: 0.6
-                                    }
-                                }
-                                Label {
-                                    text: modelData.description
-                                    font.pixelSize: Kirigami.Units.gridUnit * 0.7
-                                    opacity: 0.75
-                                    wrapMode: Text.WordWrap
-                                    Layout.fillWidth: true
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Next sign changes
-                Kirigami.Card {
-                    Layout.fillWidth: true
-                    visible: view.result !== null
-
-                    header: RowLayout {
-                        Layout.margins: Kirigami.Units.largeSpacing
-                        spacing: Kirigami.Units.smallSpacing
-                        Kirigami.Icon { source: "arrow-right" }
-                        Kirigami.Heading { text: view.txt("signChanges"); level: 4 }
-                    }
-
-                    contentItem: ColumnLayout {
-                        spacing: 2
-                        Label {
-                            text: view.txt("noneChange")
-                            visible: view.signChangeRows.length === 0
-                            opacity: 0.6
-                            wrapMode: Text.WordWrap
-                            Layout.fillWidth: true
-                        }
-                        ColumnLayout {
-                            Layout.fillWidth: true
+                        header: RowLayout {
+                            Layout.margins: Kirigami.Units.largeSpacing
                             spacing: Kirigami.Units.smallSpacing
+                            Kirigami.Icon { source: "favorite" }
+                            Kirigami.Heading { text: view.txt("transitYogas"); level: 4 }
+                        }
+
+                        contentItem: ColumnLayout {
+                            spacing: Kirigami.Units.smallSpacing
+                            Label {
+                                text: view.txt("noneYoga")
+                                visible: view.yogaRows.length === 0
+                                opacity: 0.6
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
                             Repeater {
-                                model: view.signChangeRows
-                                delegate: RowLayout {
+                                model: view.yogaRows
+                                delegate: ColumnLayout {
                                     Layout.fillWidth: true
-                                    spacing: Kirigami.Units.smallSpacing
-                                    Label {
-                                        text: modelData.graha
-                                        font.bold: true
-                                        Layout.preferredWidth: Kirigami.Units.gridUnit * 3
-                                    }
-                                    Label {
-                                        text: modelData.fromRashi + " → " + modelData.toRashi
-                                        opacity: 0.9
-                                        Layout.preferredWidth: Kirigami.Units.gridUnit * 8
-                                    }
-                                    Label {
-                                        text: modelData.when
-                                        opacity: 0.7
+                                    spacing: 4
+                                    RowLayout {
                                         Layout.fillWidth: true
+                                        spacing: Kirigami.Units.smallSpacing
+                                        Rectangle {
+                                            width: 10
+                                            height: 10
+                                            radius: 5
+                                            color: modelData.color
+                                            Layout.alignment: Qt.AlignVCenter
+                                        }
+                                        Label {
+                                            text: modelData.name
+                                            font.bold: true
+                                            Layout.fillWidth: true
+                                            Layout.minimumWidth: 0
+                                            wrapMode: Text.WordWrap
+                                            ToolTip.text: modelData.name
+                                            ToolTip.visible: truncated && hovered
+                                        }
+                                        Rectangle {
+                                            radius: 4
+                                            color: Qt.rgba(modelData.color === "#e74c3c" ? 0.9 : modelData.color === "#e67e22" ? 0.9 : 0.2, 0.5, 0.2, 0.15)
+                                            border.color: modelData.color
+                                            border.width: 1
+                                            implicitWidth: sevLabel.implicitWidth + 12
+                                            implicitHeight: sevLabel.implicitHeight + 4
+                                            Label {
+                                                id: sevLabel
+                                                anchors.centerIn: parent
+                                                text: modelData.severity
+                                                font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                                                font.bold: true
+                                                color: modelData.color
+                                            }
+                                        }
+                                    }
+                                    Label {
+                                        text: modelData.description
+                                        font.pixelSize: Kirigami.Units.gridUnit * 0.75
+                                        opacity: 0.8
+                                        wrapMode: Text.WordWrap
+                                        Layout.fillWidth: true
+                                    }
+                                    Kirigami.Separator {
+                                        Layout.fillWidth: true
+                                        visible: index < view.yogaRows.length - 1
+                                        opacity: 0.3
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Next sign changes
+                    Kirigami.Card {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        Layout.alignment: Qt.AlignTop
+                        visible: view.result !== null
+
+                        header: RowLayout {
+                            Layout.margins: Kirigami.Units.largeSpacing
+                            spacing: Kirigami.Units.smallSpacing
+                            Kirigami.Icon { source: "arrow-right" }
+                            Kirigami.Heading { text: view.txt("signChanges"); level: 4 }
+                        }
+
+                        contentItem: ColumnLayout {
+                            spacing: Kirigami.Units.smallSpacing
+                            Label {
+                                text: view.txt("noneChange")
+                                visible: view.signChangeRows.length === 0
+                                opacity: 0.6
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: Kirigami.Units.smallSpacing
+                                Repeater {
+                                    model: view.signChangeRows
+                                    delegate: RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: Kirigami.Units.smallSpacing
+                                        Label {
+                                            text: modelData.graha
+                                            font.bold: true
+                                            Layout.preferredWidth: Kirigami.Units.gridUnit * 5
+                                            Layout.minimumWidth: Kirigami.Units.gridUnit * 3.5
+                                            elide: Text.ElideRight
+                                            ToolTip.text: modelData.graha
+                                            ToolTip.visible: truncated && hovered
+                                        }
+                                        Label {
+                                            text: modelData.fromRashi + " → " + modelData.toRashi
+                                            opacity: 0.95
+                                            Layout.fillWidth: true
+                                            Layout.minimumWidth: 0
+                                            wrapMode: Text.WordWrap
+                                            ToolTip.text: modelData.fromRashi + " → " + modelData.toRashi
+                                            ToolTip.visible: truncated && hovered
+                                        }
+                                        Label {
+                                            text: modelData.when
+                                            opacity: 0.75
+                                            font.family: "monospace"
+                                            font.pixelSize: Kirigami.Units.gridUnit * 0.75
+                                            Layout.preferredWidth: Kirigami.Units.gridUnit * 10
+                                            Layout.minimumWidth: Kirigami.Units.gridUnit * 8
+                                            elide: Text.ElideRight
+                                            ToolTip.text: modelData.when
+                                            ToolTip.visible: truncated && hovered
+                                        }
                                     }
                                 }
                             }

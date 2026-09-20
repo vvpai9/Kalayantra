@@ -17,8 +17,8 @@ Canvas {
     property string langKey: "en"
 
     property var glyphs: {
-        "en": ["Surya", "Chandra", "Mangala", "Budha", "Guru", "Shukra", "Shani", "Rahu", "Ketu", "Uranus", "Neptune", "Pluto", "Maandi"],
-        "iast": ["Sūrya", "Candra", "Maṅgala", "Budha", "Guru", "Śukra", "Śani", "Rāhu", "Ketu", "Aruna", "Varuṇa", "Pluto", "Māndi"],
+        "en": ["Surya", "Chandra", "Mangala", "Budha", "Guru", "Shukra", "Shani", "Rahu", "Ketu", "Aruna", "Varuna", "Yama", "Maandi"],
+        "iast": ["Sūrya", "Candra", "Maṅgala", "Budha", "Guru", "Śukra", "Śani", "Rāhu", "Ketu", "Aruṇa", "Varuṇa", "Yama", "Māndi"],
         "devanagari": ["सूर्य", "चन्द्र", "मङ्गल", "बुध", "गुरु", "शुक्र", "शनि", "राहु", "केतु", "अरुण", "वरुण", "यम", "मान्दि"]
     }
     property var rashiGlyphs: {
@@ -151,6 +151,23 @@ Canvas {
         return [sx / poly.length, sy / poly.length];
     }
 
+    // Point interpolation between a and b (both [x, y] in virtual space).
+    function lerpPt(a, b, t) {
+        return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    }
+
+    // The polygon vertex farthest from the centroid — the "outer tip" of the
+    // house, used to anchor the rashi number just inside the boundary.
+    function tipVertex(poly, ctr) {
+        var best = poly[0], bd = -1;
+        for (var i = 0; i < poly.length; i++) {
+            var dx = poly[i][0] - ctr[0], dy = poly[i][1] - ctr[1];
+            var dd = dx * dx + dy * dy;
+            if (dd > bd) { bd = dd; best = poly[i]; }
+        }
+        return best;
+    }
+
     function clipToPolygon(ctx, poly, sx, sy) {
         ctx.beginPath();
         ctx.moveTo(sx(poly[0][0]), sy(poly[0][1]));
@@ -159,71 +176,83 @@ Canvas {
         ctx.clip();
     }
 
-    // Draw a centred block of planet glyphs at (cx, cy) inside half-width hw.
-    // maxH (in device px) additionally constrains the block height; the glyphs
-    // are also clipped to the enclosing cell by the caller.
-    function drawPlanets(ctx, pts, cx, cy, hw, baseFont, maxH) {
+    // Draw a single-column (vertical) centred list of planet names at (cx, cy),
+    // inside half-width hw. Full Indian names are always used, one per row,
+    // with a uniform font size for all planets within the house.
+    function drawPlanets(ctx, pts, cx, cy, hw, baseFont, maxH, forceAbbr, hwAtY) {
         if (!pts || pts.length === 0) return;
-        var gly = glyphs[langKey] || glyphs["en"];
+        var full = glyphs[langKey] || glyphs["en"];
         var n = pts.length;
-        var cols = n <= 3 ? 3 : 2;
-        var rowsP = Math.ceil(n / cols);
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
 
-        // Measure the widest label; shrink the font until the block fits the cell.
-        var fs = baseFont;
-        var maxW = 0;
-        ctx.font = "bold " + fs + "px sans-serif";
-        for (var i = 0; i < n; i++) {
-            try { maxW = Math.max(maxW, ctx.measureText(gly[pts[i]]).width); } catch (e) { maxW = fs * 2; }
+        function textWidth(name, fsz) {
+            ctx.font = "bold " + fsz + "px sans-serif";
+            try { return ctx.measureText(name).width; } catch (e) { return fsz * name.length + 4; }
         }
-        function blockFits() {
-            var spacingY = fs + 3;
-            var xspace = cols > 1 ? Math.min(maxW + 3, 2 * hw / (cols - 1)) : Math.min(maxW + 2, hw);
-            var rowW = (cols - 1) * xspace + maxW;
-            var h = rowsP * spacingY;
-            return rowW <= 2 * hw * 1.08 && (maxH <= 0 || h <= maxH * 1.08);
+
+        function widestAt(fsz) {
+            var mw = 0;
+            for (var k = 0; k < n; k++) mw = Math.max(mw, textWidth(full[pts[k]], fsz));
+            return mw;
         }
-        while (fs > 8 && !blockFits()) {
-            fs -= 1;
-            maxW = 0;
-            ctx.font = "bold " + fs + "px sans-serif";
-            for (var i = 0; i < n; i++) {
-                try { maxW = Math.max(maxW, ctx.measureText(gly[pts[i]]).width); } catch (e) { maxW = fs * 2; }
+
+        var maxAvail = Math.max(10, 2 * hw * 0.90);
+        var fs = Math.max(10, baseFont);
+        if (maxH > 0) {
+            while (fs > 9 && n * (fs + 3) > maxH) fs -= 1;
+        }
+        while (fs > 9 && widestAt(fs) > maxAvail) fs -= 1;
+
+        // Ensure all rows fit within tapering polygon edges at their respective Y coordinates,
+        // shrinking font size uniformly for all planets in this cell if needed.
+        if (hwAtY) {
+            var needsShrink = true;
+            while (needsShrink && fs > 9) {
+                needsShrink = false;
+                var spTest = fs + 3;
+                var yStart = cy - (n - 1) * spTest / 2;
+                for (var j = 0; j < n; j++) {
+                    var testY = yStart + j * spTest;
+                    var half = hwAtY(testY);
+                    if (half && half > 2) {
+                        var localMax = 2 * half * 0.90;
+                        if (textWidth(full[pts[j]], fs) > localMax) {
+                            needsShrink = true;
+                            fs -= 1;
+                            break;
+                        }
+                    }
+                }
             }
         }
 
         var spacingY = fs + 3;
-        var y0 = cy - (rowsP - 1) * spacingY / 2;
-        var xspace = cols > 1 ? Math.min(maxW + 3, 2 * hw / (cols - 1)) : Math.min(maxW + 2, hw);
-        ctx.font = "bold " + fs + "px sans-serif";
+        var y0 = cy - (n - 1) * spacingY / 2;
 
-        for (var r = 0; r < rowsP; r++) {
-            var from = r * cols;
-            var to = Math.min(from + cols, n);
-            var count = to - from;
-            var totalW = (count - 1) * xspace;
-            var x0 = cx - totalW / 2;
-            for (var c = from; c < to; c++) {
-                var pidx = pts[c];
-                var gx = x0 + (c - from) * xspace;
-                var gw = 0;
-                try { gw = ctx.measureText(gly[pidx]).width; } catch (e) { gw = 12; }
-                ctx.fillStyle = colors && colors[pidx] ? colors[pidx] : "white";
-                ctx.fillText(gly[pidx], gx - gw / 2, y0 + r * spacingY);
-                if (markers && markers[pidx]) {
-                    if (markers[pidx].retro) {
-                        ctx.font = "bold " + (fs - 2) + "px sans-serif";
-                        ctx.fillStyle = retroColor;
-                        ctx.fillText("ᴿ", gx + gw / 2 + 2, y0 + r * spacingY - 1);
-                    }
-                    if (markers[pidx].combust) {
-                        ctx.fillStyle = combustColor;
-                        ctx.beginPath();
-                        ctx.arc(gx + gw / 2 + 5, y0 + r * spacingY, 1.5, 0, 2 * Math.PI);
-                        ctx.fill();
-                    }
+        for (var i = 0; i < n; i++) {
+            var pidx = pts[i];
+            var ty = y0 + i * spacingY;
+            var gw = textWidth(full[pidx], fs);
+            var col = colors && colors[pidx] ? colors[pidx] : "white";
+            ctx.font = "bold " + fs + "px sans-serif";
+            ctx.lineWidth = Math.max(1, Math.round(fs * 0.18));
+            ctx.strokeStyle = Qt.rgba(0.03, 0.03, 0.06, 0.75);
+            ctx.strokeText(full[pidx], cx, ty);
+            ctx.fillStyle = col;
+            ctx.fillText(full[pidx], cx, ty);
+            if (markers && markers[pidx]) {
+                if (markers[pidx].retro) {
+                    ctx.font = "bold " + Math.max(7, fs - 2) + "px sans-serif";
+                    ctx.fillStyle = retroColor;
+                    ctx.strokeStyle = "transparent";
+                    ctx.fillText("ᴿ", cx + gw / 2 + 2, ty - 1);
+                }
+                if (markers[pidx].combust) {
+                    ctx.fillStyle = combustColor;
+                    ctx.beginPath();
+                    ctx.arc(cx + gw / 2 + 5, ty, Math.max(1.5, fs * 0.12), 0, 2 * Math.PI);
+                    ctx.fill();
                 }
                 ctx.font = "bold " + fs + "px sans-serif";
             }
@@ -271,67 +300,80 @@ Canvas {
         ctx.lineTo(sx(o[3][0]), sy(o[3][1]));
         ctx.stroke();
 
-        // Per-house centroid anchors (in virtual 320 space).
-        var cxTable = [0, 160, 236, 262, 250, 262, 236, 160, 84, 58, 70, 58, 84];
-        var cyTable = [0, 58, 58, 118, 160, 202, 262, 262, 262, 202, 160, 118, 58];
-        // House-number corners (near the outer tip of each cell).
-        var nxTable = [0, 160, 238, 260, 246, 260, 238, 160, 82, 60, 74, 60, 82];
-        var nyTable = [0, 30, 34, 108, 148, 186, 252, 258, 34, 148, 92, 24, 34];
-
         var gly = glyphs[langKey] || glyphs["en"];
         var rgly = rashiGlyphs[langKey] || rashiGlyphs["en"];
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
 
+        var sxf = chart.width / S;
+        var syf = chart.height / S;
+
+        // Base font sizes (device px): rashi number, rashi name, planets.
+        var rf = Math.max(9, Math.floor(chart.width / 44) + 3);
+        var hf = Math.max(10, Math.floor(chart.width / 46) + 4);
+        var pf = Math.max(13, Math.min(17, Math.floor(chart.width / 34)));
+
         // Houses run ANTICLOCKWISE: house h occupies the cell where the
         // clockwise layout would draw house pos = (13 - h) % 12 + 1.
-        var rf = Math.max(9, Math.floor(chart.width / 42) + 3);
-        var hf = Math.max(7, Math.floor(chart.width / 44) + 2);
-        var pf = Math.max(12, Math.floor(chart.width / 34) + 4);
-        var pan = Math.max(50, Math.floor(chart.width / 5.5));
         for (var h = 1; h <= 12; h++) {
             var pos = ((13 - h) % 12) + 1;
             var ship = (ascRashi + h - 1) % 12;
-            var cx = cxTable[pos], cy = cyTable[pos], nx = nxTable[pos], ny = nyTable[pos];
             var pts = planetListForShip(ship);
             var poly = northPoly(pos);
+            var ctr = polyCentroid(poly);
 
-            // House number at the cell corner (kept outside the clip so it is legible)
-            ctx.font = hf + "px sans-serif";
-            ctx.fillStyle = Qt.rgba(0.9, 0.9, 0.9, 0.35);
-            ctx.fillText(String(h), sx(nx), sy(ny));
-
-            // Clip rashi name + planets to the house polygon so nothing crosses it.
             ctx.save();
             clipToPolygon(ctx, poly, sx, sy);
 
-            // Rashi label at the house centroid top (full name, shrinks to fit the cell).
-            // Center the text on the polygon's horizontal span at that row (not the
-            // fixed anchor cx) so one-sided clipping of long names is avoided.
-            var rowY = cy - 8;
-            var span = polySpanAtY(poly, rowY);
-            var lx = cx;
-            var rashiMaxW = pan;
-            if (span) {
-                lx = (span.min + span.max) / 2;
-                rashiMaxW = (span.max - span.min) * 0.92;
-            }
-            var rf2 = fitFont(ctx, rgly[ship], rashiMaxW * chart.width / S, rf, 7);
-            ctx.font = rf2 + "px sans-serif";
-            ctx.fillStyle = labelColor;
-            ctx.fillText(rgly[ship], sx(lx), sy(rowY));
+            var numPos, namePos, pxC, pcy, maxHW, maxBH;
 
-            // Planets — anchored at the cell centroid so the block is always
-            // inside its house, sized from the spans at that point.
-            var ctr = polyCentroid(poly);
-            var px = ctr[0], py = ctr[1];
-            var pw = polySpanAtY(poly, py);
-            var ph = polySpanAtX(poly, px);
-            var hw = pw ? (pw.max - pw.min) / 2 * 0.85 : pan;
-            var hh = ph ? (ph.max - ph.min) / 2 * 0.85 : pan;
-            drawPlanets(ctx, pts, sx(px), sy(py),
-                        Math.max(8, hw * chart.width / S), pf,
-                        Math.max(8, hh * chart.height / S));
+            if (pos === 1) { // Top Rhombus [a, T, b, C]
+                numPos = [160, 32]; namePos = [160, 52]; pxC = 160; pcy = 112; maxHW = 55; maxBH = 70;
+            } else if (pos === 4) { // Right Rhombus [b, R, c, C]
+                numPos = [288, 160]; namePos = [266, 160]; pxC = 195; pcy = 160; maxHW = 50; maxBH = 70;
+            } else if (pos === 7) { // Bottom Rhombus [c, B, d, C]
+                numPos = [160, 288]; namePos = [160, 268]; pxC = 160; pcy = 208; maxHW = 55; maxBH = 70;
+            } else if (pos === 10) { // Left Rhombus [d, L, a, C]
+                numPos = [32, 160]; namePos = [54, 160]; pxC = 125; pcy = 160; maxHW = 50; maxBH = 70;
+            } else if (pos === 2) { // Top Right Inner Triangle [T, TR, b]
+                numPos = [285, 28]; namePos = [231, 28]; pxC = 231; pcy = 58; maxHW = 45; maxBH = 48;
+            } else if (pos === 6) { // Bottom Right Inner Triangle [BR, B, c]
+                numPos = [285, 292]; namePos = [231, 292]; pxC = 231; pcy = 262; maxHW = 45; maxBH = 48;
+            } else if (pos === 8) { // Bottom Left Inner Triangle [B, BL, d]
+                numPos = [35, 292]; namePos = [89, 292]; pxC = 89; pcy = 262; maxHW = 45; maxBH = 48;
+            } else if (pos === 12) { // Top Left Inner Triangle [TL, T, a]
+                numPos = [35, 28]; namePos = [89, 28]; pxC = 89; pcy = 58; maxHW = 45; maxBH = 48;
+            } else if (pos === 3) { // Top Right Outer Triangle [TR, R, b]
+                numPos = [292, 34]; namePos = [288, 70]; pxC = 264; pcy = 98; maxHW = 35; maxBH = 48;
+            } else if (pos === 5) { // Bottom Right Outer Triangle [R, BR, c]
+                numPos = [292, 286]; namePos = [288, 250]; pxC = 264; pcy = 222; maxHW = 35; maxBH = 48;
+            } else if (pos === 9) { // Bottom Left Outer Triangle [BL, L, d]
+                numPos = [28, 286]; namePos = [32, 250]; pxC = 56; pcy = 222; maxHW = 35; maxBH = 48;
+            } else { // pos === 11: Top Left Outer Triangle [L, TL, a]
+                numPos = [28, 34]; namePos = [32, 70]; pxC = 56; pcy = 98; maxHW = 35; maxBH = 48;
+            }
+
+            // Rashi number
+            var numTxt = String(ship + 1);
+            var nf = fitFont(ctx, numTxt, 24 * sxf, hf, 9);
+            ctx.font = "bold " + nf + "px sans-serif";
+            ctx.lineWidth = Math.max(1.5, nf * 0.16);
+            ctx.strokeStyle = Qt.rgba(0.04, 0.04, 0.08, 0.85);
+            ctx.strokeText(numTxt, sx(numPos[0]), sy(numPos[1]));
+            ctx.fillStyle = Qt.rgba(1, 1, 1, 0.96);
+            ctx.fillText(numTxt, sx(numPos[0]), sy(numPos[1]));
+
+            // Rashi name
+            var rfn = fitFont(ctx, rgly[ship], Math.max(10, maxHW * 1.8 * sxf), rf, 8);
+            ctx.font = "bold " + rfn + "px sans-serif";
+            ctx.fillStyle = labelColor;
+            ctx.fillText(rgly[ship], sx(namePos[0]), sy(namePos[1]));
+
+            // Planet block
+            drawPlanets(ctx, pts, sx(pxC), sy(pcy),
+                        Math.max(10, maxHW * sxf), pf,
+                        Math.max(12, maxBH * syf), false,
+                        null);
 
             ctx.restore();
         }
@@ -372,45 +414,49 @@ Canvas {
         }
         ctx.stroke();
 
-var gly = glyphs[langKey] || glyphs["en"];
+        var gly = glyphs[langKey] || glyphs["en"];
         var rgly = rashiGlyphs[langKey] || rashiGlyphs["en"];
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
 
-        var rf = Math.max(9, Math.floor(cw / 9) + 4);
-        var pf = Math.max(12, Math.floor(chart.width / 34) + 3);
+        var rf = Math.max(9, Math.floor(cw / 9) + 3);
+        var nf = Math.max(11, Math.round(cw / 9) + 2);
+        var pf = Math.max(11, Math.min(14, Math.floor(chart.width / 40) + 2));
         for (var s = 0; s < 12; s++) {
             var rc = table[s];
             var cellX = x0 + rc[1] * cw;
             var cellY = y0 + rc[0] * ch;
             var pts = planetListForShip(s);
-            var houseNo = (s - ascRashi + 12) % 12 + 1;
 
-            // Clip rashi name + planets to the cell so nothing crosses it.
             ctx.save();
             ctx.beginPath();
             ctx.rect(cellX + 1, cellY + 1, cw - 2, ch - 2);
             ctx.clip();
 
-            // Rashi label top of the cell (full name, shrinks to fit the cell)
+            // Rashi number, top-left, sized to the cell.
+            var numTxt = String(s + 1);
+            var nf2 = fitFont(ctx, numTxt, cw * 0.34, nf, 9);
+            ctx.font = "bold " + nf2 + "px sans-serif";
+            ctx.lineWidth = Math.max(1.5, nf2 * 0.16);
+            ctx.strokeStyle = Qt.rgba(0.04, 0.04, 0.08, 0.85);
+            ctx.strokeText(numTxt, cellX + 7, cellY + 6);
+            ctx.fillStyle = Qt.rgba(1, 1, 1, 0.95);
+            ctx.fillText(numTxt, cellX + 7, cellY + 6);
+
+            // Rashi label top of the cell (full name)
             var rf2 = fitFont(ctx, rgly[s], (cw - 6), rf, 7);
-            ctx.font = rf2 + "px sans-serif";
+            ctx.font = "bold " + rf2 + "px sans-serif";
             ctx.fillStyle = labelColor;
             ctx.fillText(rgly[s], cellX + cw / 2, cellY + 10);
 
-            // House number for this sign (from lagna) top-left
-            ctx.font = "9px sans-serif";
-            ctx.fillStyle = Qt.rgba(0.9, 0.9, 0.9, 0.4);
-            ctx.fillText(String(houseNo), cellX + 5, cellY + 5);
-
             // Ascendant marker
             if (s === ascRashi) {
-                ctx.font = "bold 9px sans-serif";
+                ctx.font = "bold " + Math.max(10, nf2) + "px sans-serif";
                 ctx.fillStyle = asciiMarkerColor;
-                ctx.fillText("As", cellX + cw - 12, cellY + 6);
+                ctx.fillText(langKey === "devanagari" ? "लग्न" : "Lagna", cellX + cw - 24, cellY + 6);
             }
 
-            drawPlanets(ctx, pts, cellX + cw / 2, cellY + ch / 2 + 6, cw / 2, pf, ch / 2);
+            drawPlanets(ctx, pts, cellX + cw / 2, cellY + ch / 2 + 8, cw / 2, pf, ch / 2 - 12, false);
 
             ctx.restore();
         }

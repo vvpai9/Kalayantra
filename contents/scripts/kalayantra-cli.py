@@ -89,6 +89,20 @@ def _safe(d, k, fmt=str):
     return fmt(v) if v is not None else "--"
 
 
+def _ymd_text(dur):
+    """Render a {years, months, days} duration dict without decimals."""
+    if not dur:
+        return ""
+    parts = []
+    if dur.get("years"):
+        parts.append("{}y".format(dur["years"]))
+    if dur.get("months"):
+        parts.append("{}m".format(dur["months"]))
+    if dur.get("days"):
+        parts.append("{}d".format(dur["days"]))
+    return " ".join(parts) if parts else "0y"
+
+
 def _wrap(text, width=78):
     import textwrap
     return "\n".join(textwrap.wrap(text, width))
@@ -344,15 +358,53 @@ def _fmt_kundali(kd):
                     flags))
         out.append("  (R = Vakri/Retrograde  \u2666 = Asta/Combust  V = Vargottam)")
 
+    karakas = kd.get("karakas")
+    if karakas:
+        out.append(_sec("Chara Karakas"))
+        note = karakas.get("note", "")
+        if note:
+            out.append(note)
+        for scheme in ("eight", "seven"):
+            rows = karakas.get(scheme)
+            if not rows:
+                continue
+            out.append("{} ({} signif.):".format(
+                "8-Karaka" if scheme == "eight" else "7-Karaka",
+                len(rows)))
+            for r in rows:
+                rahu_tag = " \u2190Rahu (reversed)" if r.get("via_rahu") else ""
+                out.append("  {:<2} {:<14} {:<9} {:>8}\u00b0 {:<12} H{:<3}{}".format(
+                    r.get("rank"), r.get("karaka", "?")[:14],
+                    r.get("planet", "?")[:9], r.get("degree_in_sign", 0),
+                    r.get("rashi_name", "?"), r.get("house", "?"), rahu_tag))
+
+    ghat = kd.get("ghatak")
+    if ghat:
+        out.append(_sec("Ghatak Chakra"))
+        out.append("Janma (Moon) rashi: {}".format(ghat.get("janma_rashi", "?")))
+        out.append("Ghat Month: {}    Ghat Tithi: {}  / {}".format(
+            ghat.get("ghat_maas", "?"),
+            ", ".join(map(str, ghat.get("ghat_tithis", []))),
+            ", ".join(map(str, ghat.get("ghat_tithis_full", [])))))
+        out.append("Ghat Day: {}    Ghat Nakshatra: {}    Ghat Yoga: {}    Ghat Karana: {}".format(
+            ghat.get("ghat_vaara", "?"), ghat.get("ghat_nakshatra", "?"),
+            ghat.get("ghat_yoga", "?"), ghat.get("ghat_karana", "?")))
+        out.append("Ghat Prahar: {}".format(ghat.get("prahar", "?")))
+        cm = ghat.get("ghat_chandra_male", {})
+        cf = ghat.get("ghat_chandra_female", {})
+        out.append("Ghat Chandra (male): {} ({} from sign)    Ghat Chandra (female): {} ({} from sign)".format(
+            cm.get("rashi", "?"), cm.get("position", "?"),
+            cf.get("rashi", "?"), cf.get("position", "?")))
+
     dashas = kd.get("dashas")
     if dashas:
         out.append(_sec("Vimshottari Dasha"))
-        out.append("Balance: {} Mahadasha ({:.3f} years)".format(
-            dashas.get("start_lord", "?"), dashas.get("balance_years", 0)))
-        el = dashas.get("elapsed_years")
+        out.append("Balance: {} Mahadasha ({})".format(
+            dashas.get("start_lord", "?"), _ymd_text(dashas.get("balance_duration"))))
+        el = dashas.get("elapsed_duration")
         tot = dashas.get("total_years")
-        if el is not None: out.append("Elapsed: {:.3f} years".format(el))
-        if tot is not None: out.append("Total cycle: {:.1f} years".format(tot))
+        if el is not None: out.append("Elapsed: {}".format(_ymd_text(el)))
+        if tot is not None: out.append("Total cycle: {}".format(_ymd_text(KalaChakra.years_to_ymd(tot))))
         mds = dashas.get("mahadashas", [])
         if mds:
             cur = next((m for m in mds if m.get("cur")), mds[0])

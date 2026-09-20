@@ -2,6 +2,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${SCRIPT_DIR}"
 DAEMON_PORT=8642
 DAEMON_URL="http://127.0.0.1:${DAEMON_PORT}/config"
 
@@ -92,5 +93,15 @@ done
 
 export QML2_IMPORT_PATH="${IMPORT_PATH}${QML2_IMPORT_PATH:+:${QML2_IMPORT_PATH}}"
 
+# When an X11 (or XWayland) display is available, run on the xcb platform so
+# the window's WM_CLASS is set from argv[0]; combined with `exec -a` below this
+# gives WM_CLASS "kalayantra" which matches StartupWMClass in the desktop file,
+# so Plasma shows the correct icon on the taskbar and (via the desktop entry)
+# on the titlebar. On pure Wayland without XWayland, DISPLAY is unset and Qt's
+# default platform is used instead.
+if [ -n "${DISPLAY}" ]; then
+    export QT_QPA_PLATFORM=xcb
+fi
+
 echo -e "${GREEN}Launching Kālayantra via ${QML_BIN}...${NC}"
-exec "${QML_BIN}" "${APP_QML}" "$@"
+exec -a kalayantra "${QML_BIN}" "${APP_QML}" "$@"

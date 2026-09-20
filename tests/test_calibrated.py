@@ -137,6 +137,36 @@ def main():
     check("exactly one current PD",
           sum(1 for m in mds for a in m["antardashas"] for p in a["pratyantardashas"] if p["is_current"]) == 1)
 
+    # Non-decimal durations: every node carries a Y/M/D breakdown that rounds
+    # back to its decimal `years`.
+    def _ymd_int(dur):
+        return (dur.get("years"), dur.get("months"), dur.get("days"))
+
+    def _ymd_years(dur, ymd):
+        return ymd[0] + ymd[1] / 12.0 + ymd[2] / 365.2425
+    for m in mds:
+        check(f"MD {m['lord']} duration present",
+              all(isinstance(x, int) for x in _ymd_int(m["duration"])),
+              f"{m['duration']}")
+        check(f"MD {m['lord']} duration ≈ years",
+              almost(_ymd_years(m["years"], _ymd_int(m["duration"])), m["years"], 0.02),
+              f"{m['duration']} vs {m['years']}")
+        for a in m["antardashas"]:
+            check(f"AD {m['lord']}-{a['lord']} duration present",
+                  all(isinstance(x, int) for x in _ymd_int(a["duration"])),
+                  f"{a['duration']}")
+            for p in a["pratyantardashas"]:
+                check(f"PD {m['lord']}-{a['lord']}-{p['lord']} duration present",
+                      all(isinstance(x, int) for x in _ymd_int(p["duration"])),
+                      f"{p['duration']}")
+    check("balance duration present",
+          all(isinstance(x, int) for x in _ymd_int(d["balance_duration"])),
+          f"{d['balance_duration']}")
+    check("balance duration ≈ balance years",
+          almost(_ymd_years(d["balance_years"], _ymd_int(d["balance_duration"])),
+                 d["balance_years"], 0.02),
+          f"{d['balance_duration']} vs {d['balance_years']}")
+
     # Vargottam consistency: D1 rashi == D9 rashi  <=>  is_vargottam
     print("\n3. Varga / vargottam consistency")
     for i in range(9):
@@ -257,6 +287,30 @@ def main():
         check(f"sign change '{e['graha']}' has keys",
               all(k in e for k in ("graha", "from_rashi", "to_rashi", "date")) and
               e["from_rashi"] != e["to_rashi"])
+
+    def _edge_ymd(date_str):
+        dmy = date_str.split()[0].split("-")
+        d, m, y = int(dmy[0]), int(dmy[1]), int(dmy[2])
+        return y * 10000 + m * 100 + d
+
+    edge_dates = [e["date"] for e in go["next_sign_changes"]]
+    check("sign changes listed chronologically",
+          edge_dates == sorted(edge_dates, key=_edge_ymd), f"{edge_dates}")
+    check("Budha sign change reported",
+          any(budha_e["graha"] == "Budha" for budha_e in go["next_sign_changes"]),
+          f"{go['next_sign_changes']}")
+    check("Surya sign change reported",
+          any(surya_e["graha"] == "Surya" for surya_e in go["next_sign_changes"]),
+          f"{[e['graha'] for e in go['next_sign_changes']]}")
+
+    # Budha-Aditya Yoga: Budha within 12° of Surya. Take the 2026-01-07 close
+    # Sun–Mercury conjunction (~8.6°) and require the yoga to be reported.
+    go_ba = KC.calculate_gochara(kd, 2026, 1, 7, 12, 0, 5.5, SAMPLE["lat"], SAMPLE["lon"],
+                                 lang="en", ayanamsa="lahiri")
+    ba = [y for y in go_ba["special_yogas"] if "Budha-Aditya" in y["name"]]
+    check("Budha-Aditya Yoga detected during close conjunction",
+          len(ba) == 1 and all(k in ba[0] for k in ("name", "severity", "description")),
+          f"got {ba}")
     check("classical alias works (calculate_gocara)",
           hasattr(KC, "calculate_gocara"), f"hasattr={hasattr(KC, 'calculate_gocara')}")
 
@@ -287,6 +341,68 @@ def main():
         if a["masa"] == b["masa"]:
             check(f"solar day +1 within {a['masa']}", b["solar_day"] - a["solar_day"] == 1,
                   f"{a['solar_day']} -> {b['solar_day']}")
+
+    print("\n4f. Chara Karakas + Ghatak Chakra")
+    kar = kd["karakas"]
+    check("karakas: seven + eight present",
+          len(kar["seven"]) == 7 and len(kar["eight"]) == 8)
+    d7 = [r["degree_in_sign"] for r in kar["seven"]]
+    d8 = [r["degree_in_sign"] for r in kar["eight"]]
+    check("karakas: seven ranked descending", d7 == sorted(d7, reverse=True), f"{d7}")
+    check("karakas: eight ranked descending", d8 == sorted(d8, reverse=True), f"{d8}")
+    check("karakas: Atmakaraka highest", kar["eight"][0]["karaka_idx"] == 0)
+    check("karakas: Darakaraka lowest",
+          kar["eight"][-1]["karaka_idx"] == 7, f"{kar['eight'][-1]['karaka_idx']}")
+    rahu_ef = next((r for r in kar["eight"] if r["idx"] == 7), None)
+    check("karakas: Rahu in eight only",
+          rahu_ef is not None and all(r["idx"] != 7 for r in kar["seven"]))
+    if rahu_ef:
+        natal = kd["planets"]["Rahu"]["degree_in_sign"]
+        check("karakas: Rahu counted backward",
+              almost(rahu_ef["degree_in_sign"], round(30.0 - natal, 4), 1e-3))
+        check("karakas: Rahu flagged via_rahu", bool(rahu_ef["via_rahu"]))
+    check("karakas: meaning table complete",
+          all(len(KalaKosha.KARAKAS[ln]) == 8 for ln in ("en", "iast", "devanagari")))
+    check("karakas: meaning strings non-empty",
+          all(r["meaning"] for r in kar["eight"]))
+    check("karakas: note present", bool(kar.get("note")))
+
+    # Ghataka Chakra supplies exactly the row for the natal Moon rashi.
+    gh = kd["ghatak"]
+    moon_rashi = kd["planets"]["Chandra"]["rashi"]
+    row = KalaKosha.GHATA_CHAKRA[moon_rashi]
+    check("ghatak: matches GHATA_CHAKRA maas",
+          kd["meta"] and gh["ghat_maas"] == KalaKosha.MASAS["en"][row["maas"]])
+    check("ghatak: tithis from table", gh["ghat_tithis"] == list(row["tithis"]))
+    check("ghatak: full tithis = group + Krishna",
+          gh["ghat_tithis_full"] == sorted(set(row["tithis"] + [t + 15 for t in row["tithis"]])))
+    check("ghatak: vaara/nakshatra/yoga/karana from table",
+          gh["ghat_vaara"] == KalaKosha.VAARAS["en"][row["vaara"]]
+          and gh["ghat_nakshatra"] == KalaKosha.NAKSHATRAS["en"][row["nakshatra"]]
+          and gh["ghat_yoga"] == KalaKosha.YOGAS["en"][row["yoga"]]
+          and gh["ghat_karana"] == KalaKosha.KARANAS["en"][row["karana"]])
+    check("ghatak: prahar in 1..4", 1 <= gh["prahar"] <= 4)
+    cm = gh["ghat_chandra_male"]
+    cf = gh["ghat_chandra_female"]
+    check("ghatak: chandra positions counted from birth rashi",
+          cm["rashi"] == KalaKosha.RASIS["en"][(moon_rashi + cm["position"] - 1) % 12]
+          and cf["rashi"] == KalaKosha.RASIS["en"][(moon_rashi + cf["position"] - 1) % 12])
+    # Known lock: SAMPLE Moon = Kumbha -> Chaitra / [3,8,13] / Guru / Ardra / Ganda / Kimstughna.
+    if KalaKosha.RASIS["en"][moon_rashi] == "Kumbha":
+        check("ghatak: Kumbha lock maas==",
+              gh["ghat_maas"] == "Chaitra", f"{gh['ghat_maas']}")
+        check("ghatak: Kumbha lock tithis==", gh["ghat_tithis"] == [3, 8, 13])
+        check("ghatak: Kumbha lock vaara==", gh["ghat_vaara"] == "Guru")
+        check("ghatak: Kumbha lock nakshatra==", gh["ghat_nakshatra"] == "Ardra")
+        check("ghatak: Kumbha lock yoga==", gh["ghat_yoga"] == "Ganda")
+        check("ghatak: Kumbha lock karana==", gh["ghat_karana"] == "Kimstughna")
+    for i, r in enumerate(KalaKosha.GHATA_CHAKRA):
+        check(f"ghata table row {i} sane",
+              0 <= r["maas"] < 12 and 0 <= r["vaara"] < 7
+              and 0 <= r["nakshatra"] < 27 and 0 <= r["yoga"] < 27
+              and 0 <= r["karana"] < 11 and 1 <= r["prahar"] <= 4
+              and len(r["tithis"]) == 3 and all(1 <= t <= 15 for t in r["tithis"])
+              and 1 <= r["c_male"] <= 12 and 1 <= r["c_female"] <= 12)
 
     if GET_APP_BASELINE:
         print("\n5. Cross-check vs reference app baseline")
