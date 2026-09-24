@@ -75,11 +75,30 @@ def karana_index(moon_lon: float, sun_lon: float) -> int:
 # ---------------------------------------------------------------------------
 #  Varga sign computations
 # ---------------------------------------------------------------------------
-def _harmonic_varga_sign(longitude: float, divisor: int) -> int:
-    """Continuous-harmonic varga sign (standard for D2, D4, D7, …).
+# Classical Parāśara vargā (matching Jagannatha Hora / PyJHora non-cyclic
+# vargas).  A pure continuous-harmonic mapping (sign*divisor + part % 12) is
+# correct ONLY for the divisions whose classical rule coincides with it
+# (D7, D8, D11, D16, D20, D27); the other divisions use either element-based
+# placements or even-sign reversal.
 
-    Note: D3 (drekkana) and D9 (navamsa) have their own classical rules;
-    this function should NOT be used for them.
+_ODD_SIGNS  = (0, 2, 4, 6, 8, 10)   # counted from Aries
+_EVEN_SIGNS = (1, 3, 5, 7, 9, 11)
+_FIXED_SIGNS = (1, 4, 7, 10)        # Taurus, Leo, Scorpio, Aquarius
+_DUAL_SIGNS  = (2, 5, 8, 11)        # Gemini, Virgo, Sagittarius, Pisces
+
+
+def _varga_part(longitude: float, divisor: int) -> int:
+    """0-based varga part index within the rashi (clamped to divisor−1)."""
+    sign = rashi_index(longitude)
+    offset = longitude - sign * 30.0
+    return min(divisor - 1, int(offset * divisor / 30.0))
+
+
+def _harmonic_varga_sign(longitude: float, divisor: int) -> int:
+    """Continuous-harmonic varga sign.
+
+    Matches the classical Parāśara rule only for D7, D8, D11, D16, D20 and
+    D27; do NOT use it for other divisions.
     """
     sign = rashi_index(longitude)
     offset = longitude - sign * 30.0
@@ -87,17 +106,93 @@ def _harmonic_varga_sign(longitude: float, divisor: int) -> int:
     return (sign * divisor + part) % 12
 
 
-def drekkana_sign(longitude: float) -> int:
-    """Classical Parasari D3 (Drekkana) sign, 0–11."""
+def _hora_sign(longitude: float) -> int:
+    """Classical Parasari D2 (Hora): savya-apasavya parivritti, even signs reversed."""
     sign = rashi_index(longitude)
     offset = longitude - sign * 30.0
-    third = min(2, int(offset * 3.0 / 30.0))
-    sequence = [
-        (0, 4, 8),   # movable signs: Me/Vri/Mith/Scl/Dha/Aqr
-        (8, 0, 4),   # fixed signs:   Tau/Leo/Sco/Cap
-        (4, 8, 0),   # dual signs:    Gem/Lib/Aqu/Pis
-    ]
-    return (sign + sequence[sign % 3][third]) % 12
+    part = _varga_part(longitude, 2)
+    if sign % 2 == 0:
+        return (sign * 2 + part) % 12
+    return (sign * 2 + 1 - part) % 12
+
+
+def _chaturthamsa_sign(longitude: float) -> int:
+    """Classical Parasari D4 (Chaturthamsa): 4 parts move +0/+3/+6/+9 from the sign."""
+    sign = rashi_index(longitude)
+    part = _varga_part(longitude, 4)
+    return (sign + 3 * part) % 12
+
+
+def _dasamsa_sign(longitude: float) -> int:
+    """Classical Parasari D10 (Dasamsa): odd signs forward, even signs from the 9th."""
+    sign = rashi_index(longitude)
+    part = _varga_part(longitude, 10)
+    if sign in _EVEN_SIGNS:
+        return (sign + 8 + part) % 12
+    return (sign + part) % 12
+
+
+def _dwadasamsa_sign(longitude: float) -> int:
+    """Classical Parasari D12 (Dvadasamsa): 12 parts counted from the sign itself."""
+    sign = rashi_index(longitude)
+    part = _varga_part(longitude, 12)
+    return (sign + part) % 12
+
+
+def _siddhamsa_sign(longitude: float) -> int:
+    """Classical Parasari D24 (Siddhamsa): odd signs from Leo, even signs from Cancer."""
+    sign = rashi_index(longitude)
+    part = _varga_part(longitude, 24)
+    base = 3 if sign in _EVEN_SIGNS else 4
+    return (base + part) % 12
+
+
+def _trimsamsa_sign(longitude: float) -> int:
+    """Classical Parasari D30 (Trimsamsa): unequal 5/5/8/7/5 degree arcs."""
+    sign = rashi_index(longitude)
+    offset = longitude - sign * 30.0
+    if sign in _ODD_SIGNS:
+        arcs = [(0, 5, 0), (5, 10, 10), (10, 18, 8), (18, 25, 2), (25, 30, 6)]
+    else:
+        arcs = [(0, 5, 1), (5, 12, 5), (12, 20, 11), (20, 25, 9), (25, 30, 7)]
+    for lo, hi, rasi in arcs:
+        if lo <= offset < hi:
+            return rasi % 12
+    return 0
+
+
+def _khavedamsa_sign(longitude: float) -> int:
+    """Classical Parasari D40 (Khavedamsa): odd signs from Aries, even signs from Libra."""
+    sign = rashi_index(longitude)
+    part = _varga_part(longitude, 40)
+    if sign in _EVEN_SIGNS:
+        return (part + 6) % 12
+    return part % 12
+
+
+def _akshavedamsa_sign(longitude: float) -> int:
+    """Classical Parasari D45 (Akshavedamsa): self/5th/9th anchored element parts."""
+    sign = rashi_index(longitude)
+    part = _varga_part(longitude, 45)
+    if sign in _DUAL_SIGNS:
+        return (part + 8) % 12
+    if sign in _FIXED_SIGNS:
+        return (part + 4) % 12
+    return part % 12
+
+
+def _shashtyamsa_sign(longitude: float) -> int:
+    """Classical Parasari D60 (Shashtyamsa): 60 parts counted from the sign itself."""
+    sign = rashi_index(longitude)
+    part = _varga_part(longitude, 60)
+    return (sign + part) % 12
+
+
+def drekkana_sign(longitude: float) -> int:
+    """Classical Parasari D3 (Drekkana): count the drekkana from the rashi itself."""
+    sign = rashi_index(longitude)
+    part = _varga_part(longitude, 3)
+    return (sign + part * 4) % 12
 
 
 def navamsa_sign(longitude: float) -> int:
@@ -109,16 +204,31 @@ def navamsa_sign(longitude: float) -> int:
 
 
 def varga_sign(longitude: float, divisor: int) -> int:
-    """Dispatcher: correct sign for a given varga divisor (D1–D60).
-
-    D1 → rashi, D3 → drekkana, D9 → navamsa; all others → harmonic.
-    """
+    """Dispatcher: classical Parasari sign for a given varga divisor (D1–D60)."""
     if divisor == 1:
         return rashi_index(longitude)
+    if divisor == 2:
+        return _hora_sign(longitude)
     if divisor == 3:
         return drekkana_sign(longitude)
+    if divisor == 4:
+        return _chaturthamsa_sign(longitude)
     if divisor == 9:
         return navamsa_sign(longitude)
+    if divisor == 10:
+        return _dasamsa_sign(longitude)
+    if divisor == 12:
+        return _dwadasamsa_sign(longitude)
+    if divisor == 24:
+        return _siddhamsa_sign(longitude)
+    if divisor == 30:
+        return _trimsamsa_sign(longitude)
+    if divisor == 40:
+        return _khavedamsa_sign(longitude)
+    if divisor == 45:
+        return _akshavedamsa_sign(longitude)
+    if divisor == 60:
+        return _shashtyamsa_sign(longitude)
     return _harmonic_varga_sign(longitude, divisor)
 
 
@@ -128,6 +238,8 @@ def varga_degree(longitude: float, divisor: int) -> float:
         return longitude % 30.0
     if divisor == 3:
         return (longitude % 10.0) * 3.0
+    if divisor == 2 and rashi_index(longitude) in _EVEN_SIGNS:
+        return (30.0 - (longitude * divisor) % 30.0) % 30.0
     return (longitude * divisor) % 30.0
 
 

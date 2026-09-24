@@ -696,14 +696,18 @@ _CONCEPTS = [
         "summary": {"en": "Sixteen harmonic charts exposing different realms of life.",
                     "iast": "Sixteen harmonic charts exposing different realms of life.",
                     "devanagari": "सोलह वर्ग — जीवन के विभिन्न क्षेत्र"},
-        "detail": ("The sixteen vargas divide the zodiac into harmonic slices: D1 "
+        "detail": ("The sixteen vargas divide the zodiac into divisions: D1 "
                    "(rashi), D2–D12 and beyond each emphasise a specific life area "
                    "(D9 navāṁśa for the spouse, D10 karma, D3 siblings/Drekkana, etc.). "
-                   "KālaYantra renders all 18 divisional charts D1–D60, using the "
-                   "special classical allocations for Drekkana (D3) and Navāṁśa (D9) "
-                   "and continuous harmonic division for the rest."),
-        "formula": ("harmonic varga sign = floor( longitude × divisor / 30 ) applied "
-                    "within the base sign; Drekkana/Navāṁśa use the classical modulo rules."),
+                   "KālaYantra renders all 18 divisional charts D1–D60 using the "
+                   "classical Parāśara allocations (as in Jagannatha Hora): D2 with "
+                   "even-sign reversal, element-based D4/D8/D16/D20/D27/D45, special "
+                   "D10/D12/D24/D40/D60 sign anchors, and unequal-arc D30 (trimsamsa); "
+                   "only D7, D8, D11, D16, D20 and D27 coincide with a plain continuous "
+                   "harmonic folding."),
+        "formula": ("Per-division classical rule (see KalaVartika.varga_sign); a pure "
+                    "harmonic floor( longitude × divisor / 30 ) is used only where it "
+                    "matches the classical allocation (D7, D8, D11, D16, D20, D27)."),
         "example": ("A graha at 10° of a sign maps to the 1st Drekkana (0–10°) and the "
                     "4th Navāṁśa quarter (10°×9/30 → quarter 4)."),
         "source": "Bṛhat Parāśara Horāśāstra (Varga schemes).",
@@ -741,10 +745,10 @@ _CONCEPTS = [
         "summary": {"en": "The third-harmonic chart: courage, siblings and initiative.",
                     "iast": "The third-harmonic chart: courage, siblings and initiative.",
                     "devanagari": "द्रेक्काण — भाई-बहन व साहस"},
-        "detail": ("Each sign divides into three 10° drekkāṇas. D3 is a classical "
-                   "varga for courage and siblings; its sign is counted nine signs from "
-                   "the natal sign for the first third, and in the classical sequence "
-                   "for the others. The engine reports D3 alongside D9 in every chart."),
+        "detail": ("Each sign divides into three 10° drekkāṇas, counted from the rashi "
+                   "itself: the 1st maps to the natal sign, the 2nd to the 4th sign from "
+                   "it, and the 3rd to the 8th sign from it. D3 is a classical varga for "
+                   "courage and siblings. The engine reports D3 alongside D9 in every chart."),
         "formula": ("drekkāṇa sign = (natal sign + 0, +4, or +8 signs) for the "
                     "1st (0–10°), 2nd (10–20°), 3rd (20–30°) third."),
         "example": ("Karka (3) graha at 15° → second drekkāṇa → sign (3+4) = Simha (4)."),

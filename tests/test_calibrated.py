@@ -404,6 +404,102 @@ def main():
               and len(r["tithis"]) == 3 and all(1 <= t <= 15 for t in r["tithis"])
               and 1 <= r["c_male"] <= 12 and 1 <= r["c_female"] <= 12)
 
+    # 4g. Special lagnas + Shadbala + Maandi
+    print("\n4g. Special Lagnas, Shadbala and Maandi")
+
+    import KalaMedha
+    medha = KalaMedha.medha_analysis(kd, "en")
+
+    # --- Maandi (structural; must not crash for a pre-dawn birth) ---
+    import math
+    try:
+        jd_md = KC.swe.julday(1990, 6, 15, 3.0 - 5.5)  # 03:00 IST, pre-dawn
+        maandi = KC.get_maandi_longitude(jd_md, SAMPLE["lat"], SAMPLE["lon"],
+                                         SAMPLE["alt"], tropical=False)
+        # (get_maandi_longitude signature: jd_ut, lat, lon, alt, tropical)
+        ok_md = 0.0 <= maandi < 360.0
+    except TypeError:
+        try:
+            jd_md = KC.get_julian_day(SAMPLE["year"], SAMPLE["month"], SAMPLE["day"],
+                                      3.0, SAMPLE["tz"])
+            maandi = KC.get_maandi_longitude(jd_md, SAMPLE["lat"], SAMPLE["lon"],
+                                             SAMPLE["alt"])
+            ok_md = 0.0 <= maandi < 360.0
+        except Exception as exc:  # pragma: no cover
+            ok_md = False
+            maandi = exc
+    check("maandi: pre-dawn longitude in [0,360)", ok_md, f"{maandi}")
+
+    # --- Special Lagnas ---
+    sl = kd.get("special_lagnas")
+    check("special_lagnas: present", sl is not None)
+    if sl:
+        check("special_lagnas: all three lagnas", all(k in sl for k in
+                                                      ("upapada", "shree", "indu")))
+        check("sl: UL rashi == Kanya", sl["upapada"]["rashi"] == 5,
+              f"{sl['upapada'].get('rashi')}")
+        check("sl: UL note present", bool(sl["upapada"].get("note")))
+        check("sl: SL longitude ≈ 64.6289",
+              almost(sl["shree"]["longitude"], 64.6289, 1e-3),
+              f"{sl['shree'].get('longitude')}")
+        check("sl: SL rashi == Mithuna", sl["shree"]["rashi"] == 2,
+              f"{sl['shree'].get('rashi')}")
+        check("sl: Indu rashi == Karka", sl["indu"]["rashi"] == 3,
+              f"{sl['indu'].get('rashi')}")
+        check("sl: list-like structure OK (not str/bytes)",
+              isinstance(sl["upapada"]["rashi"], int))
+
+    # --- Shadbala ---
+    sb = kd.get("shadbala")
+    check("shadbala: present", sb is not None)
+    if sb:
+        pl = sb.get("planets") or {}
+        check("shadbala: 9 grahas", len(pl) == 9, f"{list(pl)}")
+        check("shadbala: method+note documented",
+              bool(sb.get("method")) and bool(sb.get("note")))
+        seven = [p for p in pl.values()
+                 if p.get("minimum_rupas") is not None]
+        nodes = [p for p in pl.values() if p.get("minimum_rupas") is None]
+        check("shadbala: exactly 7 classical + 2 nodes", len(seven) == 7
+              and len(nodes) == 2)
+        for p in seven:
+            s = p["sthana"]; k = p["kala"]
+            comp = (s["total"] + p["dig"] + k["total"] + p["chesta"]
+                    + p["naisargika"] + p["drik"])
+            check(f"shadbala: {p['name']} total == sum of parts",
+                  almost(p["total"], comp, 0.03), f"{p['total']} vs {comp}")
+            check(f"shadbala: {p['name']} rupas == total/60",
+                  almost(p["rupas"], p["total"] / 60.0, 0.03))
+            check(f"shadbala: {p['name']} verdict boolean",
+                  isinstance(p["strong"], bool))
+            check(f"shadbala: {p['name']} naisargika has value",
+                  p["naisargika"] is not None)
+        for n in nodes:
+            check(f"shadbala: {n['name']} node zeroed",
+                  almost(n["total"], 0.0, 1e-6) and almost(n["rupas"], 0.0, 1e-6))
+
+    # --- Per-house reading (KalaMedha) ---
+    hs = medha.get("houses") or []
+    check("medha: 12 house readings", len(hs) == 12, f"{len(hs)}")
+    for h in hs:
+        check(f"medha: house {h['num']} fields",
+              isinstance(h["num"], int) and h["sign"] and h["lord"]
+              and h["meaning"] and isinstance(h["empty"], bool)
+              and isinstance(h["occupants"], list)
+              and isinstance(h["aspected_by"], list))
+        occ = h["occupants"]
+        check(f"medha: house {h['num']} occupants have effect text",
+              all(o.get("effect") for o in occ))
+        if h["empty"]:
+            check(f"medha: empty house {h['num']} has lord reading "
+                  f"or aspection", bool(h.get("lord_reading"))
+                  or bool(h.get("aspection")))
+    s11 = next((h for h in hs if h["num"] == 11), None)
+    check("medha: 11th house has Sun–Guru conjunction",
+          s11 is not None and any("Surya" in c or "&" in c
+                                  for c in s11["conjunctions"]),
+          f"{s11['conjunctions'] if s11 else None}")
+
     if GET_APP_BASELINE:
         print("\n5. Cross-check vs reference app baseline")
         for key, expected in GET_APP_BASELINE.items():

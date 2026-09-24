@@ -291,7 +291,8 @@ Item {
                 house: t.house,
                 degree: formatDeg(t.degree_in_sign),
                 retro: t.retrograde,
-                dignity: t.dignity || "--"
+                dignity: t.dignity || "--",
+                dignityCode: t.dignity_code || ""
             });
         }
         view.transitRows = rows;
@@ -572,7 +573,8 @@ Item {
                                     Layout.minimumWidth: Kirigami.Units.gridUnit * 3.5
                                     elide: Text.ElideRight
                                     ToolTip.text: modelData.name
-                                    ToolTip.visible: truncated && hovered
+                                    HoverHandler { id: tGName }
+                                    ToolTip.visible: truncated && tGName.hovered
                                 }
                                 Label {
                                     text: modelData.retro ? "● " + view.txt("retro") : "—"
@@ -583,7 +585,8 @@ Item {
                                     Layout.minimumWidth: Kirigami.Units.gridUnit * 2.5
                                     elide: Text.ElideRight
                                     ToolTip.text: view.txt("retro")
-                                    ToolTip.visible: modelData.retro && truncated && hovered
+                                    HoverHandler { id: tGRetro }
+                                    ToolTip.visible: modelData.retro && truncated && tGRetro.hovered
                                 }
                                 Label {
                                     text: modelData.sign
@@ -593,7 +596,8 @@ Item {
                                     Layout.minimumWidth: Kirigami.Units.gridUnit * 4
                                     elide: Text.ElideRight
                                     ToolTip.text: modelData.sign
-                                    ToolTip.visible: truncated && hovered
+                                    HoverHandler { id: tGSign }
+                                    ToolTip.visible: truncated && tGSign.hovered
                                 }
                                 Label {
                                     text: view.txt("house") + " " + modelData.house
@@ -614,15 +618,22 @@ Item {
                                     text: modelData.dignity
                                     opacity: 0.9
                                     font.bold: true
-                                    color: modelData.dignity === "Exalted" || modelData.dignity === "Uccha" ? "#2ecc71" :
+                                    color: modelData.dignityCode === "exalted" ? "#2ecc71" :
+                                           modelData.dignityCode === "debilitated" ? "#e74c3c" :
+                                           modelData.dignityCode === "friend" ? "#3498db" :
+                                           modelData.dignityCode === "enemy" ? "#e67e22" :
+                                           modelData.dignityCode === "neutral" ? "#95a5a6" :
+                                           modelData.dignity === "Exalted" || modelData.dignity === "Uccha" ? "#2ecc71" :
                                            modelData.dignity === "Debilitated" || modelData.dignity === "Neecha" ? "#e74c3c" :
                                            modelData.dignity.indexOf("Friend") !== -1 || modelData.dignity.indexOf("Mitra") !== -1 ? "#3498db" :
-                                           modelData.dignity.indexOf("Enemy") !== -1 || modelData.dignity.indexOf("Shatru") !== -1 ? "#e67e22" : "currentColor"
+                                           modelData.dignity.indexOf("Enemy") !== -1 || modelData.dignity.indexOf("Shatru") !== -1 ? "#e67e22" :
+                                           modelData.dignity.indexOf("Neutral") !== -1 || modelData.dignity.indexOf("Sāmānya") !== -1 || modelData.dignity.indexOf("सामान्य") !== -1 ? "#95a5a6" : "currentColor"
                                     Layout.fillWidth: true
                                     Layout.minimumWidth: Kirigami.Units.gridUnit * 4
                                     elide: Text.ElideRight
                                     ToolTip.text: modelData.dignity
-                                    ToolTip.visible: truncated && hovered
+                                    HoverHandler { id: tGDig }
+                                    ToolTip.visible: truncated && tGDig.hovered
                                 }
                             }
                         }
@@ -681,7 +692,8 @@ Item {
                                             Layout.minimumWidth: 0
                                             wrapMode: Text.WordWrap
                                             ToolTip.text: modelData.name
-                                            ToolTip.visible: truncated && hovered
+                                            HoverHandler { id: tGYoga }
+                                            ToolTip.visible: truncated && tGYoga.hovered
                                         }
                                         Rectangle {
                                             radius: 4
@@ -755,7 +767,8 @@ Item {
                                             Layout.minimumWidth: Kirigami.Units.gridUnit * 3.5
                                             elide: Text.ElideRight
                                             ToolTip.text: modelData.graha
-                                            ToolTip.visible: truncated && hovered
+                                            HoverHandler { id: tGGraha }
+                                            ToolTip.visible: truncated && tGGraha.hovered
                                         }
                                         Label {
                                             text: modelData.fromRashi + " → " + modelData.toRashi
@@ -764,7 +777,8 @@ Item {
                                             Layout.minimumWidth: 0
                                             wrapMode: Text.WordWrap
                                             ToolTip.text: modelData.fromRashi + " → " + modelData.toRashi
-                                            ToolTip.visible: truncated && hovered
+                                            HoverHandler { id: tGTrans }
+                                            ToolTip.visible: truncated && tGTrans.hovered
                                         }
                                         Label {
                                             text: modelData.when
@@ -775,7 +789,8 @@ Item {
                                             Layout.minimumWidth: Kirigami.Units.gridUnit * 8
                                             elide: Text.ElideRight
                                             ToolTip.text: modelData.when
-                                            ToolTip.visible: truncated && hovered
+                                            HoverHandler { id: tGWhen }
+                                            ToolTip.visible: truncated && tGWhen.hovered
                                         }
                                     }
                                 }

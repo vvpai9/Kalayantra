@@ -41,9 +41,10 @@ Item {
             part2 = (el2_end && el2_end !== "--") ? `${el2} <font color='${color}'>${el2_end}</font>` : el2;
         }
 
-        // In Traditional (sunrise) mode the day takes its element at sunrise,
-        // so always keep the first element primary no matter how long it lasts.
-        var primary = (mode === "traditional") ? 1 : activeIdx;
+        // The active index (1 or 2) is resolved by the engine: for "today" it
+        // follows the clock (the limb actually running now), for other dates it
+        // is the day-anchored limb for the configured tithi mode.
+        var primary = activeIdx;
 
         if (primary === 1) {
             return `<b>👉 ${part1}</b>` + (part2 ? ` &nbsp;&nbsp;•&nbsp;&nbsp; <font color='#888888'>${part2}</font>` : "");
@@ -1039,7 +1040,9 @@ Item {
                         }
                         Label {
                             text: kaladarshana.selectedDayData
-                                  ? `${kaladarshana.selectedDayData.lagna} (${kaladarshana.selectedDayData.lagna_adhipati})`
+                                  ? (kaladarshana.selectedDayData.lagna_live
+                                     ? `${kaladarshana.selectedDayData.lagna_live} (${kaladarshana.selectedDayData.lagna_live_adhipati}) · ${i18n("Sunrise")}: ${kaladarshana.selectedDayData.lagna}`
+                                     : `${kaladarshana.selectedDayData.lagna} (${kaladarshana.selectedDayData.lagna_adhipati})`)
                                   : "--"
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap

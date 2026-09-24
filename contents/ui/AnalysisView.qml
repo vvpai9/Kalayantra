@@ -36,7 +36,15 @@ Item {
             "yogasSection": "Yogas",
             "dashaSection": "Current Dasha",
             "strengthsSection": "Strength & Weakness Rankings",
-            "evidenceSection": "Supporting Evidence"
+            "evidenceSection": "Supporting Evidence",
+            "housesSection": "House-wise Reading",
+            "houseHead": "House %1 · %2",
+            "lordNote": "Lord: %1",
+            "emptyHouse": "Empty house — its affairs work through its lord.",
+            "occupants": "Occupants:",
+            "conj": "Conjunction:",
+            "aspection": "Aspected by:",
+            "occDignity": "%1 (%2)"
         },
         "iast": {
             "title": "Kuṇḍalī Vicāra (KalaMedha)",
@@ -60,7 +68,14 @@ Item {
             "yogasSection": "Yoga",
             "dashaSection": "Vartamāna Daśā",
             "strengthsSection": "Bala–Durbala Rankings",
-            "evidenceSection": "Sākṣya"
+            "evidenceSection": "Sākṣya",
+            "housesSection": "Bhāva-vār Vicāra",
+            "houseHead": "Bhāva %1 · %2",
+            "lordNote": "Svāmī: %1",
+            "emptyHouse": "Rikta bhāva — kāryāṇi svāmi-dvārā sādhyante.",
+            "occupants": "Sthita grahāḥ:",
+            "conj": "Yutī:",
+            "aspection": "Dṛṣṭi:"
         },
         "devanagari": {
             "title": "कुंडली विश्लेषण (कालमेध)",
@@ -84,7 +99,14 @@ Item {
             "yogasSection": "योग",
             "dashaSection": "वर्तमान दशा",
             "strengthsSection": "बल–दुर्बल क्रम",
-            "evidenceSection": "साक्ष्य"
+            "evidenceSection": "साक्ष्य",
+            "housesSection": "भाव-वार विचार",
+            "houseHead": "भाव %1 · %2",
+            "lordNote": "स्वामी: %1",
+            "emptyHouse": "रिक्त भाव — कार्य स्वामी द्वारा सँभाले जाते हैं।",
+            "occupants": "स्थित ग्रह:",
+            "conj": "युति:",
+            "aspection": "दृष्टि:"
         }
     })
 
@@ -330,6 +352,109 @@ Item {
                     Repeater {
                         model: view.medhaResult ? (view.medhaResult.narrative.notable_evidence || []) : []
                         Label { text: "• " + modelData; Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: Kirigami.Units.gridUnit * 0.75; opacity: 0.7 }
+                    }
+                }
+
+                Kirigami.Separator { Layout.fillWidth: true; visible: !!view.medhaResult && !!(view.medhaResult.houses && view.medhaResult.houses.length > 0) }
+
+                // House-wise personalised reading
+                ColumnLayout {
+                    visible: !!view.medhaResult && !!(view.medhaResult.houses && view.medhaResult.houses.length > 0)
+                    Layout.fillWidth: true; spacing: 8
+                    Label { text: view.txt("housesSection"); font.bold: true }
+
+                    Repeater {
+                        model: view.medhaResult ? (view.medhaResult.houses || []) : []
+
+                        ColumnLayout {
+                            Layout.fillWidth: true; spacing: 3
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 1
+                                color: Qt.rgba(0.7, 0.7, 0.7, 0.25)
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true; spacing: 6
+                                Label {
+                                    text: view.txt("houseHead").arg(modelData.num, modelData.sign)
+                                    font.bold: true
+                                }
+                                Label {
+                                    text: view.txt("lordNote").arg(modelData.lord || "--")
+                                    opacity: 0.75
+                                    font.pixelSize: Kirigami.Units.gridUnit * 0.8
+                                }
+                            }
+
+                            Label {
+                                text: modelData.meaning
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.85
+                                opacity: 0.9
+                            }
+
+                            Repeater {
+                                model: modelData.occupants || []
+                                ColumnLayout {
+                                    Layout.fillWidth: true; spacing: 1
+                                    Label {
+                                        text: "• " + modelData.name + (modelData.dignity ? "  (" + modelData.dignity + ")" : "")
+                                        font.bold: true
+                                        font.pixelSize: Kirigami.Units.gridUnit * 0.85
+                                    }
+                                    Label {
+                                        text: modelData.effect
+                                        wrapMode: Text.WordWrap
+                                        Layout.fillWidth: true
+                                        Layout.leftMargin: Kirigami.Units.gridUnit
+                                        font.pixelSize: Kirigami.Units.gridUnit * 0.8
+                                        opacity: 0.85
+                                    }
+                                }
+                            }
+
+                            Label {
+                                visible: modelData.empty
+                                text: view.txt("emptyHouse")
+                                color: "#e67e22"
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.8
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+
+                            Label {
+                                visible: !!modelData.lord_reading
+                                text: modelData.lord_reading
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                                Layout.leftMargin: Kirigami.Units.gridUnit
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.8
+                                opacity: 0.85
+                                font.italic: true
+                            }
+
+                            Repeater {
+                                model: modelData.conjunctions || []
+                                Label {
+                                    text: view.txt("conj") + " " + modelData
+                                    wrapMode: Text.WordWrap
+                                    Layout.fillWidth: true
+                                    font.pixelSize: Kirigami.Units.gridUnit * 0.8
+                                    opacity: 0.85
+                                }
+                            }
+
+                            Label {
+                                visible: !!modelData.aspection && modelData.aspection.length > 0
+                                text: view.txt("aspection") + " " + modelData.aspection
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.85
+                                opacity: 0.85
+                            }
+                        }
                     }
                 }
             }

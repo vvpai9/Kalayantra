@@ -24,6 +24,10 @@ Item {
             "lon": "Lon",
             "alt": "Alt (m)",
             "tzh": "TZ (h)",
+            "latTitle": "Latitude",
+            "lonTitle": "Longitude",
+            "altTitle": "Altitude (m)",
+            "tzTitle": "Time Zone (h)",
             "preferences": "Calendar Preferences",
             "lang": "Language",
             "ayanamsa": "Ayanamsa",
@@ -56,6 +60,10 @@ Item {
             "lon": "Reṣāṁśa",
             "alt": "Ucchtā (m)",
             "tzh": "Samaya (h)",
+            "latTitle": "Akṣāṁśa",
+            "lonTitle": "Reṣāṁśa",
+            "altTitle": "Ucchtā (m)",
+            "tzTitle": "Samaya-kṣetra (h)",
             "preferences": "Pāṭhya-niyamāḥ",
             "lang": "Bhāṣā",
             "ayanamsa": "Ayanāṁśa",
@@ -88,6 +96,10 @@ Item {
             "lon": "रेखांश",
             "alt": "ऊँचाई (मी)",
             "tzh": "समय (घं)",
+            "latTitle": "अक्षांश",
+            "lonTitle": "रेखांश",
+            "altTitle": "ऊँचाई (मी)",
+            "tzTitle": "समय क्षेत्र (घं)",
             "preferences": "कैलेंडर वरीयता",
             "lang": "भाषा",
             "ayanamsa": "अयनांश",
@@ -148,11 +160,13 @@ Item {
         fetchUrl("/config", function(d) {
             view.configData = d;
             if (d.city) cityName = d.city;
-            else if (!cityField.text.trim()) cityName = (typeof plasmoid !== "undefined" && plasmoid.configuration && plasmoid.configuration.cityName) ? plasmoid.configuration.cityName : "";
+            else if (!cityField.text.trim() && typeof plasmoid !== "undefined" && plasmoid.configuration)
+                cityName = (plasmoid.configuration.locationName && plasmoid.configuration.locationName !== "") ? plasmoid.configuration.locationName : (plasmoid.configuration.cityName || "");
             if (d.lat !== undefined) latField.text = String(Number(d.lat).toFixed(4));
             if (d.lon !== undefined) lonField.text = String(Number(d.lon).toFixed(4));
             if (d.alt !== undefined) altField.text = String(Number(d.alt).toFixed(1));
             if (d.tz !== undefined) tzField.text = String(Number(d.tz).toFixed(1));
+            if (cityName) cityField.text = cityName;
             setCombo(langCombo, d.lang || "en");
             setCombo(calCombo, d.calendar_system || "shaka");
             setCombo(monthCombo, d.month_system || "amavasyanta");
@@ -210,8 +224,13 @@ Item {
                 "&alt=" + encodeURIComponent(parseFloat(altField.text) || 0);
         fetchUrl("/save_custom_city?" + q, function() {
             cityName = name;
-            if (typeof plasmoid !== "undefined" && plasmoid.configuration && plasmoid.configuration.cityName !== undefined)
-                plasmoid.configuration.cityName = name;
+            cityField.text = name;
+            if (typeof plasmoid !== "undefined" && plasmoid.configuration) {
+                if (plasmoid.configuration.locationName !== undefined)
+                    plasmoid.configuration.locationName = name;
+                if (plasmoid.configuration.cityName !== undefined)
+                    plasmoid.configuration.cityName = name;
+            }
             statusMessage.type = Kirigami.MessageType.Positive;
             statusMessage.text = txt("savedMsg");
             statusMessage.visible = true;
@@ -236,6 +255,8 @@ Item {
 
     function plasmaVarConfig(write) {
         var cfg = plasmoid.configuration;
+        if (!cityName.trim() && cityField.text.trim()) cityName = cityField.text.trim();
+        if (cfg.locationName !== undefined) cfg.locationName = cityName.trim();
         if (cfg.cityName !== undefined) cfg.cityName = cityName.trim();
         cfg.latitude = parseFloat(latField.text) || 0;
         cfg.longitude = parseFloat(lonField.text) || 0;
@@ -275,7 +296,7 @@ Item {
                 TextField {
                     id: cityField
                     Layout.fillWidth: true
-                    placeholderText: view.cfg("cityName", "") || (view.configData && view.configData.city) || view.txt("searchPlaceholder")
+                    placeholderText: view.cfg("locationName", "") || (view.configData && view.configData.city) || view.txt("searchPlaceholder")
                     onAccepted: view.searchCities()
                 }
                 Button { text: view.txt("searchBtn"); icon.name: "edit-find"; onClicked: view.searchCities() }
@@ -283,8 +304,17 @@ Item {
                 Button { text: view.txt("saveCity"); icon.name: "document-save"; onClicked: view.saveCity() }
             }
 
-            RowLayout {
-                Layout.fillWidth: true; spacing: Kirigami.Units.smallSpacing
+            GridLayout {
+                Layout.fillWidth: true
+                columns: 4
+                columnSpacing: Kirigami.Units.largeSpacing
+                rowSpacing: 2
+
+                Label { text: view.txt("latTitle"); font.bold: true; font.pixelSize: Kirigami.Units.gridUnit * 0.65; opacity: 0.8 }
+                Label { text: view.txt("lonTitle"); font.bold: true; font.pixelSize: Kirigami.Units.gridUnit * 0.65; opacity: 0.8 }
+                Label { text: view.txt("altTitle"); font.bold: true; font.pixelSize: Kirigami.Units.gridUnit * 0.65; opacity: 0.8 }
+                Label { text: view.txt("tzTitle"); font.bold: true; font.pixelSize: Kirigami.Units.gridUnit * 0.65; opacity: 0.8 }
+
                 TextField { id: latField; placeholderText: view.txt("lat"); text: String(Number(view.cfg("latitude", 23.1765)).toFixed(4)); Layout.preferredWidth: Kirigami.Units.gridUnit * 4; validator: DoubleValidator { bottom: -90; top: 90; decimals: 4 } }
                 TextField { id: lonField; placeholderText: view.txt("lon"); text: String(Number(view.cfg("longitude", 75.7885)).toFixed(4)); Layout.preferredWidth: Kirigami.Units.gridUnit * 4; validator: DoubleValidator { bottom: -180; top: 180; decimals: 4 } }
                 TextField { id: altField; placeholderText: view.txt("alt"); text: String(Number(view.cfg("altitude", 0)).toFixed(1)); Layout.preferredWidth: Kirigami.Units.gridUnit * 3; validator: DoubleValidator { bottom: -500; top: 9000; decimals: 1 } }

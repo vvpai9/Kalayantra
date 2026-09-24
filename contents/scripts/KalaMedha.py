@@ -643,6 +643,267 @@ def _answer_overview(bodha: dict, answers: dict, intents: list, lang: str,
 
 
 # ---------------------------------------------------------------------------
+#  Personalised per-house reading
+# ---------------------------------------------------------------------------
+# Deterministic, chart-derived sentences for each of the twelve bhavas:
+# significations of the house + the specific grahas placed in it (dignity,
+# retrograde/combust status, yogas), conjunctions, aspections and — for empty
+# houses — the placement of the lord.  All facts come from the chart.
+
+_HOUSE_MEANING = {
+    # (en, iast, devanagari)
+    1: ("self, body, vitality and the direction one takes through life",
+        "the personality, body, vitality and direction of life",
+        "व्यक्तित्व, शरीर, जीवन-शक्ति और जीवन की दिशा"),
+    2: ("wealth, resources, speech and accumulated possessions",
+        "wealth, resources, speech and accumulated possessions",
+        "धन, संसाधन, वाणी और संचित सम्पत्ति"),
+    3: ("effort, courage, siblings, short journeys and communication",
+        "effort, courage, siblings, short journeys and communication",
+        "परिश्रम, साहस, भाई-बहन, छोटी यात्राएँ और संवाद"),
+    4: ("home, mother, emotional foundation, vehicles and inner peace",
+        "home, mother, emotional foundation, vehicles and inner peace",
+        "घर, माता, भावनात्मक आधार, वाहन और मानसिक शान्ति"),
+    5: ("creativity, children, romance, intelligence and prior merit",
+        "creativity, children, romance, intelligence and prior merit",
+        "सृजनशीलता, सन्तान, प्रेम, बुद्धि और पूर्व पुण्य"),
+    6: ("daily work, health, rivals, service and debts",
+        "daily work, health, rivals, service and debts",
+        "दैनिक कार्य, स्वास्थ्य, शत्रु, सेवा और ऋण"),
+    7: ("marriage, partnerships, open dealings and public contact",
+        "marriage, partnerships, open dealings and public contact",
+        "विवाह, साझेदारी, खुले व्यवहार और सार्वजनिक सम्पर्क"),
+    8: ("longevity, transformation, occult knowledge, inheritance and the beyond",
+        "longevity, transformation, occult knowledge, inheritance and the beyond",
+        "आयु, परिवर्तन, गूढ़ ज्ञान, उत्तराधिकार और परलोक"),
+    9: ("higher learning, faith, fortune, dharma, teachers and long journeys",
+        "higher learning, faith, fortune, dharma, teachers and long journeys",
+        "उच्च शिक्षा, श्रद्धा, भाग्य, धर्म, गुरु और लम्बी यात्राएँ"),
+    10: ("career, public standing, authority, fame and karma",
+         "career, public standing, authority, fame and karma",
+         "कर्मक्षेत्र, सामाजिक प्रतिष्ठा, अधिकार, यश और कर्म"),
+    11: ("gains, ambitions, elder sibling, networking and fulfilment of desires",
+         "gains, ambitions, elder sibling, networking and fulfilment of desires",
+         "लाभ, महत्त्वाकांक्षा, बड़ा भाई, नेटवर्किंग और इच्छा-पूर्ति"),
+    12: ("expenses, liberation, sleep, foreign lands, loss and withdrawal",
+         "expenses, liberation, sleep, foreign lands, loss and withdrawal",
+         "व्यय, मोक्ष, निद्रा, विदेश, हानि और एकान्त"),
+}
+
+_GRAHA_NATURE = {
+    # clause used for occupants (en, iast, devanagari)
+    0: ("Surya's authoritative, vitalizing energy",
+        "Sūrya's authoritative, vitalizing energy",
+        "सूर्य का प्रभावशाली, ओजस्वी प्रभाव"),
+    1: ("Chandra's adaptive, emotional, nurturing energy",
+        "Candra's adaptive, emotional, nurturing energy",
+        "चन्द्र का भावुक, पोषक, अनुकूलनशील प्रभाव"),
+    2: ("Mangala's forceful, enterprising, combative energy",
+        "Maṅgala's forceful, enterprising, combative energy",
+        "मङ्गल का प्रबल, उद्यमशील, युद्धक प्रभाव"),
+    3: ("Budha's analytical, witty, communicative energy",
+        "Budha's analytical, witty, communicative energy",
+        "बुध का विश्लेषक, कुशाग्र, संवादक प्रभाव"),
+    4: ("Guru's expansive, benevolent, guiding energy",
+        "Guru's expansive, benevolent, guiding energy",
+        "गुरु का विस्तारक, कल्याणकारी, मार्गदर्शक प्रभाव"),
+    5: ("Shukra's harmonious, aesthetic, relational energy",
+        "Śukra's harmonious, aesthetic, relational energy",
+        "शुक्र का सामंजस्यमय, कलात्मक, भावमय प्रभाव"),
+    6: ("Shani's disciplined, patient, consolidating energy",
+        "Śani's disciplined, patient, consolidating energy",
+        "शनि का अनुशासित, धैर्यवान, संकुचनकारी प्रभाव"),
+    7: ("Rahu's unconventional, amplifying, obsessive energy",
+        "Rāhu's unconventional, amplifying, obsessive energy",
+        "राहु का अपरम्परागत, तीव्र, मोहक प्रभाव"),
+    8: ("Ketu's detached, sharp, dissolving energy",
+        "Ketu's detached, sharp, dissolving energy",
+        "केतु का विरक्त, तीक्ष्ण, विलयकारी प्रभाव"),
+}
+
+_DIGNITY_CLAUSE = {  # en, iast, devanagari — ends with a comma
+    "exalted": ("in exalted dignity — its results here are outstanding,",
+                "in exalted dignity — its results here are outstanding,",
+                "उच्चता में — यहाँ उसके फल उत्कृष्ट हैं,"),
+    "debilitated": ("in debilitated dignity — its results here face strain,",
+                    "in debilitated dignity — its results here face strain,",
+                    "नीचता में — यहाँ उसके फल सङ्कुचित हैं,"),
+    "moolatrikona": ("in its moolatrikona — strong and purposeful,",
+                     "in its mūlatrikoṇa — strong and purposeful,",
+                     "मूलत्रिकोण में — सशक्त और उद्देश्यपूर्ण,"),
+    "own": ("in its own sign — confident and freely expressive,",
+            "in its own sign — confident and freely expressive,",
+            "स्वराशि में — सहज और आत्मविश्वासपूर्ण,"),
+    "friend": ("in a friend's sign — supported and harmonious,",
+               "in a friend's sign — supported and harmonious,",
+               "मित्र राशि में — सहायता प्राप्त और सामञ्जस्यपूर्ण,"),
+    "neutral": ("with neutral dignity — mixed but workable results,",
+                "with neutral dignity — mixed but workable results,",
+                "सामान्य स्थिति में — मिश्रित किन्तु कार्यसाधक,"),
+    "enemy": ("in an enemy's sign — constrained and effortful,",
+              "in an enemy's sign — constrained and effortful,",
+              "शत्रु राशि में — सङ्कुचित और श्रमसाध्य,"),
+}
+
+_STATUS_CLAUSE = {  # appended based on status list
+    "retro": ("being retrograde, its results mature slowly and inwards.",
+              "being retrograde, its results mature slowly and inwards.",
+              "वक्र होने से फल धीरे-धीरे और आत्म-केन्द्रित रूप में परिपक्व होते हैं।"),
+    "combust": ("being eclipsed by the Sun, its results are subdued.",
+                "being eclipsed by the Sun, its results are subdued.",
+                "सूर्य के निकट होने से फल दबे हुए रहते हैं।"),
+}
+
+_CONJ_TEMPLATE = {
+    "en": "{names} combine in this house, so {topics} carry both natures together.",
+    "iast": "{names} combine in this house, so {topics} carry both natures together.",
+    "devanagari": "{names} इस भाव में युक्त हैं, अतः {topics} दोनों स्वभावों से युक्त होंगे।",
+}
+
+_ASPECT_TEMPLATE = {
+    "en": "This house is also aspected by {names}; their influence blends into {topics}.",
+    "iast": "This house is also aspected by {names}; their influence blends into {topics}.",
+    "devanagari": "इस भाव पर {names} की दृष्टि भी है; उनका प्रभाव {topics} में मिलता है।",
+}
+
+_EMPTY_TEMPLATE = {
+    "en": "Bhava {num} is unoccupied — its lord {lord} sits in the {lord_house}th house ({lord_dignity}), through whom its matters of {topics} are handled.",
+    "iast": "Bhāva {num} is unoccupied — its lord {lord} sits in the {lord_house}th bhava ({lord_dignity}), through whom its matters of {topics} are handled.",
+    "devanagari": "भाव {num} रिक्त है — उसका स्वामी {lord} {lord_house}वें भाव में ({lord_dignity}) बैठा है, जिसके द्वारा {topics} के विषय सँभाले जाते हैं।",
+}
+
+_OCCUPANT_TEMPLATE = {
+    "en": "{nature} lands here; {dignity} it colours {topics} most directly. {status}",
+    "iast": "{nature} lands here; {dignity} it colours {topics} most directly. {status}",
+    "devanagari": "{nature} यहाँ स्थित है; {dignity} यह {topics} को सबसे सीधे प्रभावित करता है। {status}",
+}
+
+
+def house_reading(kundali: dict, lang: str = "en",
+                  conjunctions: list | None = None,
+                  aspects_out: dict | None = None) -> list:
+    """Twelve personalised bhava readings derived from the natal chart.
+
+    Each entry: num, sign, lord, meaning, occupants (with dignity / status /
+    effect sentence), conjunctions, aspected_by, empty and a lord_reading.
+    Combines KalaKosha significations with the Lord-of-the-house placement
+    (empty-house rule) and KalaBodha conjunction/aspect facts."""
+    idx = 0 if lang in ("en", "iast") else 1
+    idx = 2 if lang == "devanagari" else idx
+    houses = kundali.get("houses") or {}
+    planets = kundali.get("planets") or {}
+    lagna_rashi = (kundali.get("lagna") or {}).get("rashi")
+
+    # Aspects per graha name → rashi indices it aspects.
+    aspects_out = aspects_out or {}
+    if not aspects_out:
+        aspects_out = {}
+        for p in planets.values():
+            n = p.get("name")
+            aspects_out[n] = p.get("aspects_outgoing") or []
+            if aspects_out[n] and isinstance(aspects_out[n][0], dict):
+                aspects_out[n] = [a["rashi"] for a in aspects_out[n]]
+    name_by_idx = {p.get("idx"): p.get("name") for p in planets.values()}
+    aspects_out = {name_by_idx.get(int(k), k): v
+                   for k, v in aspects_out.items()}
+
+    conj_by_house = {}
+    for group in (conjunctions if conjunctions is not None
+                  else kundali.get("conjunctions") or []):
+        gsign = group.get("rashi")
+        if gsign is None:
+            continue
+        names = [KalaKosha.GRAHAS[lang][g] for g in group.get("grahas", [])]
+        if not names:
+            continue
+        h = ((gsign - lagna_rashi) % 12) + 1 if lagna_rashi is not None else None
+        if h is not None:
+            conj_by_house.setdefault(h, []).append(names)
+
+    out = []
+    for h in range(1, 13):
+        house = houses.get(h) or {}
+        sign_l = house.get("rashi_name", "--")
+        lord = house.get("lord", "--")
+        topics = _HOUSE_MEANING[h][idx]
+
+        occupants = []
+        for p in planets.values():
+            if p.get("house") != h:
+                continue
+            dignity_code = p.get("dignity_code", "neutral")
+            nature = _GRAHA_NATURE.get(p.get("idx"),
+                                       (f"{p.get('name')}'s influence",
+                                        f"{p.get('name')}'s influence",
+                                        f"{p.get('name')} का प्रभाव"))
+            dignity = _DIGNITY_CLAUSE.get(dignity_code,
+                                          _DIGNITY_CLAUSE["neutral"])[idx]
+            statuses = []
+            if p.get("retrograde"):
+                statuses.append(_STATUS_CLAUSE["retro"][idx])
+            if p.get("combust"):
+                statuses.append(_STATUS_CLAUSE["combust"][idx])
+            status_text = " ".join(statuses) if statuses else ""
+
+            effect = _OCCUPANT_TEMPLATE[lang].format(
+                nature=nature[idx], dignity=dignity, topics=topics,
+                status=status_text).strip()
+            occupant = {
+                "name": p.get("name"),
+                "dignity": p.get("dignity", "Neutral"),
+                "dignity_code": dignity_code,
+                "retrograde": p.get("retrograde", False),
+                "combust": p.get("combust", False),
+                "effect": effect,
+            }
+            yogs = p.get("yogas")
+            if yogs:
+                occupant["yogas"] = yogs
+            occupants.append(occupant)
+
+        aspected = []
+        for pname, rashi_list in aspects_out.items():
+            if ((rashi_list and any(r == (lagna_rashi + h - 1) % 12
+                                    for r in rashi_list))
+                    and not any(o["name"] == pname for o in occupants)):
+                aspected.append(pname)
+        aspection = _ASPECT_TEMPLATE[lang].format(
+            names=", ".join(aspected), topics=topics) if aspected else ""
+
+        conjunctions = conj_by_house.get(h, [])
+        conj_texts = [_CONJ_TEMPLATE[lang].format(names=" & ".join(cn),
+                                                  topics=topics)
+                      for cn in conjunctions]
+
+        # Empty-house lord reading.
+        lord_reading = ""
+        if not occupants:
+            lord_p = next((p for p in planets.values()
+                           if p.get("name") == lord), None)
+            if lord_p is not None:
+                lord_house = lord_p.get("house")
+                if lord_house:
+                    lord_dig = lord_p.get("dignity", "Neutral").lower()
+                    lord_reading = _EMPTY_TEMPLATE[lang].format(
+                        num=h, lord=lord, lord_house=lord_house,
+                        lord_dignity=lord_dig, topics=topics)
+
+        out.append({
+            "num": h,
+            "sign": sign_l,
+            "lord": lord,
+            "empty": len(occupants) == 0,
+            "meaning": topics,
+            "occupants": occupants,
+            "conjunctions": conj_texts,
+            "aspected_by": aspected,
+            "aspection": aspection,
+            "lord_reading": lord_reading,
+        })
+    return out
+
+
+# ---------------------------------------------------------------------------
 #  Main entry point
 # ---------------------------------------------------------------------------
 
@@ -661,6 +922,8 @@ def medha_analysis(kundali: dict, lang: str = "en") -> dict:
         },
         "narrative": narrative,
         "strengths_weaknesses": sw,
+        "houses": house_reading(kundali, lang, bodha.get("conjunctions", []),
+                                (bodha.get("aspects") or {}).get("outgoing", {})),
         "answers": bodha.get("answers", {}),
         "evidence": bodha.get("evidence", []),
         "current_dasha": bodha.get("current_dasha", {}),

@@ -562,6 +562,23 @@ def calculate_panchanga(year: int, month: int, day: int, tz: float,
 
     # --- Ghadi (live value for "today"; deterministic for any other date) ---
     now_jd = _now_jd_ut()
+    now_local = KalaVartika._jd_to_local_dt(now_jd, tz)
+    is_today = (now_local.year == year and now_local.month == month
+                and now_local.day == day)
+
+    def live_first(end1_jd, day_anchor_idx):
+        """Which limb (1 or 2) to highlight on the details card.
+
+        For today the limb actually running at the current clock time is
+        highlighted (so the arrow moves on when the element changes), while
+        any other date keeps the day-anchored choice: the sunrise limb in
+        Traditional mode, the survives-based limb in Mean mode."""
+        if is_today:
+            if end1_jd is None:
+                return 1
+            return 1 if now_jd < end1_jd else 2
+        return day_anchor_idx
+
     if now_jd < sunrise_jd or now_jd >= tomorrow_sunrise:
         mins_since_sunrise = 0.0 if now_jd < sunrise_jd else (tomorrow_sunrise - sunrise_jd) * 1440.0
     else:
@@ -570,6 +587,19 @@ def calculate_panchanga(year: int, month: int, day: int, tz: float,
     ghadi_g = int(ghadi)
     ghadi_v = int((ghadi - ghadi_g) * 60)
     ghadi_str = f"{ghadi_g}:{ghadi_v:02d}" if ghadi_g < 1440 else "0:00"
+
+    # --- Live lagna (rising sign at the current clock time for "today") ---
+    lagna_live = None
+    lagna_live_idx = None
+    lagna_live_adhipati = None
+    if is_today:
+        lagna_now_lon, _ = swe.houses(now_jd, lat, lon, b"P")
+        lagna_now_sid = (lagna_now_lon[0] % 360.0) - ayan_val
+        if lagna_now_sid < 0:
+            lagna_now_sid += 360.0
+        lagna_live_idx = int(lagna_now_sid / 30.0) % 12
+        lagna_live = KalaKosha.RASIS[lang][lagna_live_idx]
+        lagna_live_adhipati = KalaKosha.GRAHAS[lang][KalaKosha.RASHI_LORD[lagna_live_idx]]
 
     # --- Brahma Muhurta ---
     bm_end = sunrise_jd - 48.0 / 1440.0
@@ -614,7 +644,8 @@ def calculate_panchanga(year: int, month: int, day: int, tz: float,
     if nak_end_jd is not None:
         nakshatra_1_end = KalaVartika.format_time_hhmm(nak_end_jd, tz, jd_ut_start)
     nakshatra_survives = (nak_end_jd is None) or (nak_end_jd > tomorrow_sunrise)
-    nakshatra_active_idx = 2 if (not nakshatra_survives and nak_end_jd is not None) else 1
+    nakshatra_active_idx = live_first(
+        nak_end_jd, 1 if (tithi_mode == "traditional" or nakshatra_survives) else 2)
 
     # second tithi at sunrise
     tithi_1 = KalaKosha.TITHIS[lang][get_tithi_idx(sunrise_jd)]
@@ -637,10 +668,13 @@ def calculate_panchanga(year: int, month: int, day: int, tz: float,
         tithi_survives = tithi_end_jd > tomorrow_sunrise
 
     active_tithi = 1
-    if tithi_survives:
+    if tithi_mode == "traditional":
+        active_tithi = 1
+    elif tithi_survives:
         active_tithi = 1
     elif tithi_end_jd is not None:
         active_tithi = 2
+    active_tithi = live_first(tithi_end_jd, active_tithi)
 
     is_tithi_2_kshaya = False
     if tithi_2 is not None:
@@ -685,7 +719,8 @@ def calculate_panchanga(year: int, month: int, day: int, tz: float,
         if s2_end_jd is not None:
             surya_nakshatra_2_end = KalaVartika.format_time_hhmm(s2_end_jd, tz, jd_ut_start)
     surya_nakshatra_survives = (surya_nak_end_jd is None) or (surya_nak_end_jd > tomorrow_sunrise)
-    surya_nakshatra_active_idx = 2 if (not surya_nakshatra_survives and surya_nak_end_jd is not None) else 1
+    surya_nakshatra_active_idx = live_first(
+        surya_nak_end_jd, 1 if (tithi_mode == "traditional" or surya_nakshatra_survives) else 2)
 
     # --- Yoga transitions ---
     yoga_1 = yoga_name
@@ -701,7 +736,8 @@ def calculate_panchanga(year: int, month: int, day: int, tz: float,
             if y2_end_jd is not None:
                 yoga_2_end = KalaVartika.format_time_hhmm(y2_end_jd, tz, jd_ut_start)
     yoga_survives = (yoga_end_jd is None) or (yoga_end_jd > tomorrow_sunrise)
-    yoga_active_idx = 2 if (not yoga_survives and yoga_end_jd is not None) else 1
+    yoga_active_idx = live_first(
+        yoga_end_jd, 1 if (tithi_mode == "traditional" or yoga_survives) else 2)
 
     # --- Karana transitions ---
     karana_1 = karana_name
@@ -717,7 +753,8 @@ def calculate_panchanga(year: int, month: int, day: int, tz: float,
             if k2_end_jd is not None:
                 karana_2_end = KalaVartika.format_time_hhmm(k2_end_jd, tz, jd_ut_start)
     karana_survives = (karana_end_jd is None) or (karana_end_jd > tomorrow_sunrise)
-    karana_active_idx = 2 if (not karana_survives and karana_end_jd is not None) else 1
+    karana_active_idx = live_first(
+        karana_end_jd, 1 if (tithi_mode == "traditional" or karana_survives) else 2)
 
     # --- Choghadiya ---
     ch_day = []
@@ -797,6 +834,9 @@ def calculate_panchanga(year: int, month: int, day: int, tz: float,
         "lagna": KalaKosha.RASIS[lang][lagna_idx],
         "lagna_idx": lagna_idx,
         "lagna_adhipati": lagna_adhipati,
+        "lagna_live": lagna_live,
+        "lagna_live_idx": lagna_live_idx,
+        "lagna_live_adhipati": lagna_live_adhipati,
         "yoga": yoga_name,
         "yoga_1": yoga_1,
         "yoga_1_end": yoga_1_end,
@@ -873,6 +913,15 @@ def _now_jd_ut() -> float:
     now = _dt.datetime.utcnow()
     return swe.julday(now.year, now.month, now.day,
                       now.hour + now.minute / 60.0 + now.second / 3600.0)
+
+
+def _ordinal(n: int) -> str:
+    """1 → '1st', 2 → '2nd', 3 → '3rd', 11 → '11th', etc."""
+    if 10 <= n % 100 <= 20:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
 
 
 # ---------------------------------------------------------------------------
@@ -1114,10 +1163,13 @@ def get_maandi_longitude(jd_ut: float, lat: float, lon: float, alt: float,
                          year: int = 0, month: int = 0, day: int = 0) -> float:
     """Sidereal/tropical longitude of Maandi for a given birth instant.
 
-    year/month/day are the civil (local) date on which day/night is counted;
-    the birth weekday is taken from them.  If they are all 0, the date is
-    derived from jd_ut with a nominal +5.5 h offset (approximate; callers
-    with a known civil date should pass it).
+    year/month/day are the civil (local) date on which day/night is counted.
+    The Jyotiṣa day (vaara) runs from sunrise to the next sunrise: a birth
+    between midnight and sunrise is still on the previous day's vaara, so the
+    weekday that governs the night portion is derived accordingly.  If
+    year/month/day are all 0, the date is derived from jd_ut with a nominal
+    +5.5 h offset (approximate; callers with a known civil date should pass
+    it).
     """
     if year and month and day:
         wd_sun = (_dt.date(year, month, day).weekday() + 1) % 7  # Sunday=0
@@ -1135,12 +1187,16 @@ def get_maandi_longitude(jd_ut: float, lat: float, lon: float, alt: float,
         maandi_jd = sunrise + frac * (sunset - sunrise)
     else:
         if jd_ut < sunrise:
+            # Pre-dawn birth: this night began at the previous day's sunset
+            # and belongs to the previous day's vaara (day starts at sunrise).
+            wd_night = (wd_sun - 1) % 7
             _, night_start, _, _ = get_sun_moon_rise_set(day_start_jd - 1.0, lat, lon, alt)
             night_end = sunrise
         else:
+            wd_night = wd_sun
             night_start = sunset
             night_end = next_sunrise
-        frac = _MAANDI_NIGHT_PARTS[wd_sun] / 30.0
+        frac = _MAANDI_NIGHT_PARTS[wd_night] / 30.0
         maandi_jd = night_start + frac * (night_end - night_start)
 
     ayan_val = 0.0 if tropical else get_ayanamsa_value(maandi_jd)
@@ -1150,6 +1206,472 @@ def get_maandi_longitude(jd_ut: float, lat: float, lon: float, alt: float,
         swe.set_sid_mode(_get_sid_mode())
         return (asc_tropical - ayan_val) % 360.0
     return asc_tropical
+
+
+# ---------------------------------------------------------------------------
+# Upapada, Shree and Indu Lagna (Jaimini / special lagnas)
+# ---------------------------------------------------------------------------
+# Indu Lagna kala values (Jātakālaṅkāra / Uttaṟa Kālāmṛta): Sun 30, Moon 16,
+# Mars 6, Mercury 8, Jupiter 10, Venus 12, Saturn 1.  Rahu/Ketu (and the
+# locus grahas) take no kala in this scheme.
+_INDU_KALA = {0: 30, 1: 16, 2: 6, 3: 8, 4: 10, 5: 12, 6: 1}
+
+
+def calculate_special_lagnas(asc_sidereal: float, moon_lon: float,
+                             planets: dict, lang: str = "en") -> dict:
+    """Return Upapada, Shree and Indu Lagna for the natal chart.
+
+    ``planets`` is the D1 planet map (name → ``"rashi"``) produced inside
+    :func:`calculate_kundali`.  All three lagnas are whole-sign; Shree Lagna
+    additionally reports its exact sidereal longitude.
+
+    **Upapada Lagna** (Jaimini): take the 12th sign from the Lagna as the
+    base, count inclusively to the sign held by that sign's lord, then add
+    that same distance again.  If the result lands back on the 12th sign, or
+    on the 6th sign from it, it is moved 9 signs forward.  This matches the
+    mainstream implementation (Jagannātha Horā / PyJHora / desiutils).  A
+    Phala Dīpikā variant additionally moves the Upapada to the 3rd sign
+    whenever the 12th lord occupies the 3rd or the 9th; that variant is
+    documented in the returned ``note`` instead of being applied.
+
+    **Shree Lagna** (Narasimha Rao / mainstream): add to the Lagna the
+    portion of the zodiac the Moon has already crossed within its current
+    nakṣatra (each nakṣatra spans 360/27 = 13⅓°).
+
+    **Indu Lagna** (kala method): add the kala values of the lords of the
+    9th sign from the Lagna and of the 9th sign from the Moon; the remainder
+    modulo 12 is counted inclusively from the Moon sign to mark the wealth
+    Yoga lagna.
+    """
+    asc_rashi = get_rashi(asc_sidereal)
+    moon_rashi = get_rashi(moon_lon)
+
+    # ---- Upapada Lagna ------------------------------------------------
+    h12 = (asc_rashi + 11) % 12
+    lord12 = KalaKosha.RASHI_LORD[h12]
+    lord12_name = KalaKosha.GRAHAS[lang][lord12]
+    lord12_planet = planets.get(lord12_name) or {}
+    lord12_rashi = lord12_planet.get("rashi")
+    if lord12_rashi is None:
+        lord12_rashi = h12
+    dist = (lord12_rashi - h12) % 12
+    upapada_raw = (lord12_rashi + dist) % 12
+    upapada_rashi = upapada_raw
+    ul_note_idx = None
+    if upapada_raw == h12 or upapada_raw == (h12 + 6) % 12:
+        upapada_rashi = (upapada_raw + 9) % 12
+        ul_note_idx = upapada_rashi
+    upapada = {
+        "rashi": upapada_rashi,
+        "rashi_name": KalaKosha.RASIS[lang][upapada_rashi],
+        "from_house": h12,
+        "from_house_name": KalaKosha.RASIS[lang][h12],
+        "lord": lord12_name,
+        "lord_rashi": lord12_rashi,
+        "lord_rashi_name": KalaKosha.RASIS[lang][lord12_rashi],
+        "note": ("Mainstream Jaimini formula (12th-sign Aruḍha). Phala Dīpikā "
+                 "adds: when the 12th lord is in the 3rd or the 9th the "
+                 "Upapada falls in the 3rd." if lang == "en" else
+                 "मुख्य जैमिनी सूत्र (द्वादश भावारूढ़)। फलदीपिका के अनुसार यदि "
+                 "द्वादशेश तृतीय या नवम में हो तो उपपद तृतीय में होता है।"),
+    }
+    if ul_note_idx is not None:
+        upapada["adjusted_to"] = ul_note_idx
+
+    # ---- Shree Lagna --------------------------------------------------
+    shree_lon = (asc_sidereal + (moon_lon % KalaVartika.NAKSHATRA_SPAN) * 27.0) % 360.0
+    shree_rashi = get_rashi(shree_lon)
+    shree = {
+        "rashi": shree_rashi,
+        "rashi_name": KalaKosha.RASIS[lang][shree_rashi],
+        "longitude": round(shree_lon, 4),
+        "degree_in_sign": round(shree_lon - shree_rashi * 30.0, 4),
+        "note": ("Mainstream (Narasimha Rao): Lagna longitude + the nakṣatra "
+                 "portion traversed by the Moon." if lang == "en" else
+                 "मुख्यधारा (नरसिंह राव) विधि: लग्न देशांश + चन्द्र द्वारा तय "
+                 "नक्षत्रांश।"),
+    }
+
+    # ---- Indu Lagna ---------------------------------------------------
+    ninth_lagna_lord = KalaKosha.RASHI_LORD[(asc_rashi + 8) % 12]
+    ninth_moon_lord = KalaKosha.RASHI_LORD[(moon_rashi + 8) % 12]
+    kala_sum = _INDU_KALA[ninth_lagna_lord] + _INDU_KALA[ninth_moon_lord]
+    rem = kala_sum % 12
+    count = rem if rem else 12
+    indu_rashi = (moon_rashi + count - 1) % 12
+    indu = {
+        "rashi": indu_rashi,
+        "rashi_name": KalaKosha.RASIS[lang][indu_rashi],
+        "lagna_ninth_lord": KalaKosha.GRAHAS[lang][ninth_lagna_lord],
+        "lagna_ninth_kala": _INDU_KALA[ninth_lagna_lord],
+        "moon_ninth_lord": KalaKosha.GRAHAS[lang][ninth_moon_lord],
+        "moon_ninth_kala": _INDU_KALA[ninth_moon_lord],
+        "kala_sum": kala_sum,
+        "remainder": count,
+        "note": ("Kala method: sum the kala of the 9th lords from Lagna and "
+                 "Moon, count the remainder inclusively from the Moon sign. "
+                 "Rahu/Ketu take no kala." if lang == "en" else
+                 "कला विधि: लग्न एवं चन्द्र से नवमेशों की कला जोड़कर शेष को "
+                 "चन्द्र राशि से समावेशी गिनते हैं। राहु-केतु की कला नहीं होती।"),
+    }
+
+    return {"upapada": upapada, "shree": shree, "indu": indu}
+
+
+# ---------------------------------------------------------------------------
+# Shadbala (six-fold strength of the grahas) — PVN Rao / PyJHora method
+# ---------------------------------------------------------------------------
+# Maximum (in virūpas) and sign conventions follow Bṛhat Parāśarī Horāśāstra
+# chapter 27 as implemented by PyJHora ("Vedic Astrology – An Integrated
+# Approach" tables).  Rahu and Ketu take part in no classical shadbala; they
+# are reported as 0 with a note.  Sub-tables vary between schools (e.g.
+# Uccha vs Saravali, Abda/Masa lords), so the exact method is named in the
+# returned "note" strings and in every table header.
+_SHAD_VARGAS = [1, 2, 3, 7, 9, 12, 30]
+_SV_THRESHOLDS = {5: 22.5, 4: 15.0, 3: 7.5, 2: 3.75, 1: 1.875}
+# Parāśarī compound relation of planet [p][owner-sign-lord] (5 great friend
+# .. 1 great enemy) from PyJHora const.compound_planet_relations (Sun..Saturn).
+_COMPOUND_RELATIONS = [
+    [-1, 5, 5, 4, 3, 3, 3],             # Sun
+    [5, -1, 2, 5, 2, 2, 4],             # Moon
+    [5, 3, -1, 3, 3, 2, 4],             # Mars
+    [5, 3, 4, -1, 2, 5, 2],             # Mercury
+    [3, 3, 3, 1, -1, 1, 2],             # Jupiter
+    [3, 1, 2, 5, 2, -1, 5],             # Venus
+    [3, 3, 3, 3, 2, 5, -1],             # Saturn
+]
+_ODD_SIGNS = {0, 2, 4, 6, 8, 10}
+_EVEN_SIGNS = {1, 3, 5, 7, 9, 11}
+_DIG_POWERLESS_CUSP = [3, 9, 3, 6, 6, 9, 0]   # ascmc cusp index Sun..Saturn
+_DRESHKON_GROUPS = [(0, 2, 4), (3, 6), (1, 5)]  # p in group[pd] → 15
+_ABDA_WEEKDAYS = [2, 3, 4, 5, 6, 0, 1]          # i → planet index
+_HORA_ORDER = [6, 4, 2, 0, 5, 3, 1]             # weekday i → 1st hora lord
+_HORA_SPEED_MAX = {0: 0.99, 1: 15.0, 2: 0.70, 3: 2.20, 4: 0.22,
+                   5: 1.60, 6: 0.20}
+_NAISARGIKA_BALA = [60.0, 51.43, 17.14, 25.71, 34.29, 42.86, 8.57]
+_SHADBALA_MIN_RUPAS = [5.0, 6.0, 5.0, 7.0, 6.5, 5.5, 5.0]
+_NATURAL_BENEFICS = (1, 3, 4, 5)                # Moon, Mercury, Jupiter, Venus
+_NATURAL_MALEFICS = (0, 2, 6)                   # Sun, Mars, Saturn
+
+
+def _angular_dist(a: float, b: float) -> float:
+    d = abs(a - b) % 360.0
+    return min(d, 360.0 - d)
+
+
+def _planet_declination(jd_ut: float, body_idx: int) -> float:
+    """Ecliptic-declination (degrees) of a classical graha pole at jd_ut."""
+    xx, _ = swe.calc_ut(jd_ut, _PLANET_SWE_IDS[body_idx], swe.FLG_SWIEPH)
+    lon, lat = math.radians(xx[0]), math.radians(xx[1])
+    nuts, _ = swe.calc_ut(jd_ut, swe.ECL_NUT, swe.FLG_SWIEPH)
+    eps = math.radians(nuts[0])
+    sin_dec = (math.sin(eps) * math.cos(lat) * math.sin(lon)
+               + math.sin(lat) * math.cos(eps))
+    return math.degrees(math.asin(max(-1.0, min(1.0, sin_dec))))
+
+
+def _days_since_base(year: int, base_year: int, base_days: int) -> int:
+    """Days elapsed from a reference epoch (BV Raman Balato tables)."""
+    total = year - base_year
+    leaps = 0
+    for y in range(base_year + 1, year + 1):
+        if (y % 4 == 0 and y % 100 != 0) or (y % 400 == 0):
+            leaps += 1
+    return base_days + leaps * 366 + (total - leaps) * 365
+
+
+def calculate_shadbala(jd_ut: float, lat: float, lon: float, alt: float,
+                       tz: float, ayan_val: float, asc_sidereal: float,
+                       ascmc: list, details: dict, lang: str = "en") -> dict:
+    """Six-fold strength (Shad Bala) of the seven classical grahas.
+
+    Returns per-graha components (in virūpas), the total, the total in
+    rūpas (÷60), and whether each graha clears its required minimum rūpas
+    (BPHS thresholds).  Components follow the PVN Rao / PyJHora tables:
+
+    * Sthana — Uccha, Saptavargaja (D1,D2,D3,D7,D9,D12,D30), Ojayugma,
+      Kendradi, Drekkana;
+    * Dig — angular separation from the powerless-point (bhāva madhya);
+    * Kāla — Nathonnata, Pakṣa, Tribhāga, Abda, Masa, Vāra, Horā, Ayana;
+    * Cheṣṭā — apparent daily motion (60 × speed / max speed; Sun & Moon 60);
+    * Naisargika — fixed natural rank [60, 51.43, 17.14, 25.71, 34.29,
+      42.86, 8.57];
+    * Drik — net benefic–malefic Parāśarī sphuṭa aspects.
+
+    ascmc must be the (tropical) Placidus cusps from swe.houses; ayan_val
+    converts them to the sidereal frame used for the diagram.
+    """
+    lagna_rashi = get_rashi(asc_sidereal)
+
+    # Local (civil) clock on the birth day and its sunrise / sunset.
+    local_jd = jd_ut + tz / 24.0
+    day_start_jd = math.floor(local_jd) - tz / 24.0
+    local_hour = (local_jd - math.floor(local_jd)) * 24.0
+    local_dt = _dt.datetime(1970, 1, 1) + _dt.timedelta(
+        days=local_jd - 2440587.5)
+    y, m, d = local_dt.year, local_dt.month, local_dt.day
+    wd = (_dt.date(y, m, d).weekday() + 1) % 7  # Sunday=0
+    sunrise, sunset, _, _ = get_sun_moon_rise_set(day_start_jd, lat, lon, alt)
+    sun_hour = (sunrise - math.floor(sunrise + tz / 24.0) + tz / 24.0 + 1.0) % 24.0
+    set_hour = (sunset - math.floor(sunset + tz / 24.0) + tz / 24.0 + 1.0) % 24.0
+    day_len = 24.0 * (sunset - sunrise)
+    if day_len <= 0.0:
+        day_len = 24.0
+    night_len = 24.0 - day_len
+    if local_hour < sun_hour:
+        wd = (wd - 1) % 7   # vaara runs from sunrise (also used for Horā/Masa)
+        horab = local_hour + 24.0
+    else:
+        horab = local_hour
+    dayborn = sun_hour <= local_hour < set_hour
+
+    sun_lon = details[0][0]
+    moon_lon = details[1][0]
+
+    sthana = [0.0] * 7
+    dig = [0.0] * 7
+    kala = [0.0] * 7
+    chesta = [0.0] * 7
+    naisargika = list(_NAISARGIKA_BALA)
+    drik = [0.0] * 7
+
+    # ---- Sthana Bala -----------------------------------------------
+    uchcha = [0.0] * 7
+    sapth = [0.0] * 7
+    ojayugma = [0.0] * 7
+    kendradi = [0.0] * 7
+    dreshkona = [0.0] * 7
+    for p in range(7):
+        plon = details[p][0]
+        ex_sign = KalaKosha.EXALTATION_SIGN[p]
+        ex_deg = KalaKosha.EXALTATION_DEGREE[p]
+        if ex_sign is not None and ex_deg is not None:
+            debil = ((ex_sign + 6) % 12) * 30.0 + ex_deg
+            uchcha[p] = min(60.0, _angular_dist(plon, debil) / 3.0)
+        for divisor in _SHAD_VARGAS:
+            vs = varga_sign(plon, divisor)
+            owner = KalaKosha.RASHI_LORD[vs]
+            if divisor == 1 and vs == KalaKosha.MOOLATRIKONA_SIGN.get(p):
+                sapth[p] += 45.0
+            elif owner == p:
+                sapth[p] += 30.0
+            else:
+                sapth[p] += _SV_THRESHOLDS[_COMPOUND_RELATIONS[p][owner]]
+        rh = get_rashi(plon)
+        nh = navamsa_sign(plon)
+        if p in (1, 5):
+            if rh in _EVEN_SIGNS:
+                ojayugma[p] += 15.0
+            if nh in _EVEN_SIGNS:
+                ojayugma[p] += 15.0
+        else:
+            if rh in _ODD_SIGNS:
+                ojayugma[p] += 15.0
+            if nh in _ODD_SIGNS:
+                ojayugma[p] += 15.0
+        house = (rh - lagna_rashi) % 12 + 1
+        if house in (1, 4, 7, 10):
+            kendradi[p] = 60.0
+        elif house in (2, 5, 8, 11):
+            kendradi[p] = 30.0
+        else:
+            kendradi[p] = 15.0
+        pd = int((plon % 30.0) // 10.0)
+        if p in _DRESHKON_GROUPS[pd]:
+            dreshkona[p] = 15.0
+        sthana[p] = round(uchcha[p] + sapth[p] + ojayugma[p]
+                          + kendradi[p] + dreshkona[p], 2)
+
+    # ---- Dig Bala ---------------------------------------------------
+    sid_cusps = [(ascmc[h] - ayan_val) % 360.0 for h in range(12)]
+    for p in range(7):
+        powerless_cusp = sid_cusps[_DIG_POWERLESS_CUSP[p]]
+        dig[p] = round(_angular_dist(details[p][0], powerless_cusp) / 3.0, 2)
+
+    # ---- Kala Bala ---------------------------------------------------
+    nathonnata = [0.0] * 7
+    t_diff = abs(local_hour - 12.0) * 5.0
+    for p in (0, 4, 5):
+        nathonnata[p] = round(t_diff, 2)
+    for p in (1, 2, 6):
+        nathonnata[p] = round(60.0 - t_diff, 2)
+    nathonnata[3] = 60.0
+
+    paksha = [0.0] * 7
+    pb = _angular_dist(sun_lon, moon_lon) / 3.0
+    for p in range(7):
+        if p in _NATURAL_BENEFICS:
+            paksha[p] = round(pb, 2)
+        else:
+            paksha[p] = round(60.0 - pb, 2)
+    paksha[1] = round(2.0 * pb, 2)
+
+    tribhaga = [0.0] * 7
+    tribhaga[4] = 60.0  # Guru always full in this table
+    dl3, nl3 = day_len / 3.0, night_len / 3.0
+    if horab < set_hour:            # daytime thirds
+        if horab < sun_hour + dl3:
+            tribhaga[3] = 60.0
+        elif horab < sun_hour + 2.0 * dl3:
+            tribhaga[0] = 60.0
+        else:
+            tribhaga[6] = 60.0
+    else:                           # nighttime thirds (may wrap midnight)
+        if horab < set_hour + nl3:
+            tribhaga[1] = 60.0
+        elif horab < set_hour + 2.0 * nl3:
+            tribhaga[5] = 60.0
+        else:
+            tribhaga[2] = 60.0
+
+    ay = local_dt.year
+    elapsed_in_year = int(day_start_jd - swe.julday(ay, 1, 1, -tz)) + 1
+    ahargana_abda = _days_since_base(ay - 1, 1951, 174) + elapsed_in_year
+    abda = [0.0] * 7
+    abda_day = (int(ahargana_abda // 360.0) * 3 + 1) % 7
+    abda[_ABDA_WEEKDAYS[abda_day]] = 15.0
+
+    masa = [0.0] * 7
+    masa_day = (int(ahargana_abda // 30.0) * 2 + 1) % 7
+    masa[_ABDA_WEEKDAYS[masa_day]] = 30.0
+
+    vara = [0.0] * 7
+    ahargana_vara = _days_since_base(ay - 1, 1827, 244) + elapsed_in_year
+    if local_hour < sun_hour:
+        ahargana_vara -= 1
+    vara[_ABDA_WEEKDAYS[ahargana_vara % 7]] = 45.0
+
+    hora = [0.0] * 7
+    hora_idx = (int(horab - sun_hour) + wd + 1) % 7
+    hora[_HORA_ORDER[hora_idx]] = 60.0
+
+    ayana = [0.0] * 7
+    for p in range(7):
+        dec = _planet_declination(jd_ut, p)
+        a = (24.0 + dec) * 1.25
+        if p == 0:
+            a *= 2.0
+        ayana[p] = round(a, 2)
+
+    for p in range(7):
+        kala[p] = round(nathonnata[p] + paksha[p] + tribhaga[p]
+                        + abda[p] + masa[p] + vara[p] + hora[p] + ayana[p], 2)
+
+    # ---- Chesta Bala -------------------------------------------------
+    for p in range(7):
+        if p in (0, 1):
+            chesta[p] = 60.0
+        else:
+            m = _HORA_SPEED_MAX[p]
+            chesta[p] = round(60.0 * min(1.0, details[p][2] / m), 2)
+
+    # ---- Drik Bala ---------------------------------------------------
+    def drik_value(angle, aspecting):
+        """Parāśarī aspect-value of *aspecting*→*aspected* (PyJHora
+        ``__drik_bala_calc_1``), including special Saturn/Mars/Jupiter."""
+        v = 0.0
+        if 30.0 <= angle < 60.0:
+            v = 0.5 * (angle - 30.0)
+        elif 60.0 <= angle < 90.0:
+            v = (angle - 60.0) + 15.0
+            if aspecting == 6:
+                v += 45.0                       # Saturn 4th
+        elif 90.0 <= angle < 120.0:
+            v = 0.5 * (120.0 - angle) + 30.0
+            if aspecting == 2:
+                v += 15.0                       # Mars 8th
+        elif 120.0 <= angle < 150.0:
+            v = 150.0 - angle
+            if aspecting == 4:
+                v += 30.0                       # Jupiter 5th
+        elif 150.0 <= angle < 180.0:
+            v = 2.0 * (angle - 150.0)
+        elif 180.0 <= angle < 300.0:
+            v = 0.5 * (300.0 - angle)
+            if aspecting == 2 and 210.0 <= angle < 240.0:
+                v += 15.0                       # Mars 8th from Sun
+            elif aspecting == 4 and 240.0 <= angle < 270.0:
+                v += 30.0                       # Jupiter 9th
+            elif aspecting == 6 and 270.0 <= angle < 300.0:
+                v += 45.0                       # Saturn 10th
+        return v
+
+    aspect = {}
+    for p2 in range(7):
+        for p1 in range(7):
+            if p1 == p2:
+                continue
+            a = (details[p2][0] - details[p1][0]) % 360.0
+            aspect.setdefault(p1, {})[p2] = drik_value(a, p1)
+    dkp = [0.0] * 7
+    dkm = [0.0] * 7
+    for p in range(7):            # aspected planet
+        for arow in range(7):     # aspecting planet
+            v = aspect.get(arow, {}).get(p, 0.0)
+            if arow in _NATURAL_BENEFICS:
+                dkp[p] += v
+            elif arow in _NATURAL_MALEFICS:
+                dkm[p] += v
+    for p in range(7):
+        drik[p] = round((dkp[p] - dkm[p]) / 4.0, 2)
+
+    # ---- Compose ------------------------------------------------------
+    names = KalaKosha.GRAHAS[lang]
+    planets_out = {}
+    for p in range(7):
+        total = sthana[p] + dig[p] + kala[p] + chesta[p] + naisargika[p] + drik[p]
+        rupas = round(total / 60.0, 2)
+        minr = _SHADBALA_MIN_RUPAS[p]
+        planets_out[names[p]] = {
+            "name": names[p],
+            "sthana": {
+                "uchcha": uchcha[p],
+                "saptavargaja": sapth[p],
+                "ojayugma": ojayugma[p],
+                "kendradi": kendradi[p],
+                "drekkana": dreshkona[p],
+                "total": sthana[p],
+            },
+            "dig": dig[p],
+            "kala": {
+                "nathonnata": nathonnata[p],
+                "paksha": paksha[p],
+                "tribhaga": tribhaga[p],
+                "abda": abda[p],
+                "masa": masa[p],
+                "vara": vara[p],
+                "hora": hora[p],
+                "ayana": ayana[p],
+                "total": kala[p],
+            },
+            "chesta": chesta[p],
+            "naisargika": naisargika[p],
+            "drik": drik[p],
+            "total": round(total, 2),
+            "rupas": rupas,
+            "minimum_rupas": minr,
+            "strong": rupas >= minr,
+        }
+    note_en = ("PVN Rao / PyJHora tables. Cheșță from apparent speed "
+               "(Sun & Moon 60); nodes have no classical Shadbala.")
+    note_iast = ("PVN Rao / PyJHora tables. Cheṣṭā from apparent speed "
+                 "(Sūrya & Candra 60); Rāhu/Keṭu have no classical Shadbala.")
+    note_dev = ("पीवीएन राव / PyJHora तालिकाएँ। चेष्टा गति से; राहु-केतु को "
+                "शास्त्रीय षड्बल प्राप्त नहीं।")
+    note = {"en": note_en, "iast": note_iast,
+            "devanagari": note_dev}.get(lang, note_en)
+    for n in (names[7], names[8]):
+        planets_out[n] = {
+            "name": n, "sthana": {"total": 0.0}, "dig": 0.0,
+            "kala": {"total": 0.0}, "chesta": 0.0, "naisargika": 0.0,
+            "drik": 0.0, "total": 0.0, "rupas": 0.0, "minimum_rupas": None,
+            "strong": False,
+        }
+    return {
+        "note": note,
+        "method": "PVN Rao / PyJHora tables",
+        "planets": planets_out,
+    }
 
 
 def _planet_dignity(idx: int, sign: int, lang: str = "en") -> tuple[str, str]:
@@ -1549,6 +2071,10 @@ def calculate_kundali(year: int, month: int, day: int,
         "dashas": dashas,
         "karakas": calculate_karakas(planets, lang),
         "ghatak": calculate_ghatak_chakra(moon_rashi, lang),
+        "special_lagnas": calculate_special_lagnas(asc_sidereal, moon_lon,
+                                                  planets, lang),
+        "shadbala": calculate_shadbala(jd_ut, lat, lon, alt, tz, ayan_val,
+                                       asc_sidereal, ascmc, details, lang),
     }
 
 
@@ -2067,11 +2593,31 @@ def calculate_gochara(birth_data: dict, year: int, month: int, day: int,
                     })
 
             if jupiter_rashi is not None:
-                gopuram = (transit_jupiter_rashi - jupiter_rashi) % 12
+                # Guru Gochara is measured as the forward house count from the
+                # natal Guru sign (1 = a return to the natal sign) and from the
+                # natal Lagna (classical Guru-Gochara practice).
+                guru_from_natal = ((transit_jupiter_rashi - jupiter_rashi) % 12) + 1
+                guru_from_lagna = ((transit_jupiter_rashi - natal_lagna_rashi) % 12) + 1
+                transit_guru_sign = KalaKosha.RASIS[lang][transit_jupiter_rashi]
+                natal_guru_sign = KalaKosha.RASIS[lang][jupiter_rashi]
+                if guru_from_natal == 1:
+                    desc = (
+                        f"Guru ({transit_guru_sign}) has returned to its natal "
+                        f"sign ({natal_guru_sign}) — Sva-kshetra, a strongly "
+                        f"beneficial Guru Gochara. It transits the "
+                        f"{_ordinal(guru_from_lagna)} house from the natal Lagna."
+                    )
+                else:
+                    desc = (
+                        f"Guru ({transit_guru_sign}) transits the "
+                        f"{_ordinal(guru_from_natal)} house from its natal sign "
+                        f"({natal_guru_sign}) and the {_ordinal(guru_from_lagna)} "
+                        f"house from the natal Lagna."
+                    )
                 yogas.append({
                     "name": "Guru Gochara",
                     "severity": "medium",
-                    "description": f"Guru ({KalaKosha.RASIS[lang][transit_jupiter_rashi]}) is {abs(gopuram) if gopuram <= 6 else 12 - gopuram} house(s) from its natal position ({KalaKosha.RASIS[lang][jupiter_rashi]}).",
+                    "description": desc,
                 })
 
             # Guru from natal lagna (general benefic transit)

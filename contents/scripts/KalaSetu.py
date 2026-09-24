@@ -995,6 +995,15 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
                     "alt": alt
                 })
             save_custom_cities(customs)
+            # Remember this city as the currently selected location so that
+            # /config reports it back to the Settings panel.
+            coords = load_last_coordinates() or {}
+            coords["lat"] = lat
+            coords["lon"] = lon
+            coords["alt"] = alt
+            coords["tz"] = tz
+            coords["city"] = name
+            save_last_coordinates(coords)
             self.send_json_response(200, {"success": True})
         except Exception as e:
             self.send_json_response(500, {"error": str(e)})

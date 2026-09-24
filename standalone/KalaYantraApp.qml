@@ -26,6 +26,7 @@ Window {
             property string tithiMode: "traditional"
             property string ayanamsa: "lahiri"
             property string cityName: ""
+            property string locationName: ""
         }
     }
 
@@ -195,6 +196,7 @@ Window {
         plasmoid.configuration.tithiMode = data.tithi_mode || plasmoid.configuration.tithiMode;
         plasmoid.configuration.ayanamsa = data.ayanamsa || plasmoid.configuration.ayanamsa;
         if (data.city) plasmoid.configuration.cityName = data.city;
+        if (data.city) plasmoid.configuration.locationName = data.city;
         if (data.city) {
             root.title = (plasmoid.configuration.lang === "devanagari") ? "कालयन्त्र – " + data.city : "Kālayantra – " + data.city;
         }

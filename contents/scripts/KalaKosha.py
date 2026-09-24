@@ -365,10 +365,10 @@ RASIS = {
 GRAHAS = {
     "en": ["Surya", "Chandra", "Mangala", "Budha", "Guru",
            "Shukra", "Shani", "Rahu", "Ketu",
-           "Uranus", "Neptune", "Pluto", "Maandi"],
+           "Aruna", "Varuna", "Yama", "Maandi"],
     "iast": ["Sūrya", "Candra", "Maṅgala", "Budha", "Guru",
              "Śukra", "Śani", "Rāhu", "Ketu",
-             "Aruna", "Varuṇa", "Pluto", "Māndi"],
+             "Aruna", "Varuṇa", "Yama", "Māndi"],
     "devanagari": ["सूर्य", "चन्द्र", "मङ्गल", "बुध", "गुरु",
                    "शुक्र", "शनि", "राहु", "केतु",
                    "अरुण", "वरुण", "यम", "मान्दि"],
