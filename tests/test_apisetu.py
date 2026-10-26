@@ -138,6 +138,7 @@ def test_http_basic():
     dispatch = {"'/day": None}  # placeholder
     for p in ("/day", "/month", "/range", "/search_city", "/kundali", "/hora",
               "/muhurta", "/ashtakoota", "/analysis", "/gochara", "/bodha",
+              "/tithi", "/api/v1/tithi",
               "/api/v1/bodha", "/get_custom_observances", "/save_custom_observance",
               "/delete_custom_observance", "/get_reminders", "/save_reminder",
               "/delete_reminder", "/evaluate_reminders", "/system_info", "/config",
@@ -147,6 +148,31 @@ def test_http_basic():
     st, body = get("/docs")
     html = body.decode("utf-8", "replace")
     check("/docs serves HTML with /gochara row", "<code>/gochara</code>" in html)
+
+    st, body = get("/tithi", {"date": "12-09-2026", "tz": "5.5"})
+    tithi_day = json.loads(body)
+    check("/tithi by date returns stable fields",
+          st == 200 and tithi_day.get("date") == "12-09-2026" and
+          tithi_day.get("tithi") and "tithi_idx" in tithi_day)
+
+    st, body = get("/tithi", {"tithi": "Ekadashi", "paksha": "Shukla",
+                              "year": "2026", "tz": "5.5"})
+    tithi_dates = json.loads(body)
+    check("/tithi inverse lookup returns Gregorian dates",
+          st == 200 and tithi_dates.get("count", 0) > 0 and
+          all("date" in row and row.get("tithi") for row in tithi_dates.get("matches", [])))
+
+    st, body = get("/api/v1/tithi", {"tithi": "Ekādaśī", "paksha": "Kṛṣṇa",
+                                     "year": "2026", "tz": "5.5", "lang": "iast"})
+    iast_dates = json.loads(body)
+    check("versioned tithi lookup accepts IAST names",
+          st == 200 and iast_dates.get("count", 0) > 0)
+
+    try:
+        get("/tithi", {"date": "31-02-2026"})
+        check("/tithi rejects impossible dates", False)
+    except urllib.error.HTTPError as e:
+        check("/tithi rejects impossible dates", e.code == 400)
 
 
 def test_http_post():
