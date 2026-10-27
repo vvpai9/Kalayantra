@@ -25,6 +25,7 @@ import KalaKosha
 CONFIG_DIR = os.path.expanduser("~/.config/kalayantra")
 CUSTOM_CITIES_PATH = os.path.join(CONFIG_DIR, "custom_cities.json")
 CUSTOM_OBSERVANCES_PATH = os.path.join(CONFIG_DIR, "custom_observances.json")
+MY_TITHIS_PATH = os.path.join(CONFIG_DIR, "my_tithis.json")
 REMINDERS_PATH = os.path.join(CONFIG_DIR, "reminders.json")
 NOTIFICATION_CACHE_PATH = os.path.join(CONFIG_DIR, "notification_cache.json")
 LAST_COORDS_PATH = os.path.join(CONFIG_DIR, "last_coordinates.json")
@@ -156,6 +157,7 @@ class ConfigManager:
         for path, default in [
             (CUSTOM_CITIES_PATH, []),
             (CUSTOM_OBSERVANCES_PATH, []),
+            (MY_TITHIS_PATH, []),
             (REMINDERS_PATH, []),
             (NOTIFICATION_CACHE_PATH, {"date": "", "sent": []}),
             (LAST_COORDS_PATH, {"lat": 23.1765, "lon": 75.7885, "alt": 0.0, "tz": 5.5, "calendar_system": "shaka", "month_system": "amavasyanta", "lang": "en"}),
@@ -195,6 +197,7 @@ class ConfigManager:
         mtimes_changed = False
         files_to_check = {
             "custom_obs": CUSTOM_OBSERVANCES_PATH,
+            "my_tithis": MY_TITHIS_PATH,
             "private_obs": os.path.join(CONFIG_DIR, "private", "private_observances.json"),
             "private_tithis": os.path.join(CONFIG_DIR, "private", "private_tithis.json")
         }
@@ -251,16 +254,25 @@ class ConfigManager:
         private_list = []
         private_dir = os.path.join(CONFIG_DIR, "private")
         
-        for fn in ["private_observances.json", "private_tithis.json"]:
-            p_path = os.path.join(private_dir, fn)
+        paths = [
+            MY_TITHIS_PATH,
+            os.path.join(private_dir, "private_observances.json"),
+            os.path.join(private_dir, "private_tithis.json"),
+            os.path.join(private_dir, "my_tithis.json"),
+        ]
+        for p_path in paths:
             if os.path.exists(p_path):
                 try:
                     with open(p_path, "r", encoding="utf-8") as f:
                         data = json.load(f)
                         if isinstance(data, list):
                             private_list.extend(data)
+                        elif isinstance(data, dict):
+                            entries = data.get("tithis") or data.get("observances") or data.get("items")
+                            if isinstance(entries, list):
+                                private_list.extend(entries)
                 except Exception as e:
-                    logger.warning(f"Failed to load private file {fn}: {e}")
+                    logger.warning(f"Failed to load custom tithi file {p_path}: {e}")
                     
         if not private_list:
             self._all_observances_cache = public_obs

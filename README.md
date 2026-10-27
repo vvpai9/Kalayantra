@@ -312,6 +312,12 @@ curl "http://127.0.0.1:8642/range?start=01-08-2026&end=28-08-2026"
 curl "http://127.0.0.1:8642/range?start=01-01-2026&end=31-12-2026&format=csv" -o year-2026.csv
 ```
 
+Custom lunar observances are loaded from `~/.config/kalayantra/custom_observances.json` and
+`~/.config/kalayantra/my_tithis.json` (the legacy private locations
+`private/private_tithis.json` and `private/my_tithis.json` are also supported). Matching entries
+are returned in each day's `festivals` array with type `My Tithi`, so the calendar view marks them
+with the custom-observance indicator.
+
 #### `GET /kundali` — natal chart
 
 ```bash

@@ -155,6 +155,23 @@ def test_http_basic():
           st == 200 and tithi_day.get("date") == "12-09-2026" and
           tithi_day.get("tithi") and "tithi_idx" in tithi_day)
 
+    custom_path = os.path.join(_TMP_HOME, ".config", "kalayantra", "my_tithis.json")
+    os.makedirs(os.path.dirname(custom_path), exist_ok=True)
+    with open(custom_path, "w", encoding="utf-8") as fh:
+        json.dump({"tithis": [{
+            "title": "API Test Tithi",
+            "masa": d["masa"],
+            "paksha": d["paksha"],
+            "tithi": d["tithi"],
+            "system": "amavasyanta",
+        }]}, fh)
+    st, body = get("/day", {"date": "12-09-2026", "tz": "5.5", "_t": str(time.time())})
+    custom_day = json.loads(body)
+    check("my_tithis.json observance is returned as festival",
+          st == 200 and any(f.get("name") == "API Test Tithi"
+                            and f.get("type") == "My Tithi"
+                            for f in custom_day.get("festivals", [])))
+
     st, body = get("/tithi", {"tithi": "Ekadashi", "paksha": "Shukla",
                               "year": "2026", "tz": "5.5"})
     tithi_dates = json.loads(body)
