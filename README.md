@@ -279,6 +279,25 @@ curl "http://127.0.0.1:8642/day?date=12-09-2026&lat=16.3067&lon=80.4365&tz=5.5&l
 Returns the full day Panchanga: tithi, masa, nakshatra, yoga, karana, vaara, sunrise/sunset with
 moonrise/moonset, festivals & observances, plus detail=true for the long-form report.
 
+#### `GET /tithi` — tithi by Gregorian date or inverse date lookup
+
+Fetch the tithi observed on one Gregorian date:
+
+```bash
+curl "http://127.0.0.1:8642/tithi?date=12-09-2026&lat=16.3067&lon=80.4365&tz=5.5"
+```
+
+Find Gregorian dates for a named tithi. A named tithi matches both pakshas unless `paksha` is
+provided; use `tithi=1` through `tithi=30` for an exact tithi index:
+
+```bash
+curl "http://127.0.0.1:8642/tithi?tithi=Ekadashi&paksha=Shukla&year=2026&tz=5.5"
+```
+
+The inverse response contains `count` and a `matches` array with `date`, `tithi`, `paksha`,
+`masa`, and transition fields. Searches accept `start`/`end` or `start`/`days` and are limited to
+372 days. The versioned alias is `/api/v1/tithi`.
+
 #### `GET /month` — a whole month
 
 ```bash
@@ -292,6 +311,12 @@ curl "http://127.0.0.1:8642/month?year=2026&month=9&format=csv" -o bhadrapada-20
 curl "http://127.0.0.1:8642/range?start=01-08-2026&end=28-08-2026"
 curl "http://127.0.0.1:8642/range?start=01-01-2026&end=31-12-2026&format=csv" -o year-2026.csv
 ```
+
+Custom lunar observances are loaded from `~/.config/kalayantra/custom_observances.json` and
+`~/.config/kalayantra/my_tithis.json` (the legacy private locations
+`private/private_tithis.json` and `private/my_tithis.json` are also supported). Matching entries
+are returned in each day's `festivals` array with type `My Tithi`, so the calendar view marks them
+with the custom-observance indicator.
 
 #### `GET /kundali` — natal chart
 

@@ -14,6 +14,7 @@ import uuid
 import threading
 import time
 import subprocess
+import unicodedata
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
@@ -24,6 +25,7 @@ import KalaKosha
 CONFIG_DIR = os.path.expanduser("~/.config/kalayantra")
 CUSTOM_CITIES_PATH = os.path.join(CONFIG_DIR, "custom_cities.json")
 CUSTOM_OBSERVANCES_PATH = os.path.join(CONFIG_DIR, "custom_observances.json")
+MY_TITHIS_PATH = os.path.join(CONFIG_DIR, "my_tithis.json")
 REMINDERS_PATH = os.path.join(CONFIG_DIR, "reminders.json")
 NOTIFICATION_CACHE_PATH = os.path.join(CONFIG_DIR, "notification_cache.json")
 LAST_COORDS_PATH = os.path.join(CONFIG_DIR, "last_coordinates.json")
@@ -57,6 +59,46 @@ def parse_request_datetime(s, param="date"):
         return datetime.datetime.strptime(text, DATE_FORMAT)
     except ValueError:
         raise KalaDateError('Invalid {0} "{1}" — expected a real date in DD-MM-YYYY format'.format(param, text))
+
+
+def _normalise_name(value):
+    """Make user-entered Sanskrit/English names comparable."""
+    decomposed = unicodedata.normalize("NFKD", str(value or "")).casefold()
+    return " ".join("".join(ch for ch in decomposed
+                             if unicodedata.category(ch) != "Mn").split())
+
+
+def parse_tithi_query(value):
+    """Return a zero-based tithi index from a name or 1-based numeric value."""
+    text = str(value or "").strip()
+    if not text:
+        raise KalaDateError('Missing required "tithi" parameter')
+    if text.isdigit():
+        number = int(text)
+        if 1 <= number <= 30:
+            return number - 1
+        raise KalaDateError('Invalid tithi number "{}" — expected 1-30'.format(text))
+
+    aliases = {
+        "shashthi": "shashthi", "sashti": "shashthi", "षष्ठी": "shashthi",
+        "pratipada": "pratipada", "pratipadha": "pratipada",
+        "dwitiya": "dwitiya", "dvitiya": "dwitiya",
+        "tritiya": "tritiya", "chaturthi": "chaturthi",
+        "panchami": "panchami", "saptami": "saptami", "ashtami": "ashtami",
+        "navami": "navami", "dashami": "dashami",
+        "ekadashi": "ekadashi", "ekadasi": "ekadashi",
+        "dwadashi": "dwadashi", "dvadasi": "dwadashi",
+        "trayodashi": "trayodashi", "trayodasi": "trayodashi",
+        "chaturdashi": "chaturdashi", "caturdasi": "chaturdashi",
+        "purnima": "purnima",
+        "amavasya": "amavasya", "amavas": "amavasya",
+    }
+    key = aliases.get(_normalise_name(text), _normalise_name(text))
+    for language_names in KalaKosha.TITHIS.values():
+        for idx, name in enumerate(language_names):
+            if _normalise_name(name) == key:
+                return idx
+    raise KalaDateError('Unknown tithi "{}"'.format(text))
 
 # Columns exported in CSV format (used by /range, /month and /day with format=csv)
 CSV_COLUMNS = [
@@ -115,6 +157,7 @@ class ConfigManager:
         for path, default in [
             (CUSTOM_CITIES_PATH, []),
             (CUSTOM_OBSERVANCES_PATH, []),
+            (MY_TITHIS_PATH, []),
             (REMINDERS_PATH, []),
             (NOTIFICATION_CACHE_PATH, {"date": "", "sent": []}),
             (LAST_COORDS_PATH, {"lat": 23.1765, "lon": 75.7885, "alt": 0.0, "tz": 5.5, "calendar_system": "shaka", "month_system": "amavasyanta", "lang": "en"}),
@@ -154,6 +197,7 @@ class ConfigManager:
         mtimes_changed = False
         files_to_check = {
             "custom_obs": CUSTOM_OBSERVANCES_PATH,
+            "my_tithis": MY_TITHIS_PATH,
             "private_obs": os.path.join(CONFIG_DIR, "private", "private_observances.json"),
             "private_tithis": os.path.join(CONFIG_DIR, "private", "private_tithis.json")
         }
@@ -210,16 +254,25 @@ class ConfigManager:
         private_list = []
         private_dir = os.path.join(CONFIG_DIR, "private")
         
-        for fn in ["private_observances.json", "private_tithis.json"]:
-            p_path = os.path.join(private_dir, fn)
+        paths = [
+            MY_TITHIS_PATH,
+            os.path.join(private_dir, "private_observances.json"),
+            os.path.join(private_dir, "private_tithis.json"),
+            os.path.join(private_dir, "my_tithis.json"),
+        ]
+        for p_path in paths:
             if os.path.exists(p_path):
                 try:
                     with open(p_path, "r", encoding="utf-8") as f:
                         data = json.load(f)
                         if isinstance(data, list):
                             private_list.extend(data)
+                        elif isinstance(data, dict):
+                            entries = data.get("tithis") or data.get("observances") or data.get("items")
+                            if isinstance(entries, list):
+                                private_list.extend(entries)
                 except Exception as e:
-                    logger.warning(f"Failed to load private file {fn}: {e}")
+                    logger.warning(f"Failed to load custom tithi file {p_path}: {e}")
                     
         if not private_list:
             self._all_observances_cache = public_obs
@@ -635,6 +688,8 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
     def dispatch(self, path, query):
         endpoints = {
             '/day': self.handle_day,
+            '/tithi': self.handle_tithi,
+            '/api/v1/tithi': self.handle_tithi,
             '/month': self.handle_month,
             '/range': self.handle_range,
             '/config': self.handle_config,
@@ -680,6 +735,8 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
             try:
                 handler(query)
             except KalaDateError as e:
+                self.send_json_response(400, {"error": str(e), "message": str(e), "success": False})
+            except ValueError as e:
                 self.send_json_response(400, {"error": str(e), "message": str(e), "success": False})
         else:
             self.send_response(404)
@@ -812,6 +869,150 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
             raise
         except Exception as e:
             self.send_json_response(500, {"error": str(e)})
+
+    def handle_tithi(self, query):
+        """Return a day's tithi or find Gregorian dates matching a tithi.
+
+        ``GET /tithi?date=DD-MM-YYYY`` is a stable machine-facing alias for
+        the tithi fields in ``/day``.  ``GET /tithi?tithi=Ekadashi`` searches
+        an inclusive Gregorian range (up to 372 days), optionally filtered by
+        paksha and masa.
+        """
+        lat = float(query.get('lat', [23.1765])[0])
+        lon = float(query.get('lon', [75.7885])[0])
+        alt = float(query.get('alt', [0.0])[0])
+        tz = float(query.get('tz', [5.5])[0])
+        if not -90 <= lat <= 90 or not -180 <= lon <= 180:
+            raise KalaDateError("lat must be between -90 and 90 and lon between -180 and 180")
+        if not -14 <= tz <= 14:
+            raise KalaDateError("tz must be between -14 and 14 hours")
+
+        options = {
+            "tithi_mode": query.get('tithi_mode', ['traditional'])[0],
+            "calendar_system": query.get('calendar_system', ['shaka'])[0],
+            "month_system": query.get('month_system', ['amavasyanta'])[0],
+            "lang": query.get('lang', ['en'])[0],
+        }
+        if options["lang"] not in KalaKosha.TITHIS:
+            raise KalaDateError('Unsupported lang "{}"'.format(options["lang"]))
+
+        date_value = query.get('date', [None])[0]
+        tithi_value = query.get('tithi', [None])[0]
+        if date_value:
+            dt = parse_request_datetime(date_value, "date")
+            astro = KalaChakra.calculate_panchanga(
+                dt.year, dt.month, dt.day, tz, lat, lon, alt,
+                options["tithi_mode"], options["calendar_system"],
+                options["month_system"], options["lang"],
+            )
+            result = {
+                "date": astro["date"],
+                "tithi": astro["tithi"],
+                "tithi_1": astro["tithi_1"],
+                "tithi_1_end": astro["tithi_1_end"],
+                "tithi_2": astro["tithi_2"],
+                "tithi_2_end": astro["tithi_2_end"],
+                "active_tithi": astro["active_tithi"],
+                "tithi_idx": astro["tithi_idx"],
+                "tithi_num": astro["tithi_num"],
+                "paksha": astro["paksha"],
+                "is_krishna_paksha": astro["is_krishna_paksha"],
+                "masa": astro["masa"],
+                "calendar_system": options["calendar_system"],
+                "month_system": options["month_system"],
+                "location": {"lat": lat, "lon": lon, "alt": alt, "tz": tz},
+            }
+            self.send_json_response(200, result)
+            return
+
+        if not tithi_value:
+            raise KalaDateError('Provide either "date" or "tithi"')
+        requested_idx = parse_tithi_query(tithi_value)
+        requested_paksha = _normalise_name(query.get('paksha', [''])[0])
+        paksha_aliases = {
+            "shukla": "shukla", "sukla": "shukla", "śukla": "shukla",
+            "krishna": "krishna", "krsna": "krishna", "kṛṣṇa": "krishna",
+        }
+        requested_paksha = paksha_aliases.get(requested_paksha, requested_paksha)
+        if requested_paksha and requested_paksha not in ("shukla", "krishna"):
+            raise KalaDateError('paksha must be "Shukla" or "Krishna"')
+        # A named tithi without paksha means either fortnight; numeric 1-30
+        # remains an exact index so automation can address every tithi.
+        named_tithi = not str(tithi_value).strip().isdigit()
+        if named_tithi and requested_idx < 15:
+            requested_indices = [requested_idx] if requested_paksha == "shukla" else [requested_idx + 15] if requested_paksha == "krishna" else [requested_idx, requested_idx + 15]
+        else:
+            requested_indices = [requested_idx]
+        requested_name = KalaKosha.TITHIS[options["lang"]][requested_idx]
+        requested_masa = _normalise_name(query.get('masa', [''])[0])
+
+        year_value = query.get('year', [None])[0]
+        if year_value:
+            try:
+                year = int(year_value)
+                start_dt = datetime.datetime(year, 1, 1)
+                end_dt = datetime.datetime(year, 12, 31)
+            except (TypeError, ValueError):
+                raise KalaDateError('Invalid year "{}"'.format(year_value))
+        else:
+            start_value = query.get('start', [None])[0]
+            start_dt = parse_request_datetime(start_value, "start") if start_value else datetime.datetime.now()
+            end_value = query.get('end', [None])[0]
+            if end_value:
+                end_dt = parse_request_datetime(end_value, "end")
+            else:
+                try:
+                    count = int(query.get('days', ['372'])[0])
+                except ValueError:
+                    raise KalaDateError('"days" must be an integer')
+                if count < 1:
+                    raise KalaDateError('"days" must be at least 1')
+                end_dt = start_dt + datetime.timedelta(days=count - 1)
+
+        if end_dt < start_dt:
+            raise KalaDateError("end must be on or after start")
+        total_days = (end_dt - start_dt).days + 1
+        if total_days > 372:
+            raise KalaDateError("tithi search limited to 372 days at a time")
+
+        matches = []
+        day = start_dt
+        while day <= end_dt:
+            astro = KalaChakra.calculate_panchanga(
+                day.year, day.month, day.day, tz, lat, lon, alt,
+                options["tithi_mode"], options["calendar_system"],
+                options["month_system"], options["lang"],
+            )
+            astro_paksha = "krishna" if astro["is_krishna_paksha"] else "shukla"
+            astro_masa = _normalise_name(astro["masa"])
+            masa_matches = not requested_masa or astro_masa == requested_masa or astro_masa.endswith(" " + requested_masa)
+            if astro["tithi_idx"] in requested_indices and (
+                    not requested_paksha or astro_paksha == requested_paksha) and masa_matches:
+                matches.append({
+                    "date": astro["date"],
+                    "tithi": astro["tithi"],
+                    "tithi_idx": astro["tithi_idx"],
+                    "tithi_num": astro["tithi_num"],
+                    "paksha": astro["paksha"],
+                    "masa": astro["masa"],
+                    "tithi_1_end": astro["tithi_1_end"],
+                    "tithi_2": astro["tithi_2"],
+                    "tithi_2_end": astro["tithi_2_end"],
+                })
+            day += datetime.timedelta(days=1)
+
+        self.send_json_response(200, {
+            "query": {
+                "tithi": requested_name,
+                "tithi_idx": requested_idx,
+                "paksha": query.get('paksha', [''])[0] or None,
+                "masa": query.get('masa', [''])[0] or None,
+                "start": start_dt.strftime(DATE_FORMAT),
+                "end": end_dt.strftime(DATE_FORMAT),
+            },
+            "count": len(matches),
+            "matches": matches,
+        })
 
     def handle_month(self, query):
         clean_query = {k: v for k, v in query.items() if k not in ('_t', '_')}
@@ -1865,6 +2066,12 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
             ("lang", "en | iast | devanagari"),
             ("format", "json | csv"),
         ]
+        tithi_params = common_params + [
+            ("tithi", "Tithi name (e.g. Ekadashi) or exact number 1-30; required for lookup"),
+            ("paksha", "Shukla | Krishna; optional for named tithi lookup"),
+            ("masa", "Optional lunar month name filter"),
+            ("year", "Gregorian year shortcut for a full-year lookup"),
+        ]
         kundali_params = [
             ("date", "Birth date DD-MM-YYYY"),
             ("hour", "Birth hour (0-23)"),
@@ -1918,6 +2125,8 @@ class KalaSetuRequestHandler(BaseHTTPRequestHandler):
         paths = {}
         for path, summary, params, desc, allow_post in [
             ("/day", "Panchanga and festivals for one day", common_params, "Full panchanga JSON/CSV for a single date; requires date. Add detail=true and ayanamsa=... for the Detailed Panchang report (rising graha positions, dina horas and muhurtas).", True),
+            ("/tithi", "Tithi lookup by date or Gregorian range", tithi_params, "With date, returns the tithi for one Gregorian day. With tithi, returns all matching Gregorian dates in start/end, year, or days (maximum 372 days). Named tithis match both pakshas unless paksha is supplied.", True),
+            ("/api/v1/tithi", "Versioned tithi lookup", tithi_params, "Versioned alias of /tithi.", True),
             ("/month", "Panchanga and festivals for a month", common_params, "List of daily panchanga records for year+month.", True),
             ("/range", "Panchanga and festivals for a date range", common_params, "Bulk range endpoint ideal for spreadsheets; use start & end or date & days. Cap 372 days.", True),
             ("/search_city", "Search built-in and custom cities", [("q", "City name fragment")], "Returns city list with lat/lon/tz/alt.", False),
@@ -2009,6 +2218,7 @@ Excel, LibreOffice Calc, Google Sheets (Power Query / API connector), Word mail-
 <table>
 <tr><th>Endpoint</th><th>Description</th></tr>
 <tr><td><span class="badge get">GET</span> <span class="badge post">POST</span> <code>/day</code></td><td>One day: pass <code>date=DD-MM-YYYY</code>. Add <code>detail=true</code> for the Detailed Panchang report (graha positions, horas, muhurtas)</td></tr>
+<tr><td><span class="badge get">GET</span> <span class="badge post">POST</span> <code>/tithi</code></td><td>Pass <code>date=DD-MM-YYYY</code> for that day's tithi, or <code>tithi=Ekadashi&amp;year=2026</code> to find Gregorian dates; add <code>paksha=Shukla|Krishna</code> to disambiguate</td></tr>
 <tr><td><span class="badge get">GET</span> <span class="badge post">POST</span> <code>/month</code></td><td>One month: pass <code>year</code> &amp; <code>month</code></td></tr>
 <tr><td><span class="badge get">GET</span> <span class="badge post">POST</span> <code>/range</code></td><td>Date range (≤372 days): <code>start</code>/<code>end</code> or <code>date</code>/<code>days</code></td></tr>
 <tr><td><span class="badge get">GET</span> <span class="badge post">POST</span> <code>/kundali</code></td><td>Natal chart: <code>date</code>, <code>hour</code>, <code>minute</code>, <code>ayanamsa</code>, <code>lat</code>, <code>lon</code>, <code>tz</code></td></tr>
